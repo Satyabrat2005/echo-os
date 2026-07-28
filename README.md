@@ -212,6 +212,20 @@ Notes on the choices:
 
 ### Building the real stack
 
+The Phase 4 helper scripts automate the dependency bring-up (see
+[Phase 4](#phase-4-real-world-bring-up--validation) below):
+
+```powershell
+# 1. fetch/build whisper.cpp + llama.cpp, download the free models:
+.\scripts\setup_deps.ps1
+#    ...then do the manual steps it prints (OpenCV/SDL2, Piper binary, LLM gguf,
+#    and the account-gated Porcupine key + custom "Hey ECHO" wake word).
+# 2. configure with every ECHO_WITH_* ON, and build:
+.\scripts\build_real.ps1 -PorcupineRoot "<unpacked porcupine sdk>"
+```
+
+Or drive CMake directly:
+
 ```bash
 # Everything on at once (needs all libs installed + models placed):
 cmake -S . -B build -DECHO_REAL_AI=ON
@@ -224,6 +238,14 @@ Point CMake at any dependency that isn't on the default search path with the
 usual variables: `-DOpenCV_DIR=…`, `-DSDL2_DIR=…`, `-Dwhisper_DIR=…`,
 `-Dllama_DIR=…`, and `-DPORCUPINE_ROOT=<unpacked Porcupine SDK>`. See
 [`cmake/echo_ai.cmake`](cmake/echo_ai.cmake) for exactly how each is resolved.
+
+> **llama.cpp API drift.** If the `-DECHO_WITH_LLAMA=ON` build fails on one line
+> in [`cognitive-core/src/llm.cpp`](cognitive-core/src/llm.cpp) — the KV-cache
+> clear (`llama_memory_clear` / `llama_kv_self_clear` / `llama_kv_cache_clear`) —
+> your llama.cpp is a different API revision than the default. Reconfigure with
+> `-DECHO_LLAMA_KV_CLEAR=self` (early–mid 2025) or `=cache` (pre-2025). This is
+> the single call most likely to move between versions; the rest of the adapter
+> targets the current API.
 
 ### Getting the models
 
@@ -310,21 +332,36 @@ are the build-enforced budget from `common/include/echo/latency.hpp`; the
 real runs on your hardware, so this table holds a real number, not a simulated
 one.
 
-| Stage | Target | Measured (your run) |
-|-------|-------:|--------------------:|
-| Perception (wake + ASR) | 45 ms | _fill from `perception_ms`_ |
-| Cognitive (LLM + gate) | 50 ms | _fill from `cognitive_ms`_ |
-| Voice output (TTS start) | 18 ms | _fill from `voice_ms`_ |
-| **End to end** | **120 ms** | _fill from `total_ms`_ |
+Fill this in from **≥20 real end-to-end turns** (Phase 4, Step 4). Columns are
+min / avg / max across the run — copy them straight out of the on-exit summary;
+leave them blank until you have real numbers.
 
-> **Honest note on this deliverable.** The integrated pipeline was verified end
-> to end in **stub/text mode** in the dev sandbox (routing, the safe-mode gate,
-> HUD frames, and latency logging all confirmed working). The **native models**
-> (whisper/llama/Piper/Porcupine/OpenCV) were **not** run in the sandbox — they
-> require the libraries and multi-GB weights installed on the laptop, which is a
-> local step. Real quantized LLM/ASR inference on a laptop CPU will very likely
-> **exceed the 120 ms budget**; when it does, record the actual number here
-> rather than fudging the budget. The `StageTimer` overrun path and this CSV are
+| Stage | Target | Min | Avg | Max | CSV column |
+|-------|-------:|----:|----:|----:|------------|
+| Perception (wake + ASR) | 45 ms | _—_ | _—_ | _—_ | `perception_ms` |
+| Cognitive (LLM + gate) | 50 ms | _—_ | _—_ | _—_ | `cognitive_ms` |
+| Voice output (TTS start) | 18 ms | _—_ | _—_ | _—_ | `voice_ms` |
+| **End to end** | **120 ms** | _—_ | _—_ | _—_ | `total_ms` |
+
+**Gap analysis (fill after the run):** measured end-to-end **___ ms** vs. the
+120 ms target; the dominant stage was **___** (expected: cognitive — quantized
+LLM decode on a laptop CPU). Do **not** adjust the budget to match — record the
+real overrun. Forward-looking options to close the gap, as future work, *not*
+changes made in this phase:
+
+- a smaller / more aggressively quantized instruct model (e.g. 1–3B, Q4 → Q3);
+- streaming ASR instead of batch-on-silence, so transcription overlaps speech;
+- GPU offload (`n_gpu_layers`) where a discrete GPU is available;
+- a lighter wake-word / endpointing path to shave perception ms.
+
+> **Honest note on this deliverable.** Through Phase 3 the integrated pipeline
+> was verified only in **stub/text mode** (routing, the safe-mode gate, HUD
+> frames, and latency logging all confirmed working); the native models were
+> never run in the dev sandbox. Phase 4 is where the real libraries and weights
+> get installed on the laptop and the numbers above become real. Real quantized
+> LLM/ASR inference on a laptop CPU will very likely **exceed the 120 ms
+> budget** — when it does, the number stays as measured and the gap analysis
+> above explains it. The `StageTimer` overrun path and `latency_log.csv` are
 > exactly how that honest number is captured.
 
 ### Swapping in the embedded-hardware versions later
@@ -345,6 +382,67 @@ equivalents **without touching any module's interface** — only the
 Because each real path is a `#if defined(ECHO_WITH_*)` adapter behind an
 unchanged interface, the embedded build just defines a different option and links
 a different `echo::dep-*` — downstream modules never notice.
+
+## Phase 4: real-world bring-up & validation
+
+Phase 4 makes Phase 3 **real**: it installs the actual dependencies on the actual
+laptop, builds with every `ECHO_WITH_*` flag ON, fixes what real library versions
+surface, tunes the engines against real behavior, and records genuine measured
+numbers. No new features. The physical/hardware steps below are done on the
+laptop with a mic, speaker, and webcam in the loop — they can't be run in a
+headless sandbox, so this section is filled in **during** that bring-up, not
+before.
+
+**Ordered bring-up checklist**
+
+1. `.\scripts\setup_deps.ps1` — builds whisper.cpp + llama.cpp, downloads the free
+   models, writes `models/INSTALLED_VERSIONS.md`. Then do its printed manual steps:
+   OpenCV/SDL2 (vcpkg), the Piper binary, an instruct `.gguf`, and — the only
+   account-gated one — the Picovoice **AccessKey + custom "Hey ECHO" `.ppn`**.
+2. `.\scripts\build_real.ps1 -PorcupineRoot <sdk>` — configure all flags ON and
+   build warning-free. If the llama.cpp KV-clear line fails, add
+   `-KvClear self` (or `cache`) — see the note under *Building the real stack*.
+3. `.\scripts\run_demo.ps1` — run the real demo end to end and confirm each item
+   in [Manual test flow](#manual-test-flow) with real hardware.
+4. Run ≥20 real turns, then `.\scripts\analyze_latency.ps1` — it reads
+   `latency_log.csv` and prints the min/avg/max table + gap-analysis line ready to
+   paste into the [latency table](#measured-latency-fill-from-your-run) (it warns
+   if you logged fewer than 20 turns rather than pretend).
+5. Have one **non-founder** use it with no instructions beyond *"say 'Hey ECHO'
+   and talk to it."* Log every failure mode below.
+
+**Installed dependency versions** (Step 1 — fill from `models/INSTALLED_VERSIONS.md`,
+which `setup_deps` generates; document exact versions for the future embedded move):
+
+| Dependency  | Version / commit | Notes |
+|-------------|------------------|-------|
+| Toolchain (MinGW/GCC) | _fill_ | |
+| CMake       | _fill_ | |
+| whisper.cpp | _fill (commit)_ | + `base.en-q5_1` model |
+| llama.cpp   | _fill (commit)_ | KV-clear variant: _current/self/cache_ |
+| OpenCV      | _fill_ | YuNet + SFace |
+| SDL2 / SDL2_ttf | _fill_ | |
+| Piper       | _fill (tag)_ | voice: `en_US-amy-medium` |
+| Porcupine   | _fill (SDK ver)_ | custom "Hey ECHO" `.ppn` |
+| LLM         | _fill (model + quant)_ | e.g. Llama-3.2-3B-Instruct Q4_K_M |
+
+**Wake-word tuning** (Step 3): Porcupine sensitivity starts at the library default
+— record what you actually observe (false accepts vs. missed wakes over a handful
+of tries) and the value you settle on here: _sensitivity = ___ ; rationale: ___._
+
+### Known Issues
+
+Observed failure modes from real runs (Steps 3–5). Keep this **honest and
+populated** rather than falsely clean — an accurate known-issues list is the most
+valuable output of this phase. Fill in as you find them; delete the placeholder
+once real entries exist.
+
+| # | Symptom | Where (stage/app) | Severity | Notes / next step |
+|---|---------|-------------------|----------|-------------------|
+| _—_ | _e.g. wake-word missed at conversational volume_ | _perception_ | _—_ | _—_ |
+
+_First outside-user test:_ tester (non-founder) — _date / who_; top confusions
+observed — _fill in_.
 
 ## Status
 
