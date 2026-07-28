@@ -3,6 +3,7 @@ build/
 build-apps/
 build-check/
 build-real/
+build-verify/
 out/
 cmake-build-*/
 
@@ -19,6 +20,18 @@ models/**
 !models/faces/.gitkeep
 latency_log.csv
 demo_out.txt
+
+# Phase 5: real third-party credentials and cached OAuth tokens. NEVER commit
+# these. `.env` holds API keys/secrets; `.echo-tokens/` holds access/refresh
+# tokens written by the token store. Only `.env.example` (no real values) is tracked.
+.env
+.env.*
+!.env.example
+.echo-tokens/
+*.env
+!.env.example
+# stray test artifacts
+appkit_test.env
 
 # CMake
 CMakeCache.txt

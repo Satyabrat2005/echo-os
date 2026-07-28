@@ -1,50 +1,67 @@
-# Phase 4: real-world bring-up and validation
+# Phase 5: real third-party integrations (code complete; live validation pending)
 
-Makes Phase 3 **real** on the laptop: installs the actual dependencies, builds
-with every `ECHO_WITH_*` flag ON, fixes what real library versions surface, tunes
-against real behavior, and records genuinely measured latency. No new features.
+Replaces the mock Spotify / Gmail / Google-Search / YouTube backends with real
+network-facing ones **behind the exact `IApp` interfaces the apps already exposed**
+— swapping the backend changes not one caller. The `--mock` default is untouched,
+so CI and the stub build stay deterministic and credential-free; real backends are
+opt-in via a new `-DECHO_WITH_NETWORK` CMake option.
 
-> ⚠️ **Before opening this PR, fill the three `TODO` blocks below** with the real
-> results from the hardware run (Steps 3–5). They are intentionally blank here —
-> the numbers and known issues are only real once the demo has actually run on the
-> laptop with a mic, speaker, webcam, and an outside tester.
+> ⚠️ **Read before merging — this PR is honest about what has and hasn't run.**
+> Like the Phase 4 PR (which merged as *"prep … hardware validation pending"*), the
+> code here is written and compile/test-verified, but the **live, credentialed run
+> has not happened**, and it is gated on Phase 4's still-unfilled hardware
+> validation. The three TODO blocks at the bottom are the proof-of-real steps and
+> are intentionally blank. Do not treat this as "the integrations work end to end"
+> until they are filled.
 
-## Code-side bring-up (done, verified in the stub build)
+## What's in this PR (verified in the default stub build)
 
-- **llama.cpp adapter hardened against version drift.** The one call that moves
-  between llama.cpp revisions — the KV-cache clear — now routes through
-  `echo_llama_kv_clear()` and defaults to the current memory API, with a
-  build-time override `-DECHO_LLAMA_KV_CLEAR=self|cache` for older checkouts
-  (`cognitive-core/src/llm.cpp`, `cmake/echo_ai.cmake`). No safe-mode behavior
-  changed.
-- **Route-tag parsing extracted + unit-tested.** `parse_route_tag()` moved into
-  its own always-compiled unit (`cognitive-core/.../route_tag.{hpp,cpp}`) and now
-  tolerates the messy output real models produce (`[route:  Mail ]` → `mail`). New
-  tests in `tests/test_main.cpp` cover the manual-flow utterances and edge cases;
-  they run in the zero-dependency stub build and pass under `ctest`.
-- **Dependency bring-up scripts.** `scripts/setup_deps.ps1` (+ `.sh`) build
-  whisper.cpp/llama.cpp from source, download the freely-available models, and
-  record exact versions to `models/INSTALLED_VERSIONS.md`; `scripts/build_real.ps1`
-  configures all flags ON and builds. Account-gated pieces (Porcupine key + custom
-  "Hey ECHO" wake word) are called out as manual steps, not faked.
-- **Honest latency tooling.** `scripts/analyze_latency.ps1` (+ `.sh`) turns
-  `latency_log.csv` into the README's min/avg/max table and gap-analysis line, and
-  warns when fewer than 20 turns were logged.
-- **README Phase 4 section** with the ordered checklist, an installed-versions
-  table, the restructured latency table, and an honest **Known Issues** section.
+- **`apps/appkit/`** — shared toolkit every real backend links: the single network
+  boundary (`net::IHttpClient`, libcurl behind `ECHO_WITH_NETWORK`), a minimal JSON
+  reader, URL/base64 encoding, `.env`/credential loading, an OAuth token cache
+  (gitignored `.echo-tokens/`), the **confirm-before-action gate**, and headless
+  readability extraction. Everything except the libcurl transport is
+  dependency-free and **unit-tested** (`echo-appkit-tests`).
+- **Real backends** for media (Spotify Web API), mail (Gmail API), search (Google
+  Custom Search), browser (live fetch + on-device readability, reusing the search
+  result set), and video (YouTube Data API). Each app selects a mock or real backend
+  from the same `--mock`/`--real` flag; a missing credential, an absent network
+  transport, a rate limit, a token-refresh failure, or a timeout all **degrade to a
+  calm spoken line, never a crash** (constraint #2).
+- **Confirm-before-send** (constraint #1): `"reply saying …"` stages and speaks the
+  message; only an explicit `"send"`/`"confirm"` sends. Cancel, an unrelated command,
+  or an unrecognized word all **fail safe** — nothing sent, pending cleared (one-shot).
+- **Secret hygiene** (constraint #3): `.env`/`.echo-tokens/` gitignored, only
+  `.env.example` tracked; `scripts/check_secrets.{sh,ps1}` blocks a commit that
+  would leak a key/secret/token.
+- **README Phase 5 section**: how to obtain each credential (and under which
+  account), the OAuth-flow choice + rationale, the manual test flow, and an honest
+  Known Issues table.
 
-## Constraints held (unchanged)
+## Constraints held
 
-- Safe-mode gate, lock-free ring buffer, latency-budget model, and apps isolation
-  untouched. The stub build stays zero-dependency and green; both smoke tests pass.
+- Safe-mode core, apps isolation, latency budget untouched. The stub build stays
+  zero-dependency and green; `echo-appkit-tests` and `echo-apps-smoke` (incl. the
+  new `test_send_email_confirmation_gate`) both pass under `ctest`.
 
-## TODO — real hardware validation (fill before opening the PR)
+## Honesty caveats (do not paper over)
 
-**1. Build with everything ON.** Installed versions:
-<!-- TODO: paste the models/INSTALLED_VERSIONS.md table; note the KV-clear variant that compiled. -->
+- **Live APIs not exercised.** No Spotify/Gmail/Search/YouTube call has run against
+  real credentials. Request-building and response-parsing are unit-tested with a
+  fake HTTP client; the sockets are not.
+- **libcurl branch not compiled here.** The dev environment had no libcurl, so the
+  `-DECHO_WITH_NETWORK=ON` path is written to the documented API but uncompiled —
+  the first real build may need a small fix.
+- **One-time OAuth authorize is a manual paste** for now; `scripts/authorize.*` is
+  a documented TODO.
 
-**2. Measured latency** (≥20 real turns, from `scripts/analyze_latency.ps1`):
-<!-- TODO: paste the min/avg/max table + gap-analysis line. Record the real number even if it exceeds 120 ms. -->
+## TODO — real credentialed validation (fill before this is "done")
 
-**3. First outside-user test + Known Issues:**
-<!-- TODO: who tested (non-founder), top confusions, and the Known Issues list from the README. -->
+**1. Network build compiles.**
+<!-- TODO: paste the `-DECHO_WITH_NETWORK=ON` configure+build result; note libcurl version and any fix needed. -->
+
+**2. Live smoke run** (real creds on the laptop, per README manual test flow):
+<!-- TODO: Spotify playback by voice, a real unread email read aloud, a real search summarized, and the send-email confirm gate end to end. Attach screenshots/logs. -->
+
+**3. Known Issues actually observed:**
+<!-- TODO: the real rate-limit / token-expiry / network-flake failures you hit, replacing the "anticipated" rows in the README. -->
