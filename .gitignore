@@ -2,8 +2,13 @@
 build/
 build-apps/
 build-check/
+build-real/
 out/
 cmake-build-*/
+
+# Phase 4: cloned + built dependencies (whisper.cpp, llama.cpp) and their install
+# prefix, fetched by scripts/setup_deps. Large; rebuilt from source, never committed.
+third_party/
 
 # Phase 3: downloaded local model files (multi-GB; never committed) and run logs.
 # Keep the models/ directory structure and its README, but not the weights.

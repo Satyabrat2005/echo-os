@@ -1,53 +1,50 @@
-# Phase 3: real local AI pipeline + laptop HUD
+# Phase 4: real-world bring-up and validation
 
-Replaces the core pipeline's stubs with **real, fully local, offline** engines and
-adds a **laptop HUD overlay** so the whole loop runs end to end on a laptop:
+Makes Phase 3 **real** on the laptop: installs the actual dependencies, builds
+with every `ECHO_WITH_*` flag ON, fixes what real library versions surface, tunes
+against real behavior, and records genuinely measured latency. No new features.
 
-> webcam + mic → **"Hey ECHO"** wake word → speech-to-text → {face recognition |
-> app routing | LLM reasoning, behind the safe-mode gate} → spoken response (TTS)
-> + HUD subtitle.
+> ⚠️ **Before opening this PR, fill the three `TODO` blocks below** with the real
+> results from the hardware run (Steps 3–5). They are intentionally blank here —
+> the numbers and known issues are only real once the demo has actually run on the
+> laptop with a mic, speaker, webcam, and an outside tester.
 
-## What's wired in
+## Code-side bring-up (done, verified in the stub build)
 
-| Stage | Engine | Where |
-|-------|--------|-------|
-| Wake word | Picovoice **Porcupine** ("Hey ECHO", offline at runtime) | `perception/src/wake_word.*` |
-| Speech-to-text | **whisper.cpp** (quantized base/small.en), batch-on-silence | `perception/src/asr.*` |
-| Reasoning + intent routing | **llama.cpp** (small instruct GGUF), **behind the unchanged safe-mode gate** | `cognitive-core/src/llm.*`, `cognitive_core.cpp` |
-| Text-to-speech | **Piper** (tone → `length_scale`) → SDL audio | `voice-ui/src/voice_ui.cpp` |
-| Face + object | **OpenCV** YuNet + SFace, MobileNet | `perception/src/vision.*` |
-| HUD overlay | borderless always-on-top **SDL2** window (same 3 primitives) | `apps/hud-compositor/src/hud.cpp` |
-| Webcam/mic capture | OpenCV `VideoCapture` + SDL audio, one SPSC lane each | `sensor-pipeline/src/real_sources.cpp` |
-| Integrated demo | `echo-demo` (`run_demo` target + `scripts/run_demo.*`) | `apps/demo/` |
+- **llama.cpp adapter hardened against version drift.** The one call that moves
+  between llama.cpp revisions — the KV-cache clear — now routes through
+  `echo_llama_kv_clear()` and defaults to the current memory API, with a
+  build-time override `-DECHO_LLAMA_KV_CLEAR=self|cache` for older checkouts
+  (`cognitive-core/src/llm.cpp`, `cmake/echo_ai.cmake`). No safe-mode behavior
+  changed.
+- **Route-tag parsing extracted + unit-tested.** `parse_route_tag()` moved into
+  its own always-compiled unit (`cognitive-core/.../route_tag.{hpp,cpp}`) and now
+  tolerates the messy output real models produce (`[route:  Mail ]` → `mail`). New
+  tests in `tests/test_main.cpp` cover the manual-flow utterances and edge cases;
+  they run in the zero-dependency stub build and pass under `ctest`.
+- **Dependency bring-up scripts.** `scripts/setup_deps.ps1` (+ `.sh`) build
+  whisper.cpp/llama.cpp from source, download the freely-available models, and
+  record exact versions to `models/INSTALLED_VERSIONS.md`; `scripts/build_real.ps1`
+  configures all flags ON and builds. Account-gated pieces (Porcupine key + custom
+  "Hey ECHO" wake word) are called out as manual steps, not faked.
+- **Honest latency tooling.** `scripts/analyze_latency.ps1` (+ `.sh`) turns
+  `latency_log.csv` into the README's min/avg/max table and gap-analysis line, and
+  warns when fewer than 20 turns were logged.
+- **README Phase 4 section** with the ordered checklist, an installed-versions
+  table, the restructured latency table, and an honest **Known Issues** section.
 
-## Constraints held (not relaxed)
+## Constraints held (unchanged)
 
-- **Safe-mode gate untouched.** The LLM runs *only after* the confidence
-  threshold passes; a failed/empty generation still falls to the reassuring
-  safe-mode line. The model never guesses.
-- **Everything local.** No network calls for wake word, ASR, reasoning, TTS, or
-  vision. Porcupine's AccessKey is a one-time offline setup step. Mocked services
-  stay mocked.
-- **Apps isolation intact.** The HUD runs on its own thread and `present()` only
-  copies a frame; the apps layer is reached only via the Router / voice bridge /
-  HUD compositor — never core internals.
-- **Zero-dependency build preserved.** Every engine is behind an `ECHO_WITH_*`
-  option defaulting **OFF** (`-DECHO_REAL_AI=ON` flips them all). The stub build
-  still compiles on any toolchain and the reference `echo-os` binary + CI stay
-  deterministic. Both smoke tests pass.
+- Safe-mode gate, lock-free ring buffer, latency-budget model, and apps isolation
+  untouched. The stub build stays zero-dependency and green; both smoke tests pass.
 
-## Verification & honest latency note
+## TODO — real hardware validation (fill before opening the PR)
 
-The integrated pipeline was verified end to end in **stub/text mode**: routing
-("play some music" → media app), the **safe-mode gate** (unknown question →
-reassuring fallback + caregiver flag), HUD frames, and per-turn latency logging
-all confirmed working; both `ctest` smoke tests pass.
+**1. Build with everything ON.** Installed versions:
+<!-- TODO: paste the models/INSTALLED_VERSIONS.md table; note the KV-clear variant that compiled. -->
 
-The **native models** (whisper/llama/Piper/Porcupine/OpenCV) were **not** run in
-CI — they need the libraries + multi-GB weights installed locally. Real quantized
-LLM/ASR on a laptop CPU will likely exceed the 120 ms budget; the demo writes
-real per-turn timings to `latency_log.csv` and the README latency table is left
-for those numbers to be filled from an actual run rather than fabricated.
+**2. Measured latency** (≥20 real turns, from `scripts/analyze_latency.ps1`):
+<!-- TODO: paste the min/avg/max table + gap-analysis line. Record the real number even if it exceeds 120 ms. -->
 
-See the README **"Phase 3: Real Local AI"** section for model download/setup, the
-manual test flow, and swap-to-hardware guidance.
+**3. First outside-user test + Known Issues:**
+<!-- TODO: who tested (non-founder), top confusions, and the Known Issues list from the README. -->

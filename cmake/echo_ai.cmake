@@ -77,7 +77,22 @@ if(ECHO_WITH_LLAMA)
     target_link_libraries(echo-dep-llama INTERFACE llama)
     add_library(echo::dep-llama ALIAS echo-dep-llama)
     target_compile_definitions(echo-project-options INTERFACE ECHO_WITH_LLAMA=1)
-    message(STATUS "ECHO: llama.cpp reasoning enabled")
+
+    # The KV-cache clear call is the one symbol that moved across llama.cpp API
+    # revisions; which one compiles depends on your checkout. Default to the
+    # current memory API; flip this if the LLM build fails on that single line.
+    #   current : llama_memory_clear(llama_get_memory(ctx), true)   (mid-2025+)
+    #   self    : llama_kv_self_clear(ctx)                          (early–mid 2025)
+    #   cache   : llama_kv_cache_clear(ctx)                         (pre-2025)
+    set(ECHO_LLAMA_KV_CLEAR "current" CACHE STRING
+        "llama.cpp KV-clear API variant: current | self | cache")
+    set_property(CACHE ECHO_LLAMA_KV_CLEAR PROPERTY STRINGS current self cache)
+    if(ECHO_LLAMA_KV_CLEAR STREQUAL "self")
+        target_compile_definitions(echo-project-options INTERFACE ECHO_LLAMA_KV_CLEAR_SELF=1)
+    elseif(ECHO_LLAMA_KV_CLEAR STREQUAL "cache")
+        target_compile_definitions(echo-project-options INTERFACE ECHO_LLAMA_KV_CLEAR_CACHE=1)
+    endif()
+    message(STATUS "ECHO: llama.cpp reasoning enabled (KV-clear=${ECHO_LLAMA_KV_CLEAR})")
 endif()
 
 # --- OpenCV ------------------------------------------------------------------

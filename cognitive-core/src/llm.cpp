@@ -1,5 +1,6 @@
 #include "llm.hpp"
 
+#include "echo/cognitive/route_tag.hpp"
 #include "echo/config.hpp"
 #include "echo/log.hpp"
 
@@ -31,21 +32,19 @@ constexpr const char* kSystemPrompt =
 
 #if defined(ECHO_WITH_LLAMA)
 
-// Pull a leading "[route:xxx]" tag out of the model's text, returning the intent
-// and stripping it from the spoken reply.
-std::string extract_route(std::string& text) {
-    const std::string open = "[route:";
-    auto p = text.find(open);
-    if (p == std::string::npos) return {};
-    auto close = text.find(']', p);
-    if (close == std::string::npos) return {};
-    std::string intent = text.substr(p + open.size(), close - (p + open.size()));
-    text.erase(p, close - p + 1);
-    // trim leading whitespace left behind
-    text.erase(text.begin(), std::find_if(text.begin(), text.end(),
-               [](unsigned char c) { return !std::isspace(c); }));
-    for (auto& c : intent) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return intent;
+// KV-cache clearing moved across llama.cpp API revisions, and which symbol exists
+// depends entirely on the commit you built against — this is the one call most
+// likely to break the ECHO_WITH_LLAMA build. We default to the current memory
+// API; if your installed llama.cpp predates the mid-2025 memory refactor, build
+// with -DECHO_LLAMA_KV_CLEAR=self (or =cache for pre-2025). See README "Phase 4".
+inline void echo_llama_kv_clear(llama_context* ctx) {
+#if defined(ECHO_LLAMA_KV_CLEAR_SELF)
+    llama_kv_self_clear(ctx);          // mid-2025 API
+#elif defined(ECHO_LLAMA_KV_CLEAR_CACHE)
+    llama_kv_cache_clear(ctx);         // pre-2025 API
+#else
+    llama_memory_clear(llama_get_memory(ctx), /*data=*/true);  // current API
+#endif
 }
 
 // Real reasoning via llama.cpp. The generation loop follows llama.cpp's `simple`
@@ -107,11 +106,11 @@ public:
 
         // Reset the KV cache so each turn is independent (no cross-turn leakage of
         // a prior person's context — privacy, and predictable behavior).
-        llama_kv_self_clear(ctx_);
+        echo_llama_kv_clear(ctx_);
 
         LlmReply reply;
         reply.text   = trim(out);
-        reply.intent = extract_route(reply.text);
+        reply.intent = parse_route_tag(reply.text);
         return reply;
     }
 

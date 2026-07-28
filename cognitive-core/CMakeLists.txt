@@ -2,6 +2,7 @@
 add_library(echo-cognitive STATIC
     src/cognitive_core.cpp
     src/llm.cpp
+    src/route_tag.cpp
 )
 
 target_include_directories(echo-cognitive PUBLIC
