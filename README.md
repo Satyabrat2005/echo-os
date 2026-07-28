@@ -444,6 +444,170 @@ once real entries exist.
 _First outside-user test:_ tester (non-founder) — _date / who_; top confusions
 observed — _fill in_.
 
+## Phase 5: real third-party integrations
+
+Phase 5 replaces the mock Spotify / Gmail / Google-Search / YouTube backends with
+real network-facing ones, **behind the exact same `IApp` interfaces** the apps
+already exposed since Phase 2 — swapping the backend changes not one caller. The
+`--mock` default is untouched, so CI and the stub build stay deterministic and
+credential-free; real backends are opt-in.
+
+> ⚠️ **Prerequisite — not yet satisfied at time of writing.** This phase builds
+> network integrations *on top of* the reasoning pipeline, so that pipeline must
+> already be trustworthy: Phase 4's real-hardware bring-up (≥20 measured turns, a
+> real mic/speaker/webcam demo, a non-founder tester) must be **done and recorded**
+> first. As of this commit the [Phase 4](#phase-4-real-world-bring-up--validation)
+> validation tables are still unfilled — so the "run it for real" parts of this
+> section (the live credentialed test, the observed Known Issues) are written as
+> **procedures to execute, not results claimed.** Do not tick them off until they
+> have actually run.
+
+### What was built
+
+- **`apps/appkit/`** — the shared toolkit every real backend links: the single
+  network boundary (`net::IHttpClient`, libcurl behind `ECHO_WITH_NETWORK`), a
+  minimal JSON reader, URL/base64 encoding, `.env`/credential loading, an OAuth
+  token cache, the **confirm-before-action gate**, and headless readability
+  extraction. Everything except the libcurl transport is dependency-free and
+  **unit-tested** (`echo-appkit-tests`).
+- **Real backends** for `media` (Spotify Web API), `mail` (Gmail API), `search`
+  (Google Custom Search), `browser` (live fetch + on-device readability, reusing
+  the search result set), and `video` (YouTube Data API). Each app now selects a
+  mock or real backend from the same `--mock`/`--real` flag; a missing credential
+  or absent network transport degrades to a calm spoken line, never a crash
+  (constraint #2).
+
+### The two switches: `--mock` and `ECHO_WITH_NETWORK`
+
+Real backends need **both** the runtime `--real` flag **and** a build compiled with
+the network transport:
+
+```bash
+# Stub/CI build (default): no libcurl, no sockets, backends report Unavailable
+cmake -S apps -B build-apps -G "MinGW Makefiles"
+
+# Real build: compile the libcurl transport (needs libcurl installed)
+cmake -S apps -B build-apps -G "MinGW Makefiles" -DECHO_WITH_NETWORK=ON
+```
+
+At runtime, `echo-apps --real` asks each app for its real backend; without
+`ECHO_WITH_NETWORK` the HTTP client is null and every real backend cleanly reports
+`Unavailable` (so `--real` on a stub build degrades, it does not lie).
+
+> **Honesty note:** the default (network-OFF) build is fully compiled and tested in
+> this repo's toolchain. The libcurl transport in
+> [`http.cpp`](apps/appkit/src/net/http.cpp) is written to the documented libcurl
+> API but has **not been compiled here** (libcurl was not installed in the dev
+> environment). First `-DECHO_WITH_NETWORK=ON` build must install libcurl and may
+> need to shake out a compile detail — do that as part of the real credentialed run.
+
+### Obtaining each credential (and under which account)
+
+Copy [`.env.example`](.env.example) to `.env` (gitignored — **never commit it**)
+and fill it in. Record in `.env.example`'s "Registered under" lines which account
+owns each developer app — this matters later for company-vs-personal ownership of
+the API credentials.
+
+| Service | Where to register | Key variables | Scopes / notes |
+|---------|-------------------|---------------|----------------|
+| **Spotify** | [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → create app | `ECHO_SPOTIFY_CLIENT_ID`, `ECHO_SPOTIFY_CLIENT_SECRET`, `ECHO_SPOTIFY_REDIRECT_URI` | Add the redirect URI to the app settings verbatim |
+| **Gmail** | Google Cloud Console → enable **Gmail API** → OAuth consent + OAuth client (Desktop) | `ECHO_GMAIL_CLIENT_ID`, `ECHO_GMAIL_CLIENT_SECRET` | Request **only** `gmail.readonly` + `gmail.send` — nothing broader |
+| **Google Search** | Google Cloud → enable **Custom Search API**; create a Programmable Search Engine | `ECHO_GOOGLE_SEARCH_KEY`, `ECHO_GOOGLE_SEARCH_CX` | `CX` is the search-engine id |
+| **YouTube** | Same Cloud project → enable **YouTube Data API v3** | `ECHO_YOUTUBE_API_KEY` | Falls back to the search key if unset |
+
+### OAuth flow choice (and why)
+
+Both Spotify and Gmail use the **Authorization Code flow with a loopback redirect**
+(`http://127.0.0.1:8888/callback`), not device-code. Rationale for a headless
+glasses context: Spotify has no device-code grant, and loopback is the flow both
+providers recommend for a native app that can pop a browser **once**. On the
+glasses that one-time consent happens during pairing on the companion phone/laptop
+— not on the device — after which the cached **refresh token** drives silent
+renewals and the glasses never show a browser again. So the interactive consent is
+a documented, one-time setup step; the backends implement everything after it
+(token exchange, silent refresh, and the API calls themselves).
+
+**One-time authorize (manual, per service):** open the authorize URL the backend
+builds (`spotify_authorize_url(...)` / the Gmail equivalent) in a browser, approve,
+copy the `code` from the loopback redirect, exchange it once for tokens, and let
+the token store cache them under `ECHO_TOKEN_DIR` (`.echo-tokens/`, gitignored).
+_A small `scripts/authorize.ps1` helper to script this loopback capture is a
+follow-up; until then it is a manual paste, documented here rather than faked._
+
+### Confirm-before-send (constraint #1)
+
+No email is ever sent on a single utterance. `"reply saying <text>"` **stages** the
+message and speaks it back — *"Ready to reply to Dr. Alvarez: '…'. Say 'send' to
+confirm, or 'cancel'."* — and only an explicit **"send"/"confirm"** actually sends.
+An explicit "cancel", an unrelated command, or an unrecognized word all **fail
+safe**: nothing is sent and the pending action is cleared (it is one-shot, so a
+later stray "yes" can't resurrect it). This gate
+([`apps/appkit/.../confirmation.hpp`](apps/appkit/include/echo/apps/confirm/confirmation.hpp))
+is the one piece of Phase 5 fully covered in CI — the live send can't run there,
+but the gate that guards it is exercised by both `echo-appkit-tests` (the gate in
+isolation) and `echo-apps-smoke` (`test_send_email_confirmation_gate`, the whole
+reply→confirm flow through the real `MailApp` with a mock backend).
+
+### Secret hygiene (constraint #3)
+
+`.env` and `.echo-tokens/` are gitignored; only `.env.example` (no real values) is
+tracked. Run the credential scan before every push — it blocks the commit if an API
+key, OAuth secret, token file, or `.env` is about to enter the repo:
+
+```bash
+bash scripts/check_secrets.sh
+```
+
+```bash
+powershell -File scripts/check_secrets.ps1
+```
+
+Wire it as a hook with `ln -sf ../../scripts/check_secrets.sh .git/hooks/pre-commit`.
+
+### Manual test flow — real credentialed run (to run once, then record here)
+
+⚠️ **Not yet run.** These steps need real credentials on a laptop with the network
+build; they cannot run in CI. Execute once and paste the evidence
+(screenshot/log) into the table — do not tick them off unclaimed.
+
+1. **Spotify playback by voice.** `echo-apps --real` → *"play some music"* → real
+   playback starts and the HUD shows real now-playing metadata. Evidence: _fill_.
+2. **A real unread email read aloud.** *"check my unread email"* → the latest real
+   unread sender + subject are spoken. (Say *"check/any unread email"*, not *"read
+   my email"* — see Known Issue 8 on the greedy `read` intent.) Evidence: _fill_.
+3. **A real search summarized aloud.** *"search for …"* → the top real result is
+   **summarized**, not dumped. Evidence: _fill_.
+4. **Confirm-before-send, end to end.** *"reply saying …"* then *"send"* → a real
+   email is sent; repeat with *"cancel"* and confirm nothing sends. Evidence: _fill_.
+
+| Test | Ran? (date) | Evidence (screenshot/log) | Result |
+|------|-------------|---------------------------|--------|
+| Spotify playback | _—_ | _—_ | _—_ |
+| Unread email read | _—_ | _—_ | _—_ |
+| Search summarized | _—_ | _—_ | _—_ |
+| Send-email confirm gate | _—_ | _—_ | _—_ |
+
+### Known Issues (real APIs, real failure modes)
+
+Real APIs surface failure modes mocks never could — rate limits, token expiry,
+network flakiness. The rows below are **anticipated** and how the code is meant to
+handle them; replace/annotate each with what you **actually observe** on the real
+run (and add the ones you didn't predict). Keep this honest rather than falsely
+clean.
+
+| # | Failure mode | Anticipated handling | Observed? |
+|---|--------------|----------------------|-----------|
+| 1 | OAuth access token expired mid-session | silent refresh via cached refresh token before each call | _not yet run_ |
+| 2 | Refresh token revoked / consent withdrawn | backend reports `Unavailable` → calm "I can't check email right now" | _not yet run_ |
+| 3 | API rate limit / quota (HTTP 429) | request completes with non-2xx → degrade, no crash | _not yet run_ |
+| 4 | Network timeout / DNS / TLS failure | transport failure (status 0) → `HardwareError` → degrade | _not yet run_ |
+| 5 | Spotify "no active device" for playback control | control call is best-effort; `current()` reports true state | _not yet run_ |
+| 6 | ASR mishears the reply body before "send" | user hears the staged summary and can "cancel"; nothing sends without explicit "send" | _not yet run_ |
+| 7 | Stale pending reply if user switches apps then says "send" later | gate is one-shot per compose; residual risk — _watch for this on the real run_ | _not yet run_ |
+| 8 | Greedy first-token NLU: *"read my unread email"* matches `read` (browser) before `unread` (mail) | pre-existing framework behavior; phrase mail commands as *"check/any unread email"* | observed (mock run) |
+
+_First real credentialed run:_ _date / who_ — _fill in after it happens._
+
 ## Status
 
 Phase 3 makes the **core intelligence real** on a laptop while keeping the
@@ -460,9 +624,17 @@ real engines are additive adapters behind their existing interfaces.
   laptop HUD overlay, real webcam/mic capture, the integrated `echo-demo`, and
   end-to-end latency logging. All default OFF so the dependency-free stub build
   still compiles and the reference `echo-os` binary + CI stay deterministic.
+- **New in Phase 5 (code real, live run pending):** real Spotify/Gmail/Search/
+  YouTube backends behind the existing app interfaces, plus the `appkit` toolkit
+  (HTTP boundary, JSON, credentials, OAuth token cache, confirm-before-action gate,
+  readability). The request-building, response-parsing, credential loading, and the
+  confirmation gate are **unit-tested in CI**; the libcurl transport is opt-in
+  (`-DECHO_WITH_NETWORK=ON`) and the actual live API calls have **not yet been run
+  against real credentials** (blocked on Phase 4 hardware validation — see the
+  Phase 5 prerequisite note).
 - **Still stubbed (`TODO`):** the on-glasses sensor DMA frontends and the BLE/
-  WiFi companion transport (hardware phase); real third-party service backends
-  (Spotify/Gmail/…) remain mocked by design.
+  WiFi companion transport (hardware phase); the scripted one-time OAuth authorize
+  helper (`scripts/authorize.*`) — currently a documented manual step.
 
 ## License
 

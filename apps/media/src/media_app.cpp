@@ -1,26 +1,13 @@
 #include "echo/apps/media/media_app.hpp"
+#include "echo/apps/media/media_backend.hpp"
+#include "echo/apps/net/http.hpp"
 #include "echo/log.hpp"
 
-#include <array>
-#include <cstddef>
 #include <string>
 
 namespace echo::apps::media {
 
 namespace {
-
-struct Track {
-    const char* title;
-    const char* artist;
-};
-
-// A tiny built-in library for mock mode. Real mode resolves these from Spotify.
-constexpr std::array<Track, 4> kTracks = {{
-    {"Kind of Blue",     "Miles Davis"},
-    {"Take Five",        "The Dave Brubeck Quartet"},
-    {"So What",          "Miles Davis"},
-    {"My Favorite Things","John Coltrane"},
-}};
 
 class MediaApp final : public IApp {
 public:
@@ -34,57 +21,66 @@ public:
     const AppMetadata& metadata() const override { return meta_; }
 
     Status initialize() override {
-        if (!mock_) {
-            // TODO(media): authenticate with Spotify (OAuth), open the playback
-            // SDK session. Until credentials exist, real mode is unavailable.
-            log_warn("media", "real Spotify backend not configured; use --mock");
-            return Status::Unavailable;
+        if (mock_) {
+            backend_ = make_mock_media_backend();
+        } else {
+            // Own the one HTTP client; hand the backend a borrowed pointer. A null
+            // client (no network compiled) makes initialize() report Unavailable.
+            http_    = net::make_default_http_client();
+            backend_ = make_spotify_backend(http_.get());
         }
-        log_info("media", "media app ready (mock playback)");
+        Status s = backend_->initialize();
+        if (s != Status::Ok) {
+            log_warn("media", "backend unavailable; media in degraded state");
+            return s;
+        }
+        log_info("media", mock_ ? "media app ready (mock playback)"
+                                 : "media app ready (Spotify)");
         return Status::Ok;
     }
 
     AppResponse on_command(const VoiceCommand& cmd) override {
-        if (cmd.intent == "pause") {
-            playing_ = false;
-            return AppResponse::say("Paused.")
-                .show(hud::HudFrame{}.with_icon(hud::Glyph::Pause).with_status(hud::StatusKind::Idle));
-        }
-        if (cmd.intent == "resume") {
-            playing_ = true;
-            return now_playing("Resuming");
-        }
-        if (cmd.intent == "skip") {
-            index_   = (index_ + 1) % kTracks.size();
-            playing_ = true;
-            return now_playing("Skipping to");
-        }
-        // "play" / "music": if a query names something, pretend we matched it to
-        // the first track; otherwise resume the current one.
-        if (!cmd.slot("query").empty()) index_ = 0;
-        playing_ = true;
-        return now_playing("Now playing");
+        NowPlaying np;
+        if (cmd.intent == "pause")       np = backend_->pause();
+        else if (cmd.intent == "resume") np = backend_->resume();
+        else if (cmd.intent == "skip")   np = backend_->skip();
+        else                             np = backend_->play(cmd.slot("query"));
+
+        if (np.status != Status::Ok) return degraded();
+
+        if (cmd.intent == "pause")
+            return AppResponse::say("Paused.").show(
+                hud::HudFrame{}.with_icon(hud::Glyph::Pause).with_status(hud::StatusKind::Idle));
+
+        const char* verb = cmd.intent == "skip"     ? "Skipping to"
+                           : cmd.intent == "resume" ? "Resuming"
+                                                    : "Now playing";
+        return now_playing(verb, np);
     }
 
     void shutdown() override { log_info("media", "media app stopped"); }
 
 private:
-    AppResponse now_playing(const char* verb) {
-        const Track& t = kTracks[index_];
-        std::string spoken = std::string(verb) + " " + t.title + " by " + t.artist + ".";
-        std::string band   = std::string(t.title) + " — " + t.artist;
-        AppResponse r = AppResponse::say(spoken);
-        r.show(hud::HudFrame{}
-                   .with_subtitle(band)
-                   .with_icon(hud::Glyph::Play)
-                   .with_status(hud::StatusKind::Success));
-        return r;
+    // The one calm degraded line — never a stack trace, never silence (constraint #2).
+    AppResponse degraded() {
+        return AppResponse::say("I can't play music right now.", SpeechTone::Reassuring)
+            .show(hud::HudFrame{}.with_icon(hud::Glyph::Pause).with_status(hud::StatusKind::Idle));
     }
 
-    AppMetadata meta_;
-    bool        mock_;
-    std::size_t index_   = 0;
-    bool        playing_ = false;
+    AppResponse now_playing(const char* verb, const NowPlaying& np) {
+        std::string spoken = std::string(verb) + " " + np.title + " by " + np.artist + ".";
+        std::string band   = np.title + " — " + np.artist;
+        return AppResponse::say(spoken).show(
+            hud::HudFrame{}
+                .with_subtitle(band)
+                .with_icon(hud::Glyph::Play)
+                .with_status(hud::StatusKind::Success));
+    }
+
+    AppMetadata                       meta_;
+    bool                              mock_;
+    std::unique_ptr<net::IHttpClient> http_;
+    std::unique_ptr<IMediaBackend>    backend_;
 };
 
 }  // namespace

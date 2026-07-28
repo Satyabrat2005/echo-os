@@ -49,9 +49,13 @@ endif()
 # regardless of the generator's default per-target layout.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/apps-bin)
 
-# --- Foundations: the HUD surface and the framework (SDK + host) --------------
+# --- Foundations: the HUD surface, the framework (SDK + host), the appkit ------
 add_subdirectory(hud-compositor)
 add_subdirectory(app-framework)
+# Phase 5: shared toolkit for real backends (HTTP boundary, JSON, credentials,
+# confirm-before-action gate, readability). Dependency-free except the opt-in
+# libcurl transport (-DECHO_WITH_NETWORK=ON).
+add_subdirectory(appkit)
 
 # --- Each app: a library (testable logic) + an isolated process executable ----
 # Every app has the same shape — include/echo/apps/<name>/<name>_app.hpp, a
@@ -59,9 +63,19 @@ add_subdirectory(app-framework)
 # This helper stamps out both the library and the standalone binary so an app
 # never carries its own build boilerplate.
 function(echo_add_app name)
-    add_library(echo-app-${name} STATIC ${name}/src/${name}_app.cpp)
+    # An app's library is every src/*.cpp except its process entrypoint (main.cpp):
+    # the IApp itself plus any backend implementations (mock + real). This lets an
+    # app grow a real backend file (e.g. spotify_backend.cpp) with no build edits.
+    file(GLOB _app_srcs CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${name}/src/*.cpp)
+    list(FILTER _app_srcs EXCLUDE REGEX "/main\\.cpp$")
+
+    add_library(echo-app-${name} STATIC ${_app_srcs})
     target_include_directories(echo-app-${name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${name}/include)
-    target_link_libraries(echo-app-${name} PUBLIC echo::app-sdk PRIVATE echo-project-options)
+    # PUBLIC app-sdk (interface), PRIVATE appkit (backends reach the net/JSON/gate
+    # toolkit but never leak it across the IApp boundary).
+    target_link_libraries(echo-app-${name}
+        PUBLIC  echo::app-sdk
+        PRIVATE echo-project-options echo::appkit)
     add_library(echo::app-${name} ALIAS echo-app-${name})
 
     add_executable(echo-app-${name}-bin ${name}/src/main.cpp)
@@ -77,6 +91,10 @@ echo_add_app(mail)
 echo_add_app(telephony)
 echo_add_app(camera)
 echo_add_app(gallery)
+
+# The browser's "open the top result" reuses the search integration's result set,
+# so its library links the search app's backend (constraint #4: one search path).
+target_link_libraries(echo-app-browser PRIVATE echo::app-search)
 
 # --- The laptop host + the smoke tests ---------------------------------------
 add_subdirectory(host)

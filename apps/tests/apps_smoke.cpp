@@ -176,6 +176,61 @@ void test_shared_hud_surface() {
     mail->shutdown();
 }
 
+// --- Constraint #1: no email sends without an explicit spoken confirmation ----
+// This is the app-level companion to the appkit gate unit test: it drives the real
+// MailApp (mock backend, no network) through the router and proves that a "reply"
+// only sends after an explicit "send", and never on a decline or an ambiguous word.
+void test_send_email_confirmation_gate() {
+    auto mail = mail::make_mail_app(true);
+    CHECK(mail->initialize() == Status::Ok);
+
+    PermissionModel pm;
+    grant_declared(pm, *mail);
+    RecordingCompositor hud;
+    RecordingBridge     bridge;
+    Router router(&hud, &bridge, &pm);
+    router.register_app(mail.get());
+
+    auto say = [&](const std::string& utter) {
+        return router.route(nlu::parse(utter, router.vocabulary())).response.speech;
+    };
+
+    // 1. "reply ..." stages the send but does NOT send it.
+    {
+        std::string r = say("reply saying I'll be there Thursday");
+        CHECK(contains(r, "Ready to reply"));
+        CHECK(contains(r, "send"));      // prompts for confirmation
+        CHECK(!contains(r, "Sent"));     // nothing sent yet
+    }
+    // 2. An explicit "send" confirms — the ONE path that actually sends.
+    {
+        std::string r = say("send");
+        CHECK(contains(r, "Sent"));
+    }
+    // 3. A decline never sends.
+    {
+        say("reply saying call me later");
+        std::string r = say("no, cancel that");
+        CHECK(contains(r, "won't send"));
+        CHECK(!contains(r, "Sent"));
+    }
+    // 4. A non-confirmation utterance while armed fails safe: even a normally-valid
+    //    mail command ("inbox") is treated as "not a yes" and sends nothing.
+    {
+        say("reply saying see you soon");
+        std::string r = say("inbox");  // reaches mail (armed), but isn't a "send"
+        CHECK(contains(r, "won't send"));
+        CHECK(!contains(r, "Sent"));
+    }
+    // 5. After the one-shot gate clears, normal inbox summarizing works again.
+    {
+        std::string r = say("inbox");
+        CHECK(contains(r, "unread"));
+    }
+
+    mail->shutdown();
+}
+
 // --- The permission gate blocks an under-privileged app ----------------------
 void test_permission_gate() {
     auto media = media::make_media_app(true);
@@ -255,6 +310,7 @@ void test_crash_containment() {
 int main() {
     test_routing_three_apps();
     test_shared_hud_surface();
+    test_send_email_confirmation_gate();
     test_permission_gate();
 #ifdef ECHO_APPS_BIN_DIR
     test_supervised_process_ipc();
