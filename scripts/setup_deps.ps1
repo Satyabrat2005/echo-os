@@ -86,6 +86,47 @@ if (-not $SkipBuild) {
     Warn "-SkipBuild set: not building whisper.cpp / llama.cpp"
 }
 
+# --- libcurl (the ECHO_WITH_NETWORK transport for the live third-party APIs) ---
+# Phase 6 requires the network branch to build. We install the official curl
+# win64-mingw dev package (headers + import lib + DLL) into $Prefix so
+# find_package(CURL) resolves it via CMAKE_PREFIX_PATH, exactly like whisper/llama.
+# It's a native UCRT build (SChannel TLS, no extra runtime DLLs), so it links and
+# runs against the MinGW-w64 ucrt toolchain with no ABI mismatch.
+function Provision-Libcurl {
+    if (Test-Path (Join-Path $Prefix "include/curl/curl.h")) {
+        Info "libcurl already installed in prefix"
+        try { return (Get-Content (Join-Path $Prefix "include/curl/curlver.h") |
+                      Select-String 'LIBCURL_VERSION "' | ForEach-Object {
+                        ($_ -replace '.*LIBCURL_VERSION "([^"]+)".*','$1') } | Select-Object -First 1) }
+        catch { return "(installed)" }
+    }
+    $zip = Join-Path $tp "curl-win64-mingw.zip"
+    Info "downloading official curl (win64-mingw) ..."
+    Invoke-WebRequest -Uri "https://curl.se/windows/latest.cgi?p=win64-mingw.zip" `
+                      -OutFile $zip -UseBasicParsing
+    $ex = Join-Path $tp "curl-extract"
+    if (Test-Path $ex) { Remove-Item -Recurse -Force $ex }
+    Expand-Archive -Path $zip -DestinationPath $ex -Force
+    $root = Get-ChildItem -Directory $ex | Where-Object { $_.Name -like "curl-*win64-mingw" } |
+            Select-Object -First 1
+    if (-not $root) { throw "curl package layout unexpected under $ex" }
+    New-Item -ItemType Directory -Force -Path `
+        (Join-Path $Prefix "include"), (Join-Path $Prefix "lib"), (Join-Path $Prefix "bin") | Out-Null
+    Copy-Item -Recurse -Force (Join-Path $root.FullName "include/curl") (Join-Path $Prefix "include")
+    Copy-Item -Force (Join-Path $root.FullName "lib/libcurl.dll.a") (Join-Path $Prefix "lib")
+    Copy-Item -Force (Join-Path $root.FullName "lib/libcurl.a")     (Join-Path $Prefix "lib") -ErrorAction SilentlyContinue
+    Copy-Item -Force (Join-Path $root.FullName "bin/libcurl-x64.dll") (Join-Path $Prefix "bin")
+    # version is the trailing part of the folder name, e.g. curl-8.21.0_5-win64-mingw
+    return ($root.Name -replace '^curl-','' -replace '-win64-mingw$','')
+}
+$curlVer = "(skipped)"
+if (-not $SkipBuild) {
+    try { $curlVer = Provision-Libcurl; Info "libcurl $curlVer installed into $Prefix" }
+    catch { Warn "libcurl provisioning failed ($_); ECHO_WITH_NETWORK will not build until it's installed" }
+} else {
+    Warn "-SkipBuild set: not provisioning libcurl"
+}
+
 # --- Download the freely-available models -------------------------------------
 # URLs can drift upstream; a failed download warns rather than aborting the run.
 function Fetch($url, $dest) {
@@ -130,6 +171,7 @@ Fill in the rows this script can't detect (OpenCV, SDL2, Piper, Porcupine) by ha
 | CMake       | $cmakeVer | on PATH |
 | whisper.cpp | $whisperCommit | built from source -> $Prefix |
 | llama.cpp   | $llamaCommit | built from source -> $Prefix |
+| libcurl     | $curlVer | official curl win64-mingw -> $Prefix |
 | OpenCV      | _fill in_ (e.g. vcpkg 4.x)  | _vcpkg / prebuilt_ |
 | SDL2        | _fill in_                   | _vcpkg / prebuilt_ |
 | SDL2_ttf    | _fill in_                   | _vcpkg / prebuilt_ |

@@ -40,11 +40,28 @@ std::string gmail_refresh_body(const std::string& client_id,
     return net::encode_query(f);
 }
 
+// Strip CR/LF (and other control chars) from a value destined for a message
+// header. Without this, a "To"/"Subject" carrying an embedded newline could inject
+// extra headers (e.g. a hidden Bcc) into the outgoing mail — header injection. The
+// body is exempt: it lives after the blank-line separator and cannot forge headers.
+static std::string sanitize_header_value(const std::string& v) {
+    std::string out;
+    out.reserve(v.size());
+    for (char c : v) {
+        unsigned char uc = static_cast<unsigned char>(c);
+        if (uc == '\r' || uc == '\n') continue;           // the injection vector
+        if (uc < 0x20 && uc != '\t') continue;            // other control chars
+        out.push_back(c);
+    }
+    return out;
+}
+
 std::string gmail_build_raw_message(const std::string& to, const std::string& subject,
                                     const std::string& body) {
-    // CRLF line endings per RFC 2822; headers, blank line, then body.
-    return "To: " + to + "\r\n" +
-           "Subject: " + subject + "\r\n" +
+    // CRLF line endings per RFC 2822; headers, blank line, then body. Header fields
+    // are sanitized so a spoken recipient/subject can never inject extra headers.
+    return "To: " + sanitize_header_value(to) + "\r\n" +
+           "Subject: " + sanitize_header_value(subject) + "\r\n" +
            "Content-Type: text/plain; charset=UTF-8\r\n" +
            "\r\n" + body;
 }

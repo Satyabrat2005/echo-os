@@ -21,3 +21,18 @@ target_compile_definitions(echo-apps-tests PRIVATE
 add_dependencies(echo-apps-tests echo-app-media-bin)
 
 add_test(NAME echo-apps-smoke COMMAND echo-apps-tests)
+
+# Phase 6 (Part A) NLU routing regression: proves mail-specific phrasing beats the
+# browser's generic "read"/"open". Needs the browser + mail vocabularies together,
+# so it links those app libraries (browser transitively pulls in search).
+add_executable(echo-nlu-routing-tests nlu_routing_test.cpp)
+target_link_libraries(echo-nlu-routing-tests PRIVATE
+    echo::app-framework
+    echo::app-sdk
+    echo::apps-hud
+    echo::app-browser
+    echo::app-mail
+    echo::app-media
+    echo-project-options
+)
+add_test(NAME echo-nlu-routing COMMAND echo-nlu-routing-tests)

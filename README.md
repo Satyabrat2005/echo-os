@@ -416,8 +416,9 @@ which `setup_deps` generates; document exact versions for the future embedded mo
 
 | Dependency  | Version / commit | Notes |
 |-------------|------------------|-------|
-| Toolchain (MinGW/GCC) | _fill_ | |
-| CMake       | _fill_ | |
+| Toolchain (MinGW/GCC) | MinGW-w64 ucrt g++ **15.1.0** | measured Phase 6 (this dev laptop) |
+| CMake       | **4.0.2** | measured Phase 6 |
+| libcurl     | **8.21.0** | official curl win64-mingw (UCRT/SChannel); `ECHO_WITH_NETWORK=ON` compiles + links |
 | whisper.cpp | _fill (commit)_ | + `base.en-q5_1` model |
 | llama.cpp   | _fill (commit)_ | KV-clear variant: _current/self/cache_ |
 | OpenCV      | _fill_ | YuNet + SFace |
@@ -494,12 +495,14 @@ At runtime, `echo-apps --real` asks each app for its real backend; without
 `ECHO_WITH_NETWORK` the HTTP client is null and every real backend cleanly reports
 `Unavailable` (so `--real` on a stub build degrades, it does not lie).
 
-> **Honesty note:** the default (network-OFF) build is fully compiled and tested in
-> this repo's toolchain. The libcurl transport in
-> [`http.cpp`](apps/appkit/src/net/http.cpp) is written to the documented libcurl
-> API but has **not been compiled here** (libcurl was not installed in the dev
-> environment). First `-DECHO_WITH_NETWORK=ON` build must install libcurl and may
-> need to shake out a compile detail — do that as part of the real credentialed run.
+> **Compile status (updated Phase 6):** both builds now compile and pass `ctest` in
+> this repo's toolchain. The `-DECHO_WITH_NETWORK=ON` transport in
+> [`http.cpp`](apps/appkit/src/net/http.cpp) was previously written-but-uncompiled;
+> it is now built and linked against **libcurl 8.21.0** (official curl win64-mingw,
+> UCRT/SChannel — provisioned by `scripts/setup_deps.ps1`). The whole project links
+> it, the app binaries import `libcurl-x64.dll`, and all suites are green. What is
+> still **not** proven is the *live* API traffic — no Spotify/Gmail/Search/YouTube
+> call has run against real credentials yet; that remains the credentialed real run.
 
 ### Obtaining each credential (and under which account)
 
@@ -572,9 +575,9 @@ build; they cannot run in CI. Execute once and paste the evidence
 
 1. **Spotify playback by voice.** `echo-apps --real` → *"play some music"* → real
    playback starts and the HUD shows real now-playing metadata. Evidence: _fill_.
-2. **A real unread email read aloud.** *"check my unread email"* → the latest real
-   unread sender + subject are spoken. (Say *"check/any unread email"*, not *"read
-   my email"* — see Known Issue 8 on the greedy `read` intent.) Evidence: _fill_.
+2. **A real unread email read aloud.** *"read my unread email"* → the latest real
+   unread sender + subject are spoken. (As of Phase 6 the greedy-`read` misroute is
+   fixed — see Known Issue 8 — so the natural phrasing now works.) Evidence: _fill_.
 3. **A real search summarized aloud.** *"search for …"* → the top real result is
    **summarized**, not dumped. Evidence: _fill_.
 4. **Confirm-before-send, end to end.** *"reply saying …"* then *"send"* → a real
@@ -604,7 +607,7 @@ clean.
 | 5 | Spotify "no active device" for playback control | control call is best-effort; `current()` reports true state | _not yet run_ |
 | 6 | ASR mishears the reply body before "send" | user hears the staged summary and can "cancel"; nothing sends without explicit "send" | _not yet run_ |
 | 7 | Stale pending reply if user switches apps then says "send" later | gate is one-shot per compose; residual risk — _watch for this on the real run_ | _not yet run_ |
-| 8 | Greedy first-token NLU: *"read my unread email"* matches `read` (browser) before `unread` (mail) | pre-existing framework behavior; phrase mail commands as *"check/any unread email"* | observed (mock run) |
+| 8 | ~~Greedy first-token NLU: *"read my unread email"* matches `read` (browser) before `unread` (mail)~~ | **FIXED in Phase 6** — NLU is now specificity-aware: the browser's generic `read`/`open` yield to a domain-specific intent elsewhere in the utterance. Regression test `echo-nlu-routing` covers the exact phrase + variants. | resolved |
 
 _First real credentialed run:_ _date / who_ — _fill in after it happens._
 
