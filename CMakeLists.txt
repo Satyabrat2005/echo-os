@@ -52,4 +52,15 @@ add_subdirectory(boot)            # init sequence + runtime + `echo-os` binary
 enable_testing()
 add_subdirectory(tests)
 
+# --- Apps layer (optional, on by default) -----------------------------------
+# A voice-first application layer that runs in its own processes ON TOP of the
+# core. It links the core's public interfaces (common, voice-ui) but never
+# touches the safety loop's internals or its latency budget. Off-switch provided
+# so the core can be built in isolation.
+option(ECHO_BUILD_APPS "Build the voice-first apps layer (apps/)" ON)
+if(ECHO_BUILD_APPS)
+    set(ECHO_APPS_IN_TREE ON)
+    add_subdirectory(apps)
+endif()
+
 message(STATUS "ECHO OS ${PROJECT_VERSION} configured (${CMAKE_BUILD_TYPE})")
