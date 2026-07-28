@@ -88,6 +88,55 @@ Every stage wraps its work in a `StageTimer` (RAII) that logs a warning on
 overrun and feeds `power-mgmt`, which trades duty cycle for thermal headroom
 while keeping any in-flight response smooth.
 
+## Apps layer
+
+On top of the safety-critical core sits [`apps/`](apps/) — the voice-first
+application layer (media, browser, search, video, mail, telephony, camera,
+gallery). It is a **separate layer with hard isolation from the core**: apps run
+as their own OS processes under a supervisor, and nothing an app does can block,
+slow, or crash the sub-120 ms perception → cognitive → voice loop. See
+[`apps/README.md`](apps/README.md) for the full design; the essentials:
+
+- **Voice-first, no touchscreen.** These are not phone apps. The glasses have no
+  touchscreen and no window manager — every app is a *voice command → spoken /
+  HUD response* loop. The only visual surface is the **HUD compositor**, which
+  exposes three overlay primitives (subtitle text, one icon, a status glyph) and
+  nothing else. No app ever gets a screen or a window (principle #1).
+- **Isolated processes.** `apps/app-framework/` supervises each app as its own
+  process, restarts a crashed app with bounded backoff, and bridges an app's
+  output to the core's `voice-ui` through its **public interface only** — never
+  its internals (principle #2, extended to the apps boundary).
+- **Mock by default.** Spotify, Gmail, YouTube, and Google Search each need
+  developer credentials that don't exist yet, so every external service ships a
+  `--mock` backend returning realistic fake data behind a clean interface. The
+  entire voice flow is testable today; wiring real credentials later requires
+  **zero interface changes** (principle #4 — privacy by default, plus no surprise
+  network access without a granted capability).
+
+### Testing the apps layer on a laptop
+
+The layer builds and runs standalone on a dev machine, with the laptop's
+keyboard/mic standing in for the glasses' ASR and a simulated HUD band standing
+in for the overlay. It is built by default as part of the top-level build (toggle
+with `-DECHO_BUILD_APPS=OFF`), or on its own with `cmake -S apps -B build-apps`.
+
+```bash
+# Run the whole layer: spawns the 8 apps as isolated processes, routes typed
+# "voice" commands to the owning app over IPC, and speaks/draws the mock reply.
+./build/apps-bin/echo-apps                 # --window for the simulated HUD band
+```
+
+```text
+> play some jazz          → media:     "Now playing Kind of Blue by Miles Davis."
+> any unread messages     → mail:      "You have 3 unread messages…"
+> call Sam                → telephony: "Calling Sam…"  (Bluetooth to paired phone)
+```
+
+Smoke tests cover command-in → correct-app → mocked-response-out for media, mail,
+and telephony; that two apps render through the one shared HUD surface; the
+permission gate; and real cross-process supervision (IPC round-trip + crash
+containment). They run as part of `ctest` below.
+
 ## Building
 
 Requires CMake ≥ 3.16 and a C++17 compiler. No external dependencies — the
