@@ -41,7 +41,7 @@ public:
         // "send"/"confirm"/"cancel" are claimed so the confirmation reply reaches
         // this app; they are meaningful only while a reply is armed.
         meta_.intents = {"mail", "email", "inbox", "unread", "reply",
-                         "send", "confirm", "cancel"};
+                         "message", "messages", "send", "confirm", "cancel"};
     }
 
     const AppMetadata& metadata() const override { return meta_; }

@@ -1,67 +1,76 @@
-# Phase 5: real third-party integrations (code complete; live validation pending)
+# Phase 6: NLU routing fix + network-build verification (live validation pending)
 
-Replaces the mock Spotify / Gmail / Google-Search / YouTube backends with real
-network-facing ones **behind the exact `IApp` interfaces the apps already exposed**
-— swapping the backend changes not one caller. The `--mock` default is untouched,
-so CI and the stub build stay deterministic and credential-free; real backends are
-opt-in via a new `-DECHO_WITH_NETWORK` CMake option.
+This phase does **not** add features. It fixes the known NLU routing bug, verifies
+the third-party network build actually compiles, and hardens two backends — the
+code-side of closing the "code complete, live validation pending" gap left open by
+Phases 4 and 5. The **live** run (real accounts, real hardware, a human tester,
+measured latency) is still pending and is tracked in the TODO blocks below.
 
-> ⚠️ **Read before merging — this PR is honest about what has and hasn't run.**
-> Like the Phase 4 PR (which merged as *"prep … hardware validation pending"*), the
-> code here is written and compile/test-verified, but the **live, credentialed run
-> has not happened**, and it is gated on Phase 4's still-unfilled hardware
-> validation. The three TODO blocks at the bottom are the proof-of-real steps and
-> are intentionally blank. Do not treat this as "the integrations work end to end"
-> until they are filled.
+> ⚠️ **Honesty banner — read before merging.** Part A (bug fix) and every
+> code-verifiable item below are done and green in CI. The parts that require real
+> accounts, real hardware, a microphone, and a human tester are marked with
+> explicit TODO blocks and are **not** filled by code — they are filled by actually
+> doing the run. Do not read the checked items as "the whole demo works end to end"
+> until the TODO blocks below carry real evidence and measured numbers.
 
-## What's in this PR (verified in the default stub build)
+## Part A — NLU mail/browser routing bug (DONE, verified)
 
-- **`apps/appkit/`** — shared toolkit every real backend links: the single network
-  boundary (`net::IHttpClient`, libcurl behind `ECHO_WITH_NETWORK`), a minimal JSON
-  reader, URL/base64 encoding, `.env`/credential loading, an OAuth token cache
-  (gitignored `.echo-tokens/`), the **confirm-before-action gate**, and headless
-  readability extraction. Everything except the libcurl transport is
-  dependency-free and **unit-tested** (`echo-appkit-tests`).
-- **Real backends** for media (Spotify Web API), mail (Gmail API), search (Google
-  Custom Search), browser (live fetch + on-device readability, reusing the search
-  result set), and video (YouTube Data API). Each app selects a mock or real backend
-  from the same `--mock`/`--real` flag; a missing credential, an absent network
-  transport, a rate limit, a token-refresh failure, or a timeout all **degrade to a
-  calm spoken line, never a crash** (constraint #2).
-- **Confirm-before-send** (constraint #1): `"reply saying …"` stages and speaks the
-  message; only an explicit `"send"`/`"confirm"` sends. Cancel, an unrelated command,
-  or an unrecognized word all **fail safe** — nothing sent, pending cleared (one-shot).
-- **Secret hygiene** (constraint #3): `.env`/`.echo-tokens/` gitignored, only
-  `.env.example` tracked; `scripts/check_secrets.{sh,ps1}` blocks a commit that
-  would leak a key/secret/token.
-- **README Phase 5 section**: how to obtain each credential (and under which
-  account), the OAuth-flow choice + rationale, the manual test flow, and an honest
-  Known Issues table.
+The keyword NLU matched the browser's generic `read` at the front of *"read my
+unread email"* before mail's `unread`, misrouting mail commands to the browser.
+
+- **Fix** (`apps/app-framework/…/nlu.{hpp,cpp}`): intent selection is now
+  specificity-aware. Generic catch-all verbs (`read`, `open`) only win as a
+  fallback; a domain-specific intent anywhere in the utterance takes precedence,
+  with position breaking ties within a tier. Added `message`/`messages` to the mail
+  app's intents.
+- **Regression test** (`echo-nlu-routing`, `apps/tests/nlu_routing_test.cpp`):
+  covers the exact broken phrase plus `read my messages`, `check my mail`,
+  `open my inbox`, and negative cases that must stay on the browser
+  (`read this page`, `open wikipedia`).
+- Verified three ways: `ctest` (4/4), and end-to-end through the real
+  `echo-apps --mock --in-process` host (`read my unread email`→mail,
+  `open my inbox`→mail, `read this page`→browser, `play some jazz`→media).
+
+## Part B — validation progress
+
+### Done and verified in this repo's toolchain
+- **`ECHO_WITH_NETWORK=ON` now compiles + links** (it never had, anywhere). Built
+  against **libcurl 8.21.0** (official curl win64-mingw, UCRT/SChannel — no extra
+  runtime DLLs, no libstdc++ ABI risk). `http.cpp` emits real `curl_easy_*` calls,
+  the app binaries import `libcurl-x64.dll` (transport retained, not stripped), and
+  all four CTest suites pass in the network build. `scripts/setup_deps.ps1` now
+  provisions libcurl into the install prefix, and `scripts/build_real.ps1` enables
+  the network transport by default (the full demo is local AI **and** the live
+  integrations together — `ECHO_REAL_AI` alone does not imply it).
+- **Two real bugs found by review and fixed here** (this phase's mandate is to fix,
+  not defer):
+  - *JSON parser stack-overflow on deeply-nested input* — the hand-rolled reader
+    parses untrusted network responses and had unbounded recursion, violating its
+    own "never crash on garbage" contract. Added a depth cap; regression test
+    `test_json_deep_nesting_is_null_not_crash`.
+  - *Gmail email-header injection* — `gmail_build_raw_message` put `To`/`Subject`
+    into RFC 2822 headers unescaped, so an embedded CRLF could forge a header
+    (e.g. a hidden `Bcc`). Header fields are now sanitized; regression test
+    `test_gmail_no_header_injection`.
+
+### TODO — the real run (fill with real evidence before "done")
+
+**1. Full real dependency install + `ECHO_REAL_AI=ON` build.**
+<!-- TODO: whisper/llama/OpenCV/SDL2/Piper/Porcupine installed; paste build_real.ps1 result and models/INSTALLED_VERSIONS.md. libcurl is 8.21.0 (done); fill the rest. -->
+
+**2. Live credentialed smoke run** (real Spotify/Gmail/Search/YouTube accounts):
+<!-- TODO: voice playback, a real unread email read aloud, a real search summarized, and the send-email confirm gate end to end. Attach screenshots/logs. -->
+
+**3. ≥20 real end-to-end turns + measured latency.**
+<!-- TODO: run analyze_latency.ps1 over latency_log.csv; paste the min/avg/max table and the measured-vs-budget gap line. Do NOT paste the target budget as if measured. -->
+
+**4. Non-founder tester, zero instructions beyond "say 'Hey ECHO' and talk to it".**
+<!-- TODO: what they tried, what worked, where they got stuck. This is the one signal beyond the team that has never happened. -->
+
+**5. Known Issues actually observed** (local-AI pipeline + live integrations):
+<!-- TODO: real rate-limit / token-expiry / network-flake / ASR / wake-word failures, replacing the "anticipated" rows in the README. -->
 
 ## Constraints held
-
-- Safe-mode core, apps isolation, latency budget untouched. The stub build stays
-  zero-dependency and green; `echo-appkit-tests` and `echo-apps-smoke` (incl. the
-  new `test_send_email_confirmation_gate`) both pass under `ctest`.
-
-## Honesty caveats (do not paper over)
-
-- **Live APIs not exercised.** No Spotify/Gmail/Search/YouTube call has run against
-  real credentials. Request-building and response-parsing are unit-tested with a
-  fake HTTP client; the sockets are not.
-- **libcurl branch not compiled here.** The dev environment had no libcurl, so the
-  `-DECHO_WITH_NETWORK=ON` path is written to the documented API but uncompiled —
-  the first real build may need a small fix.
-- **One-time OAuth authorize is a manual paste** for now; `scripts/authorize.*` is
-  a documented TODO.
-
-## TODO — real credentialed validation (fill before this is "done")
-
-**1. Network build compiles.**
-<!-- TODO: paste the `-DECHO_WITH_NETWORK=ON` configure+build result; note libcurl version and any fix needed. -->
-
-**2. Live smoke run** (real creds on the laptop, per README manual test flow):
-<!-- TODO: Spotify playback by voice, a real unread email read aloud, a real search summarized, and the send-email confirm gate end to end. Attach screenshots/logs. -->
-
-**3. Known Issues actually observed:**
-<!-- TODO: the real rate-limit / token-expiry / network-flake failures you hit, replacing the "anticipated" rows in the README. -->
+Stub/CI build stays zero-dependency and green; the safe-mode core, apps isolation,
+and latency-budget model are unchanged. `ctest`: `echo-smoke`, `echo-appkit-tests`,
+`echo-apps-smoke`, `echo-nlu-routing` — all pass in both the stub and network builds.

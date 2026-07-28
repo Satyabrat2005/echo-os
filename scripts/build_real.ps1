@@ -16,6 +16,11 @@
 .PARAMETER VcpkgToolchain   Path to vcpkg.cmake, if OpenCV/SDL2 came from vcpkg.
 .PARAMETER KvClear          llama.cpp KV-clear API: current (default) | self | cache.
 .PARAMETER BuildDir         Build directory (default: build-real).
+.PARAMETER NoNetwork        Build WITHOUT the libcurl third-party transport. Off by
+                            default: the full Phase 6 demo needs the live Spotify/
+                            Gmail/Search/YouTube integrations, so ECHO_WITH_NETWORK
+                            is ON unless you pass -NoNetwork. Needs libcurl (run
+                            setup_deps.ps1, which provisions it into the toolchain).
 #>
 [CmdletBinding()]
 param(
@@ -23,7 +28,8 @@ param(
     [string] $PorcupineRoot,
     [string] $VcpkgToolchain,
     [ValidateSet("current","self","cache")] [string] $KvClear = "current",
-    [string] $BuildDir = "build-real"
+    [string] $BuildDir = "build-real",
+    [switch] $NoNetwork
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,6 +44,9 @@ $cmakeArgs = @(
     "-DECHO_LLAMA_KV_CLEAR=$KvClear",
     "-DCMAKE_PREFIX_PATH=$Prefix"
 )
+# Phase 6: the full demo is local AI + the live third-party integrations together,
+# so the libcurl transport is ON by default (ECHO_REAL_AI does NOT imply it).
+if (-not $NoNetwork) { $cmakeArgs += "-DECHO_WITH_NETWORK=ON" }
 if ($PorcupineRoot)  { $cmakeArgs += "-DPORCUPINE_ROOT=$PorcupineRoot" }
 if ($VcpkgToolchain) { $cmakeArgs += "-DCMAKE_TOOLCHAIN_FILE=$VcpkgToolchain" }
 
@@ -50,9 +59,11 @@ Write-Host ""
 Write-Host "[build] done. Runtime DLL note (Windows):" -ForegroundColor Green
 Write-Host @"
   Put your toolchain's bin FIRST on PATH, and keep the dependency DLLs
-  (SDL2.dll, opencv_*.dll, whisper.dll, llama.dll, ggml*.dll) beside echo-demo.exe
-  or on PATH. A stray libstdc++ from an unrelated MinGW (e.g. Git's) ahead of
-  yours will crash the exe at startup - that's an ABI/PATH issue, not a bug.
+  (SDL2.dll, opencv_*.dll, whisper.dll, llama.dll, ggml*.dll, and — with the
+  network transport ON — libcurl-x64.dll) beside echo-demo.exe or on PATH. A stray
+  libstdc++ from an unrelated MinGW (e.g. Git's) ahead of yours will crash the exe
+  at startup - that's an ABI/PATH issue, not a bug. (setup_deps.ps1 installs
+  libcurl-x64.dll into your toolchain bin, so keeping that bin first covers it.)
 
   Run it:   .\scripts\run_demo.ps1
 "@ -ForegroundColor Green

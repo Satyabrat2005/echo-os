@@ -81,6 +81,21 @@ void test_json_malformed_is_null() {
     CHECK(net::Json::parse("-3.5e2").as_number() == -350.0);
 }
 
+// A hostile/corrupt payload of thousands of nested brackets must fail as Null, not
+// overflow the stack. Guards the recursion-depth cap added to the parser.
+void test_json_deep_nesting_is_null_not_crash() {
+    std::string deep_arr(5000, '[');   // 5000 levels of unterminated array
+    CHECK(net::Json::parse(deep_arr).is_null());
+    std::string deep_obj;
+    for (int i = 0; i < 5000; ++i) deep_obj += "{\"a\":";
+    CHECK(net::Json::parse(deep_obj).is_null());
+    // A modestly nested, WELL-FORMED document still parses fine (cap not too tight).
+    std::string nested = "0";
+    for (int i = 0; i < 50; ++i) nested = "[" + nested + "]";
+    auto j = net::Json::parse(nested);
+    CHECK(j.is_array());
+}
+
 // --- URL encoding ------------------------------------------------------------
 void test_url_encode() {
     CHECK(net::url_encode("hello world") == "hello%20world");
@@ -198,6 +213,7 @@ int main() {
     test_json_basic();
     test_json_nested_and_escapes();
     test_json_malformed_is_null();
+    test_json_deep_nesting_is_null_not_crash();
     test_url_encode();
     test_dotenv_overlay();
     test_readable();

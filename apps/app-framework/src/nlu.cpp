@@ -18,7 +18,9 @@ std::string normalize(std::string_view text) {
     return std::string(begin, end);
 }
 
-VoiceCommand parse(std::string_view utterance, const std::vector<std::string>& vocabulary) {
+VoiceCommand parse(std::string_view utterance,
+                   const std::vector<std::string>& vocabulary,
+                   const std::vector<std::string>& generic_intents) {
     VoiceCommand cmd;
     cmd.text = std::string(utterance);
 
@@ -32,18 +34,34 @@ VoiceCommand parse(std::string_view utterance, const std::vector<std::string>& v
         while (ss >> w) words.push_back(w);
     }
 
-    // First token that is a known intent wins; everything after it is the query.
+    auto in = [](const std::vector<std::string>& v, const std::string& w) {
+        return std::find(v.begin(), v.end(), w) != v.end();
+    };
+
+    // Two-tier, specificity-aware match. Pass 1 takes the earliest token that is a
+    // known intent AND is not a generic catch-all verb, so a domain-specific intent
+    // ("unread") beats a leading generic one ("read"). Pass 2 is the fallback: if
+    // the utterance carried nothing specific, accept the earliest generic verb so a
+    // plain "read this page" / "open wikipedia" still routes. Position order is the
+    // tie-breaker inside each pass.
+    std::size_t match = words.size();  // index of the chosen intent token, or "none"
     for (std::size_t i = 0; i < words.size(); ++i) {
-        if (std::find(vocabulary.begin(), vocabulary.end(), words[i]) != vocabulary.end()) {
-            cmd.intent = words[i];
-            std::string query;
-            for (std::size_t j = i + 1; j < words.size(); ++j) {
-                if (!query.empty()) query += ' ';
-                query += words[j];
-            }
-            if (!query.empty()) cmd.slots["query"] = query;
-            break;
+        if (in(vocabulary, words[i]) && !in(generic_intents, words[i])) { match = i; break; }
+    }
+    if (match == words.size()) {
+        for (std::size_t i = 0; i < words.size(); ++i) {
+            if (in(vocabulary, words[i])) { match = i; break; }
         }
+    }
+
+    if (match != words.size()) {
+        cmd.intent = words[match];
+        std::string query;
+        for (std::size_t j = match + 1; j < words.size(); ++j) {
+            if (!query.empty()) query += ' ';
+            query += words[j];
+        }
+        if (!query.empty()) cmd.slots["query"] = query;
     }
     return cmd;
 }

@@ -59,7 +59,7 @@ public:
 
     bool parse_document(Json& out) {
         skip_ws();
-        if (!parse_value(out)) return false;
+        if (!parse_value(out, 0)) return false;
         skip_ws();
         return pos_ == s_.size();  // reject trailing garbage
     }
@@ -67,6 +67,13 @@ public:
 private:
     const std::string& s_;
     std::size_t        pos_ = 0;
+
+    // Cap on object/array nesting. Real API responses nest only a handful deep;
+    // this exists solely so a hostile or corrupt payload of thousands of nested
+    // brackets fails as a Null value instead of overflowing the stack. Honoring
+    // the module contract: "get garbage back from the network, degrade like any
+    // other failure" — never crash.
+    static constexpr int kMaxDepth = 200;
 
     bool eof() const { return pos_ >= s_.size(); }
     char peek() const { return s_[pos_]; }
@@ -79,13 +86,13 @@ private:
         }
     }
 
-    bool parse_value(Json& out) {
+    bool parse_value(Json& out, int depth) {
         skip_ws();
         if (eof()) return false;
         char c = peek();
         switch (c) {
-            case '{': return parse_object(out);
-            case '[': return parse_array(out);
+            case '{': return parse_object(out, depth);
+            case '[': return parse_array(out, depth);
             case '"': {
                 std::string str;
                 if (!parse_string(str)) return false;
@@ -99,7 +106,8 @@ private:
         }
     }
 
-    bool parse_object(Json& out) {
+    bool parse_object(Json& out, int depth) {
+        if (depth >= kMaxDepth) return false;  // too deeply nested; fail, don't recurse
         ++pos_;  // consume '{'
         out.type_ = Json::Type::Object;
         skip_ws();
@@ -113,7 +121,7 @@ private:
             if (eof() || peek() != ':') return false;
             ++pos_;  // consume ':'
             Json value;
-            if (!parse_value(value)) return false;
+            if (!parse_value(value, depth + 1)) return false;
             out.object_.emplace_back(std::move(key), std::move(value));
             skip_ws();
             if (eof()) return false;
@@ -124,14 +132,15 @@ private:
         }
     }
 
-    bool parse_array(Json& out) {
+    bool parse_array(Json& out, int depth) {
+        if (depth >= kMaxDepth) return false;  // too deeply nested; fail, don't recurse
         ++pos_;  // consume '['
         out.type_ = Json::Type::Array;
         skip_ws();
         if (!eof() && peek() == ']') { ++pos_; return true; }
         while (true) {
             Json value;
-            if (!parse_value(value)) return false;
+            if (!parse_value(value, depth + 1)) return false;
             out.array_.push_back(std::move(value));
             skip_ws();
             if (eof()) return false;

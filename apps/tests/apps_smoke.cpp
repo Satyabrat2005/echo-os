@@ -18,6 +18,7 @@
 
 #include "echo/apps/media/media_app.hpp"
 #include "echo/apps/mail/mail_app.hpp"
+#include "echo/apps/mail/mail_backend.hpp"  // gmail_build_raw_message (pure helper)
 #include "echo/apps/telephony/telephony_app.hpp"
 
 #include <chrono>
@@ -231,6 +232,38 @@ void test_send_email_confirmation_gate() {
     mail->shutdown();
 }
 
+// --- Gmail raw-message builder must not allow header injection ----------------
+// A spoken recipient/subject carrying an embedded newline must not be able to
+// forge extra RFC 2822 headers (e.g. a hidden Bcc) in the outgoing message.
+void test_gmail_no_header_injection() {
+    using mail::gmail_build_raw_message;
+
+    // The security property is that no NEW header LINE can be forged: the injected
+    // text may remain folded into the field as literal content, but it must never
+    // appear after a CR/LF as its own header. Malicious subject tries a Bcc header.
+    std::string raw = gmail_build_raw_message(
+        "sam@example.com",
+        "Hi\r\nBcc: attacker@evil.com",
+        "see you soon");
+    CHECK(!contains(raw, "\r\nBcc:"));  // not injected as a real header line
+    CHECK(!contains(raw, "\nBcc:"));
+    CHECK(contains(raw, "Subject: HiBcc: attacker@evil.com\r\n"));  // folded to one line
+    // The header block still has exactly its three intended header lines before the
+    // blank separator (To, Subject, Content-Type) — no extra line snuck in.
+    CHECK(contains(raw, "\r\n\r\n"));  // header/body separator intact
+
+    // Malicious recipient with a bare newline likewise cannot add a header line.
+    std::string raw2 = gmail_build_raw_message(
+        "sam@example.com\nX-Evil: 1", "Subject line", "body");
+    CHECK(!contains(raw2, "\nX-Evil:"));
+    CHECK(!contains(raw2, "\r\nX-Evil:"));
+
+    // The body may legitimately contain newlines — those are NOT stripped, since it
+    // sits after the header/body separator and cannot forge a header.
+    std::string raw3 = gmail_build_raw_message("a@b.com", "Re: lunch", "line one\nline two");
+    CHECK(contains(raw3, "line one\nline two"));
+}
+
 // --- The permission gate blocks an under-privileged app ----------------------
 void test_permission_gate() {
     auto media = media::make_media_app(true);
@@ -311,6 +344,7 @@ int main() {
     test_routing_three_apps();
     test_shared_hud_surface();
     test_send_email_confirmation_gate();
+    test_gmail_no_header_injection();
     test_permission_gate();
 #ifdef ECHO_APPS_BIN_DIR
     test_supervised_process_ipc();
