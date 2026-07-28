@@ -61,9 +61,20 @@ private:
     FrameQueue                                  queue_;
 };
 
-// Factories for the concrete frontends (stubbed for the scaffold).
+// Factories for the concrete frontends (stubbed for the scaffold). These are
+// what boot's Runtime uses; they never push, keeping the reference binary and CI
+// deterministic.
 std::unique_ptr<ISensorSource> make_camera_source();      // OV2640 DVP
 std::unique_ptr<ISensorSource> make_microphone_source();  // I2S/PDM mic
 std::unique_ptr<ISensorSource> make_eeg_source();         // frontal EEG
+
+// Real laptop capture for the Phase-3 demo: the webcam (OpenCV) stands in for the
+// OV2640, the system mic (SDL, 16 kHz mono int16) for the I2S mic. IMPORTANT:
+// each is designed to own its OWN SPSC queue — one producer thread apiece — so
+// the demo drains a camera lane and a mic lane separately and the single-
+// producer invariant of SpscRingBuffer is never violated. When the OpenCV/SDL
+// deps aren't compiled in, these transparently fall back to the stubs above.
+std::unique_ptr<ISensorSource> make_real_camera_source(int device_index = 0);
+std::unique_ptr<ISensorSource> make_real_microphone_source();
 
 }  // namespace echo::sensor

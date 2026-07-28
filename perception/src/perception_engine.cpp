@@ -2,8 +2,15 @@
 #include "echo/latency.hpp"
 #include "echo/log.hpp"
 
+#include "wake_word.hpp"
+#include "asr.hpp"
+#include "vision.hpp"
+
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace echo::perception {
 
@@ -24,42 +31,157 @@ Confidence Perception::aggregate_confidence() const noexcept {
 
 namespace {
 
-class StubPerceptionEngine final : public IPerceptionEngine {
+// Endpointer tuning for batch-on-silence capture (principle: keep it simple this
+// phase — stream partials later if the budget allows).
+constexpr float  kSilenceRms      = 550.0f;   // int16 RMS below this = "silence"
+constexpr int    kEndpointSilenceMs = 700;    // trailing silence that ends a turn
+constexpr int    kMinUtteranceMs  = 300;      // ignore sub-300ms blips
+constexpr int    kMaxUtteranceMs  = 12000;    // hard cap so we never hang
+
+// The real perception engine: continuous wake-word spotting on the mic, then
+// batch ASR on the captured utterance, plus OpenCV face/object recognition on
+// camera frames. Each sub-model is real when its ECHO_WITH_* flag is set and a
+// stub otherwise; this class is identical either way.
+class PerceptionEngine final : public IPerceptionEngine {
 public:
+    PerceptionEngine()
+        : wake_(make_wake_word()), asr_(make_asr()), vision_(make_vision()) {}
+
     Status initialize() override {
-        // TODO(perception): mmap quantized CNN + wake-word + ASR models onto the
-        // NPU and run a warm-up inference so the first real frame isn't cold.
-        log_info("perception", "engine initialized (stub models)");
+        wake_->initialize();
+        asr_->initialize();
+        vision_->initialize();
+        frame_len_ = wake_->frame_length();
+        sample_rate_ = wake_->sample_rate();
+        log_info("perception", "engine initialized (wake + ASR + vision)");
         return Status::Ok;
     }
 
     Result<Perception> process(const SensorFrame& frame) override {
         StageTimer timer(Stage::Perception);
-
-        Perception p;
-        // The scaffold returns an empty, low-confidence observation. Real models
-        // would populate wake/speech/faces/objects here based on `frame.modality`.
-        switch (frame.modality) {
-            case Modality::Microphone:
-                p.wake = WakeWord{/*detected=*/false, Confidence{0.0f}};
-                break;
-            case Modality::Camera:
-            case Modality::Eeg:
-                break;
-        }
         (void)timer;
-        return Result<Perception>::ok(std::move(p));
+
+        switch (frame.modality) {
+            case Modality::Microphone: return process_audio(frame);
+            case Modality::Camera:     return process_camera(frame);
+            case Modality::Eeg:        return Result<Perception>::ok(Perception{});
+        }
+        return Result<Perception>::ok(Perception{});
     }
 
     void shutdown() override {
+        wake_->shutdown();
+        asr_->shutdown();
+        vision_->shutdown();
         log_info("perception", "engine shut down");
     }
+
+private:
+    Result<Perception> process_audio(const SensorFrame& frame) {
+        Perception p;
+        const auto* pcm = reinterpret_cast<const std::int16_t*>(frame.data);
+        const std::size_t n = frame.size / sizeof(std::int16_t);
+        const int sr = frame.sample_rate > 0 ? static_cast<int>(frame.sample_rate) : sample_rate_;
+        if (!pcm || n == 0) return Result<Perception>::ok(std::move(p));
+
+        // Append to the wake-framing buffer and consume in fixed-size frames.
+        wake_buf_.insert(wake_buf_.end(), pcm, pcm + n);
+        while (static_cast<int>(wake_buf_.size()) >= frame_len_) {
+            if (!listening_) {
+                WakeResult wr = wake_->process(wake_buf_.data(), frame_len_);
+                if (wr.detected) {
+                    p.wake = WakeWord{true, Confidence{wr.confidence}};
+                    start_listening();
+                }
+            } else {
+                feed_utterance(wake_buf_.data(), frame_len_, sr);
+            }
+            wake_buf_.erase(wake_buf_.begin(), wake_buf_.begin() + frame_len_);
+        }
+
+        // If capture just endpointed, transcribe the collected utterance.
+        if (listening_ && endpointed_) {
+            AsrResult ar = asr_->transcribe(utterance_.data(), utterance_.size(), sr);
+            if (!ar.text.empty()) {
+                p.speech = Transcript{ar.text, Confidence{ar.confidence}, /*endpointed=*/true};
+            }
+            stop_listening();
+        }
+        return Result<Perception>::ok(std::move(p));
+    }
+
+    Result<Perception> process_camera(const SensorFrame& frame) {
+        Perception p;
+        if (!frame.valid() || frame.width == 0 || frame.height == 0)
+            return Result<Perception>::ok(std::move(p));
+
+        auto faces = vision_->detect_faces(frame.data,
+                                           static_cast<int>(frame.width),
+                                           static_cast<int>(frame.height));
+        for (auto& f : faces)
+            p.faces.push_back(FaceObservation{f.identity, Confidence{f.confidence},
+                                              f.x, f.y, f.w, f.h});
+
+        auto objects = vision_->classify_objects(frame.data,
+                                                 static_cast<int>(frame.width),
+                                                 static_cast<int>(frame.height));
+        for (auto& o : objects)
+            p.objects.push_back(ObjectObservation{o.label, Confidence{o.confidence}});
+
+        return Result<Perception>::ok(std::move(p));
+    }
+
+    void start_listening() {
+        listening_ = true;
+        endpointed_ = false;
+        utterance_.clear();
+        silence_ms_ = 0;
+        log_debug("perception", "wake-word: listening for command");
+    }
+    void stop_listening() {
+        listening_ = false;
+        endpointed_ = false;
+        utterance_.clear();
+    }
+
+    void feed_utterance(const std::int16_t* pcm, int n, int sr) {
+        utterance_.insert(utterance_.end(), pcm, pcm + n);
+        const int chunk_ms = (n * 1000) / std::max(1, sr);
+        if (rms(pcm, n) < kSilenceRms) silence_ms_ += chunk_ms;
+        else                           silence_ms_ = 0;
+
+        const int have_ms = static_cast<int>(utterance_.size()) * 1000 / std::max(1, sr);
+        if ((silence_ms_ >= kEndpointSilenceMs && have_ms >= kMinUtteranceMs) ||
+            have_ms >= kMaxUtteranceMs) {
+            endpointed_ = true;
+        }
+    }
+
+    static float rms(const std::int16_t* pcm, int n) {
+        if (n <= 0) return 0.f;
+        double acc = 0;
+        for (int i = 0; i < n; ++i) acc += static_cast<double>(pcm[i]) * pcm[i];
+        return static_cast<float>(std::sqrt(acc / n));
+    }
+
+    std::unique_ptr<IWakeWord> wake_;
+    std::unique_ptr<IAsr>      asr_;
+    std::unique_ptr<IVision>   vision_;
+
+    int frame_len_   = 512;
+    int sample_rate_ = 16000;
+
+    std::vector<std::int16_t> wake_buf_;    // pending samples for wake framing
+    std::vector<std::int16_t> utterance_;   // captured command audio
+    bool  listening_  = false;
+    bool  endpointed_ = false;
+    int   silence_ms_ = 0;
 };
 
 }  // namespace
 
 std::unique_ptr<IPerceptionEngine> make_perception_engine() {
-    return std::make_unique<StubPerceptionEngine>();
+    return std::make_unique<PerceptionEngine>();
 }
 
 }  // namespace echo::perception

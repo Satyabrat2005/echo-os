@@ -12,4 +12,9 @@ target_link_libraries(echo-voice
     PRIVATE echo-project-options
 )
 
+# Piper TTS plays through SDL audio (ECHO_WITH_PIPER forces ECHO_WITH_SDL on).
+if(ECHO_WITH_PIPER)
+    target_link_libraries(echo-voice PRIVATE echo::dep-sdl)
+endif()
+
 add_library(echo::voice ALIAS echo-voice)

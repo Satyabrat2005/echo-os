@@ -12,4 +12,12 @@ target_link_libraries(echo-apps-hud
     PRIVATE echo-project-options
 )
 
+# Real overlay window: SDL2 (+ SDL2_ttf for subtitle text, when available).
+if(ECHO_WITH_SDL)
+    target_link_libraries(echo-apps-hud PRIVATE echo::dep-sdl)
+    if(TARGET echo::dep-sdl-ttf)
+        target_link_libraries(echo-apps-hud PRIVATE echo::dep-sdl-ttf)
+    endif()
+endif()
+
 add_library(echo::apps-hud ALIAS echo-apps-hud)

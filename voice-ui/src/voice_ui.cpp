@@ -1,8 +1,17 @@
 #include "echo/voice/voice_ui.hpp"
+#include "echo/config.hpp"
 #include "echo/latency.hpp"
 #include "echo/log.hpp"
 
 #include <cstdio>
+#include <string>
+
+#if defined(ECHO_WITH_PIPER)
+#include <SDL.h>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#endif
 
 namespace echo::voice {
 
@@ -26,11 +35,108 @@ const char* to_string(Tone t) noexcept {
     return "neutral";
 }
 
+#if defined(ECHO_WITH_PIPER)
+
+// Map tone to Piper's --length_scale (higher = slower/warmer) so the scaffold's
+// reassuring/neutral distinction becomes an audible difference, not just a label.
+double length_scale_for(Tone t) {
+    switch (t) {
+        case Tone::Reassuring: return 1.15;  // slower, calmer for safe-mode/distress
+        case Tone::Alert:      return 0.95;  // a touch quicker to catch attention
+        case Tone::Neutral:    return 1.0;
+    }
+    return 1.0;
+}
+
+// Real TTS: shell out to the local `piper` binary (fully on-device) to synthesize
+// a WAV, then play it through SDL audio. Playback is non-blocking — speak()
+// returns once the first samples are queued and the device is unpaused, keeping
+// the core loop responsive (principle #3).
+class PiperVoiceUi final : public IVoiceUi {
+public:
+    Status initialize() override {
+        if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+            log_error("voice", "SDL audio init failed; TTS disabled");
+            return Status::NotReady;
+        }
+        tmp_in_  = (std::filesystem::temp_directory_path() / "echo_tts_in.txt").string();
+        tmp_wav_ = (std::filesystem::temp_directory_path() / "echo_tts_out.wav").string();
+        log_info("voice", "voice UI initialized (Piper TTS + SDL audio)");
+        return Status::Ok;
+    }
+
+    Status speak(const Utterance& utterance) override {
+        StageTimer timer(Stage::VoiceOutput);
+        (void)timer;
+        if (utterance.text.empty()) return Status::Ok;
+
+        // 1) text -> temp file (avoids shell-quoting the whole utterance)
+        { std::ofstream(tmp_in_) << utterance.text; }
+
+        // 2) synthesize with the tone's pacing
+        char cmd[1024];
+        std::snprintf(cmd, sizeof(cmd),
+                      "\"%s\" --model \"%s\" --length_scale %.2f --output_file \"%s\" < \"%s\"",
+                      config::piper_binary().c_str(), config::piper_voice().c_str(),
+                      length_scale_for(utterance.tone), tmp_wav_.c_str(), tmp_in_.c_str());
+        if (std::system(cmd) != 0) {
+            log_warn("voice", "piper synthesis failed");
+            return Status::Unavailable;
+        }
+
+        // 3) play (non-blocking)
+        return play_wav(tmp_wav_);
+    }
+
+    Status play_earcon(std::string_view name) override {
+        // Earcons are short pre-rendered WAVs under models/earcons/<name>.wav.
+        std::string path = (std::filesystem::path(config::models_dir()) /
+                            "earcons" / (std::string(name) + ".wav")).string();
+        if (std::filesystem::exists(path)) return play_wav(path);
+        return Status::Ok;  // absent earcon is not an error
+    }
+
+    void barge_in() override {
+        if (dev_) { SDL_ClearQueuedAudio(dev_); SDL_PauseAudioDevice(dev_, 1); }
+    }
+
+    void shutdown() override {
+        close_device();
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        log_info("voice", "voice UI shut down");
+    }
+
+private:
+    Status play_wav(const std::string& path) {
+        SDL_AudioSpec spec;
+        Uint8* buf = nullptr;
+        Uint32 len = 0;
+        if (!SDL_LoadWAV(path.c_str(), &spec, &buf, &len)) {
+            log_warn("voice", "could not load synthesized WAV");
+            return Status::Unavailable;
+        }
+        barge_in();       // stop anything mid-flight (double-buffered swap)
+        close_device();
+        spec.callback = nullptr;  // use the queue API
+        dev_ = SDL_OpenAudioDevice(nullptr, 0, &spec, nullptr, 0);
+        if (dev_ == 0) { SDL_FreeWAV(buf); return Status::Unavailable; }
+        SDL_QueueAudio(dev_, buf, len);
+        SDL_FreeWAV(buf);
+        SDL_PauseAudioDevice(dev_, 0);  // start playback; return immediately
+        return Status::Ok;
+    }
+    void close_device() { if (dev_) { SDL_CloseAudioDevice(dev_); dev_ = 0; } }
+
+    SDL_AudioDeviceID dev_ = 0;
+    std::string tmp_in_, tmp_wav_;
+};
+
+#endif  // ECHO_WITH_PIPER
+
+// Stub TTS: logs what it would speak. Used by CI and by any build without Piper.
 class StubVoiceUi final : public IVoiceUi {
 public:
     Status initialize() override {
-        // TODO(voice): load quantized TTS voice, allocate double audio buffers,
-        // unmute PAM8403 amp, prime the output DMA.
         log_info("voice", "voice UI initialized (stub TTS)");
         return Status::Ok;
     }
@@ -38,7 +144,6 @@ public:
     Status speak(const Utterance& utterance) override {
         StageTimer timer(Stage::VoiceOutput);
         (void)timer;
-        // TODO(voice): synthesize into the back buffer and swap; here we just log.
         char buf[256];
         std::snprintf(buf, sizeof(buf), "speak[%s]: %.*s",
                       to_string(utterance.tone),
@@ -56,14 +161,17 @@ public:
     }
 
     void barge_in() override { log_debug("voice", "barge-in: stopping playback"); }
-
     void shutdown() override { log_info("voice", "voice UI shut down"); }
 };
 
 }  // namespace
 
 std::unique_ptr<IVoiceUi> make_voice_ui() {
+#if defined(ECHO_WITH_PIPER)
+    return std::make_unique<PiperVoiceUi>();
+#else
     return std::make_unique<StubVoiceUi>();
+#endif
 }
 
 }  // namespace echo::voice

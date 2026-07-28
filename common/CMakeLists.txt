@@ -4,6 +4,7 @@ add_library(echo-common STATIC
     src/result.cpp
     src/latency.cpp
     src/log.cpp
+    src/config.cpp
 )
 
 target_include_directories(echo-common PUBLIC
