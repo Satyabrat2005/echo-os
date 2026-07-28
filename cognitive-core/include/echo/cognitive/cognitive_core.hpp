@@ -30,6 +30,10 @@ struct Response {
     std::string  text;          // what voice-ui will speak
     Confidence   confidence;    // the confidence this decision was made at
     bool         flag_caregiver = false;  // true whenever we couldn't be sure
+    // Optional app-intent routing hint from the LLM ("media", "mail", ... or ""
+    // for a plain conversational answer). The runtime/apps layer may act on it;
+    // it never affects the safe-mode decision above.
+    std::string  intent;
 };
 
 // Tunable thresholds. Deliberately conservative: this device is worn by people

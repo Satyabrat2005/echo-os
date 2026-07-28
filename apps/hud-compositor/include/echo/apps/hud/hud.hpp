@@ -124,10 +124,17 @@ public:
     virtual void shutdown() = 0;
 };
 
-// Two renderers, same primitives:
-//   simulated_window == false -> headless: logs each frame (used by tests/CI).
-//   simulated_window == true  -> draws a subtitle band to the terminal, standing
-//                                in for the glasses' overlay on a laptop.
+// The available HUD renderers, all driven by the same three primitives:
+enum class HudMode : std::uint8_t {
+    Headless = 0,  // logs each frame (used by tests/CI)
+    TerminalBand,  // draws a subtitle band to the terminal (laptop, no GUI deps)
+    Window,        // real always-on-top borderless SDL overlay (Phase 3 demo);
+                   // falls back to TerminalBand when SDL isn't compiled in.
+};
+
+std::unique_ptr<IHudCompositor> make_hud_compositor(HudMode mode);
+
+// Back-compat overload: false -> Headless, true -> TerminalBand.
 std::unique_ptr<IHudCompositor> make_hud_compositor(bool simulated_window = false);
 
 }  // namespace echo::apps::hud

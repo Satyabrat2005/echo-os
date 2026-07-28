@@ -156,20 +156,215 @@ through the stub pipeline, shuts down cleanly):
 ./build/boot/echo-os          # (build/boot/echo-os.exe on Windows/MinGW)
 ```
 
+## Phase 3: Real Local AI
+
+Phase 3 replaces the core pipeline's stubs with **real, fully local, offline**
+models and adds a **laptop HUD overlay** that stands in for the glasses display,
+so the whole loop runs end to end on a laptop:
+
+> webcam + mic in → **"Hey ECHO"** wake word → speech-to-text → {face
+> recognition | app routing | LLM reasoning, behind the safe-mode gate} →
+> spoken response (TTS) + HUD subtitle out.
+
+Nothing here touches the network — wake word, ASR, reasoning, TTS, and face/
+object recognition all run on-device (principle #4). The mocked external services
+(Spotify, Gmail, …) stay mocked; this phase makes the *core intelligence* real,
+not the third-party integrations.
+
+### Engines and models used
+
+Every engine is behind a CMake option that defaults **OFF**, so the tree still
+builds end to end with zero dependencies (the stub fallback). Turn one on once
+its library is installed and its model placed under [`models/`](models/README.md).
+Flip them all with `-DECHO_REAL_AI=ON`.
+
+| Stage | Module | Engine (option) | Suggested model + quantization |
+|-------|--------|-----------------|--------------------------------|
+| Wake word | `perception/` | Picovoice **Porcupine** (`ECHO_WITH_PORCUPINE`) | custom `Hey ECHO` `.ppn` keyword |
+| Speech-to-text | `perception/` | **whisper.cpp** (`ECHO_WITH_WHISPER`) | `ggml-base.en-q5_1.bin` (or `small.en`) |
+| Reasoning + intent routing | `cognitive-core/` | **llama.cpp** (`ECHO_WITH_LLAMA`) | `Llama-3.2-3B-Instruct` **Q4_K_M** (or `Phi-3.5-mini-instruct` Q4_K_M) |
+| Text-to-speech | `voice-ui/` | **Piper** (`ECHO_WITH_PIPER`) | `en_US-amy-medium` (`.onnx` + `.onnx.json`) |
+| Face detect + recognize | `perception/` | **OpenCV** YuNet + SFace (`ECHO_WITH_OPENCV`) | `face_detection_yunet.onnx`, `face_recognition_sface.onnx` |
+| Object/scene | `perception/` | **OpenCV** dnn (`ECHO_WITH_OPENCV`) | `mobilenet_v2.onnx` (optional) |
+| HUD overlay + mic/speaker I/O | `apps/hud-compositor/`, `voice-ui/`, `sensor-pipeline/` | **SDL2** (`ECHO_WITH_SDL`, +`SDL2_ttf` for subtitles) | — |
+
+Notes on the choices:
+- **Wake word — Porcupine over openWakeWord.** Porcupine has the simpler local C
+  API. It needs a **free AccessKey** obtained once from the Picovoice console;
+  that key is a one-time *setup* step and is validated **offline** — no audio or
+  request ever leaves the device at runtime. Put the key in
+  `models/porcupine_access_key.txt` (or `$PV_ACCESS_KEY`). The wake detector runs
+  continuously on the mic at negligible idle CPU.
+- **ASR** streams as batch-on-silence for this phase: the engine spots the wake
+  word, captures until ~700 ms of trailing silence, then transcribes the
+  utterance (energy-based endpointing in `perception/src/perception_engine.cpp`).
+- **Reasoning** runs the LLM **only after** the confidence-threshold safe-mode
+  gate passes, and it also emits an optional `[route:<app>]` tag so the runtime
+  can hand app-shaped requests to the apps layer. A failed or empty generation
+  falls back to safe mode — **the model never guesses** (principle #5, untouched).
+- **TTS** maps the scaffold's reassuring/neutral tone onto Piper's `length_scale`
+  so safe-mode replies are spoken a little slower and warmer.
+- **HUD** is a borderless, always-on-top SDL overlay near the bottom of the
+  screen rendering the **same three primitives** as the on-device compositor
+  (subtitle, one icon, a status dot) and nothing else. It runs on its own thread
+  and `present()` only copies the latest frame, so an app can never block or
+  crash the core loop (constraint #4).
+
+### Building the real stack
+
+```bash
+# Everything on at once (needs all libs installed + models placed):
+cmake -S . -B build -DECHO_REAL_AI=ON
+# ...or pick engines à la carte, e.g. reasoning + TTS + HUD only:
+cmake -S . -B build -DECHO_WITH_LLAMA=ON -DECHO_WITH_PIPER=ON -DECHO_WITH_SDL=ON
+cmake --build build
+```
+
+Point CMake at any dependency that isn't on the default search path with the
+usual variables: `-DOpenCV_DIR=…`, `-DSDL2_DIR=…`, `-Dwhisper_DIR=…`,
+`-Dllama_DIR=…`, and `-DPORCUPINE_ROOT=<unpacked Porcupine SDK>`. See
+[`cmake/echo_ai.cmake`](cmake/echo_ai.cmake) for exactly how each is resolved.
+
+### Getting the models
+
+Place these under [`models/`](models/README.md) (see that file for the exact
+filenames and per-file env overrides). Sketch of the sources:
+
+```bash
+# whisper.cpp model (quantized English base):
+#   from the whisper.cpp repo:  ./models/download-ggml-model.sh base.en-q5_1
+#   -> copy ggml-base.en-q5_1.bin into echo-os/models/
+
+# llama.cpp instruct GGUF (example: Llama-3.2-3B-Instruct Q4_K_M) — download the
+#   .gguf from its model card, then:  cp <file>.gguf echo-os/models/llm.gguf
+
+# Piper voice:  download en_US-amy-medium.onnx AND en_US-amy-medium.onnx.json
+#   from the Piper voices release into echo-os/models/
+
+# OpenCV face models (YuNet + SFace) from the OpenCV Zoo, into models/ as
+#   face_detection_yunet.onnx and face_recognition_sface.onnx
+
+# Porcupine:  train a custom "Hey ECHO" keyword in the Picovoice console, download
+#   hey-echo.ppn + porcupine_params.pv into models/, and save your AccessKey to
+#   models/porcupine_access_key.txt
+
+# Enrolled faces (the demo test set): a photo per person, named after them:
+#   echo-os/models/faces/grace.jpg   ->  ECHO will say "That's Grace."
+```
+
+### Running the demo
+
+The demo binary is `echo-demo` (target `run_demo`), wired in
+[`apps/demo/echo_demo.cpp`](apps/demo/echo_demo.cpp). The wrapper scripts build
+and launch it and set the real-AI options for you:
+
+```bash
+# Windows (PowerShell):
+.\scripts\run_demo.ps1                 # real: webcam + mic + wake word + HUD overlay
+.\scripts\run_demo.ps1 -Mode stub      # no models needed: type commands, headless HUD
+
+# Linux / macOS:
+./scripts/run_demo.sh                   # real mode
+./scripts/run_demo.sh --mode stub       # stub mode
+```
+
+Or straight from CMake once configured: `cmake --build build --target run_demo`.
+Flags on `echo-demo`: `--window` (SDL HUD, default via scripts), `--text` (type
+utterances instead of speaking — no mic/wake needed), `--no-camera`,
+`--headless-hud`.
+
+> **Runtime DLL note (Windows).** Run with your build toolchain's `bin` **first**
+> on `PATH`, and put the dependency DLLs (`SDL2.dll`, OpenCV, `whisper.dll`,
+> `llama.dll`, Piper) beside the exe or on `PATH`. A mismatched `libstdc++`/
+> runtime from an unrelated tool (e.g. Git's bundled MinGW) on `PATH` ahead of
+> yours will crash the binary at startup — this is an environment/ABI issue, not
+> a bug in the demo.
+
+### Manual test flow
+
+With `models/` populated and a couple of faces enrolled, run
+`.\scripts\run_demo.ps1` and try:
+
+1. **Wake + reason.** Say **"Hey ECHO, what should I do now?"** → you hear a
+   short spoken reply and see it on the HUD. Ask something it can't know and it
+   deliberately falls to the calm safe-mode line instead of guessing.
+2. **Face recognition.** Look at the webcam with an enrolled person in frame and
+   say **"Hey ECHO, who is this?"** → it answers **"That's &lt;name&gt;."** and the
+   HUD shows the name with a ✓ status. An unknown face → "I don't recognize them
+   yet."
+3. **App routing.** Say **"Hey ECHO, play some music"** → routed to the mocked
+   media app, which speaks *"Now playing Kind of Blue by Miles Davis."* and draws
+   a ▶ icon + subtitle on the HUD.
+
+No mic set up yet? `.\scripts\run_demo.ps1 -Mode stub` (or `echo-demo --text`)
+lets you type the same utterances and exercises routing + the safe-mode gate with
+zero models installed.
+
+### Measured latency (fill from your run)
+
+Each turn's real timings are written to `latency_log.csv` and printed live; a
+min/avg/max summary prints on exit (see
+[`apps/demo/latency.hpp`](apps/demo/latency.hpp)). The per-stage **targets** below
+are the build-enforced budget from `common/include/echo/latency.hpp`; the
+**measured** column is intentionally left for you to populate from a handful of
+real runs on your hardware, so this table holds a real number, not a simulated
+one.
+
+| Stage | Target | Measured (your run) |
+|-------|-------:|--------------------:|
+| Perception (wake + ASR) | 45 ms | _fill from `perception_ms`_ |
+| Cognitive (LLM + gate) | 50 ms | _fill from `cognitive_ms`_ |
+| Voice output (TTS start) | 18 ms | _fill from `voice_ms`_ |
+| **End to end** | **120 ms** | _fill from `total_ms`_ |
+
+> **Honest note on this deliverable.** The integrated pipeline was verified end
+> to end in **stub/text mode** in the dev sandbox (routing, the safe-mode gate,
+> HUD frames, and latency logging all confirmed working). The **native models**
+> (whisper/llama/Piper/Porcupine/OpenCV) were **not** run in the sandbox — they
+> require the libraries and multi-GB weights installed on the laptop, which is a
+> local step. Real quantized LLM/ASR inference on a laptop CPU will very likely
+> **exceed the 120 ms budget**; when it does, record the actual number here
+> rather than fudging the budget. The `StageTimer` overrun path and this CSV are
+> exactly how that honest number is captured.
+
+### Swapping in the embedded-hardware versions later
+
+The engine seams are drawn so the laptop stand-ins swap for the on-SoC
+equivalents **without touching any module's interface** — only the
+`ECHO_WITH_*` option and the `echo::dep-*` target behind it change:
+
+| Laptop (Phase 3) | Embedded target |
+|------------------|-----------------|
+| Porcupine on the laptop mic | on-DSP keyword spotter (same `IWakeWord`) |
+| whisper.cpp on CPU/GPU | quantized ASR on the NPU (same `IAsr`) |
+| llama.cpp GGUF on CPU/GPU | quantized LLM via the SoC runtime (same `ILlm`) |
+| Piper subprocess + SDL audio | on-device TTS → PAM8403 amp (same `IVoiceUi`) |
+| OpenCV YuNet/SFace on the webcam | quantized CNN on the OV2640 stream (same `IVision`) |
+| SDL overlay window | the glasses' actual HUD (same `IHudCompositor` primitives) |
+
+Because each real path is a `#if defined(ECHO_WITH_*)` adapter behind an
+unchanged interface, the embedded build just defines a different option and links
+a different `echo::dep-*` — downstream modules never notice.
+
 ## Status
 
-This is the **first-pass scaffold**: clean module boundaries, documented
-interfaces, and a build system that compiles end to end. Every module exposes its
-real interface; implementations are stubs marked with `TODO(<module>)`. The
-priority for this pass was clean, well-documented contracts over functionality.
+Phase 3 makes the **core intelligence real** on a laptop while keeping the
+scaffold's contracts intact. The safe-mode gate, the lock-free ring buffer, the
+latency-budget model, and the apps-layer isolation are all **unchanged**; the
+real engines are additive adapters behind their existing interfaces.
 
 ### What's real vs. stubbed
 
-- **Real:** module boundaries and interfaces, the lock-free ring buffer, the
-  latency-budget model, the safe-mode gate logic, the boot/runtime wiring, and
-  the smoke tests.
-- **Stubbed (`TODO`):** the quantized models (CNN/ASR/LLM/TTS), the sensor DMA
-  frontends, and the BLE/WiFi transport.
+- **Real:** module boundaries and interfaces; the lock-free ring buffer; the
+  latency-budget model; the safe-mode gate logic; the boot/runtime wiring; the
+  smoke tests; and — new in Phase 3 — the wake-word / ASR / LLM / TTS / face+
+  object adapters (whisper.cpp, llama.cpp, Piper, Porcupine, OpenCV), the SDL
+  laptop HUD overlay, real webcam/mic capture, the integrated `echo-demo`, and
+  end-to-end latency logging. All default OFF so the dependency-free stub build
+  still compiles and the reference `echo-os` binary + CI stay deterministic.
+- **Still stubbed (`TODO`):** the on-glasses sensor DMA frontends and the BLE/
+  WiFi companion transport (hardware phase); real third-party service backends
+  (Spotify/Gmail/…) remain mocked by design.
 
 ## License
 

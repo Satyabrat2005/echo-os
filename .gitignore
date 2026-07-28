@@ -1,8 +1,19 @@
 # Build output
 build/
 build-apps/
+build-check/
 out/
 cmake-build-*/
+
+# Phase 3: downloaded local model files (multi-GB; never committed) and run logs.
+# Keep the models/ directory structure and its README, but not the weights.
+models/**
+!models/
+!models/README.md
+!models/faces/
+!models/faces/.gitkeep
+latency_log.csv
+demo_out.txt
 
 # CMake
 CMakeCache.txt

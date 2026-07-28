@@ -82,4 +82,7 @@ echo_add_app(gallery)
 add_subdirectory(host)
 add_subdirectory(tests)
 
+# --- Phase 3 integrated demo (core pipeline + apps + real HUD/sensors) --------
+add_subdirectory(demo)
+
 message(STATUS "ECHO OS apps layer configured (8 apps, mock default)")

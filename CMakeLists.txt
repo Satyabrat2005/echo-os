@@ -38,6 +38,13 @@ endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# --- Phase 3: real local-AI engine toggles ----------------------------------
+# Defines the ECHO_WITH_* options and resolves each enabled engine into an
+# echo::dep-* target. All default OFF, so the line below is a no-op for the
+# dependency-free stub build; see cmake/echo_ai.cmake and README "Phase 3".
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(cmake/echo_ai.cmake)
+
 # --- Modules (build order follows the dependency graph) ---------------------
 add_subdirectory(common)          # shared vocabulary
 add_subdirectory(sensor-pipeline) # real-time capture + lock-free buffering
