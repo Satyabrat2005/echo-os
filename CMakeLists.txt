@@ -1,0 +1,55 @@
+# ECHO OS — top-level build.
+#
+# The on-device software runtime for ECHO smart glasses. Runs on a stripped-down
+# embedded Linux base and provides a custom runtime, voice-first UI shell, and
+# local AI pipeline layered on top.
+#
+# Every module is a static library; boot/ produces the `echo-os` binary that
+# wires them into the sub-120ms perception-to-response loop. Everything here is
+# self-contained (no external dependencies) so the scaffold compiles cleanly with
+# stub logic on any host toolchain, and cross-compiles to the target unchanged.
+cmake_minimum_required(VERSION 3.16)
+
+project(echo-os
+    VERSION 0.1.0
+    DESCRIPTION "On-device software runtime for ECHO smart glasses"
+    LANGUAGES CXX
+)
+
+# --- Project-wide options carrier -------------------------------------------
+# An INTERFACE target that centralizes the C++ standard and warning policy. Every
+# module links it, so settings live in exactly one place.
+add_library(echo-project-options INTERFACE)
+target_compile_features(echo-project-options INTERFACE cxx_std_17)
+
+if(MSVC)
+    target_compile_options(echo-project-options INTERFACE /W4 /permissive-)
+else()
+    target_compile_options(echo-project-options INTERFACE
+        -Wall -Wextra -Wpedantic)
+endif()
+
+# Default to a release-ish build if the caller didn't choose (embedded target
+# cares about size/latency).
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "" FORCE)
+endif()
+
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# --- Modules (build order follows the dependency graph) ---------------------
+add_subdirectory(common)          # shared vocabulary
+add_subdirectory(sensor-pipeline) # real-time capture + lock-free buffering
+add_subdirectory(perception)      # face/object/wake-word/ASR
+add_subdirectory(cognitive-core)  # LLM orchestration + safe-mode
+add_subdirectory(voice-ui)        # TTS + audio-first shell
+add_subdirectory(companion-sync)  # BLE/WiFi to caregiver app
+add_subdirectory(power-mgmt)      # DVFS / duty-cycle scheduling
+add_subdirectory(boot)            # init sequence + runtime + `echo-os` binary
+
+# --- Tests ------------------------------------------------------------------
+enable_testing()
+add_subdirectory(tests)
+
+message(STATUS "ECHO OS ${PROJECT_VERSION} configured (${CMAKE_BUILD_TYPE})")
