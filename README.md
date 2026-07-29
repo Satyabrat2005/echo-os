@@ -243,15 +243,24 @@ fixed here rather than filed for later:
   treated `mic` as possibly-null. Today's factories never return null, so it can't
   crash *yet* — but a real mic backend that fails to open the device would. Now
   guarded, so it degrades to the existing "unavailable" message instead of a crash.
-- **clang-tidy** — 15 findings, all fixed: a pointless `std::move` in
-  `VoiceCommand::slot` that the compiler couldn't honor (a copy happened anyway, and
+- **clang-tidy** — every finding fixed. From the first pass: a pointless `std::move`
+  in `VoiceCommand::slot` that the compiler couldn't honor (a copy happened anyway, and
   the by-value default was copied per call — now a `const` reference); a hot-path
   `snprintf` in `url_encode` replaced with direct hex writing (faster, no ignored
   return); the Phase 6 `sanitize_header_value` moved into an anonymous namespace; and
   twelve `cert-err33-c` sites — all C-stdlib format/log calls (`snprintf` into a fixed
   buffer, `fprintf`/`fflush`, `signal`) whose return is conventionally and safely
   ignored — made explicit with `(void)` casts so the check stays live to catch a
-  *future* ignored `fopen`/`malloc`.
+  *future* ignored `fopen`/`malloc`. The CI run (Linux/libstdc++, which models
+  `std::optional` where a Windows/MSVC-header run cannot) additionally caught a real
+  **unchecked-optional-access** in the supervisor's exit-code logging — now the
+  idiomatic `.value_or(-1)` — plus a `size_t`→`double` narrowing in the latency
+  printout (explicit `static_cast`). `Result::value()` keeps a documented `NOLINT`: it
+  is deliberately the unchecked accessor (precondition `is_ok()`, like
+  `std::optional::operator*`), with `value_or()` as the checked path.
+- **cppcheck** — beyond the null-deref above, its CI version flagged redundant
+  `.c_str()` calls passed to `string_view`-taking loggers (`stlcstrParam`: a needless
+  `strlen`); all such call sites now pass the `std::string` directly.
 - **Fuzzing** — no new crash surfaced (locally, 30k mutated inputs; in CI, the bounded
   ASan/UBSan run). That's the expected, good outcome: the one known parser crash was
   already fixed in Phase 6 with the depth cap. The harness's value is ongoing

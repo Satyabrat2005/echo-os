@@ -88,7 +88,7 @@ int Supervisor::reap() {
         char buf[192];
         (void)std::snprintf(buf, sizeof(buf), "app '%s' exited (code=%d)",
                             m->spec.id.c_str(),
-                            m->last_exit_code ? *m->last_exit_code : -1);
+                            m->last_exit_code.value_or(-1));
         log_warn("supervisor", buf);
 
         if (!m->spec.auto_restart) continue;

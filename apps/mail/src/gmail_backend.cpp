@@ -135,7 +135,7 @@ public:
                 const std::string&) override {
         // Mock never touches the network; it reports success so the confirmation
         // flow (and its smoke test) exercises end-to-end without credentials.
-        log_info("mail", (std::string("[mock] would send to ") + to).c_str());
+        log_info("mail", std::string("[mock] would send to ") + to);
         return Status::Ok;
     }
 };

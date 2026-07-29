@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
         if (!obs.speech) return;
         const std::string transcript = obs.speech->text;
         const std::string t = lower(transcript);
-        log_info("demo", (std::string("heard: \"") + transcript + "\"").c_str());
+        log_info("demo", std::string("heard: \"") + transcript + "\"");
         hud_c->present("echo", hud::HudFrame{}.with_subtitle(transcript, 4000)
                                    .with_status(hud::StatusKind::Working));
 

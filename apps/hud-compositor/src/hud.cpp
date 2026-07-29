@@ -72,7 +72,7 @@ public:
         return Status::Ok;
     }
     void present(std::string_view app_id, const HudFrame& frame) override {
-        log_info("hud", describe(app_id, frame).c_str());
+        log_info("hud", describe(app_id, frame));
     }
     void clear(std::string_view app_id) override {
         char buf[96];

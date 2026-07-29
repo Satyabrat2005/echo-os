@@ -36,8 +36,14 @@ public:
 
     Status status() const noexcept { return status_; }
 
-    // Only valid when is_ok(); callers must check first.
+    // Deliberate unchecked accessor: the precondition is is_ok(), exactly as
+    // std::optional::operator* requires the optional be engaged. Callers that
+    // haven't checked should use value_or() below. The NOLINTs mark this as the
+    // reviewed, intentional unchecked path — the check stays on everywhere else
+    // (it caught a real unguarded access in the supervisor).
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     const T& value() const { return *value_; }
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     T&       value()       { return *value_; }
 
     // Convenience: value if present, else the supplied fallback.

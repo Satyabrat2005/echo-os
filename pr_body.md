@@ -56,6 +56,15 @@ change, not defer them**.
     fixed buffer, `fprintf`/`fflush`, `signal`) whose return is conventionally and
     safely ignored — made explicit with `(void)` casts, so the check stays live to
     catch a *future* ignored `fopen`/`malloc` instead of being disabled wholesale.
+  - Surfaced only by the CI run (Linux/libstdc++ models `std::optional` where a
+    Windows/MSVC-header run can't): a real **unchecked-optional-access** in the
+    supervisor's exit-code logging → idiomatic `.value_or(-1)`; a `size_t`→`double`
+    narrowing in the latency printout → explicit `static_cast`. `Result::value()`
+    keeps a documented `NOLINT` — it is the deliberate unchecked accessor (precondition
+    `is_ok()`, like `std::optional::operator*`).
+- **cppcheck → redundant `.c_str()`** passed to `string_view`-taking loggers
+  (`stlcstrParam`, a needless `strlen`), fixed at all call sites by passing the
+  `std::string` directly.
 - **Fuzzing → no new crash.** That's the expected, good result: the one known parser
   crash was already fixed in Phase 6 with the depth cap; 30k mutated inputs locally and
   the bounded ASan/UBSan run in CI found nothing new. The harness's value is ongoing
@@ -84,9 +93,12 @@ change, not defer them**.
 
 ## Verification done here
 
-- clang-tidy (v22) run locally over all 60 first-party TUs: **clean** after the fixes.
-- cppcheck (v2.17, `--enable=warning,performance,portability --check-level=exhaustive`)
-  over the compile database: **clean** after the null-deref fix.
+- clang-tidy run locally (v22) over all 60 first-party TUs and again in CI
+  (Linux/libstdc++). The CI toolchain models `std::optional` where the local
+  Windows/MSVC-header run can't, so it caught the optional-access + narrowing findings
+  the first push missed; those are fixed and the job is green.
+- cppcheck run locally (v2.17, `--check-level=exhaustive`) and in CI. The CI version
+  additionally flagged the `stlcstrParam` `.c_str()` calls; fixed, job green.
 - Fuzz harness builds and runs; the standalone replay driver passes the seed corpus and
   30k mutated inputs with no crash (local runs are MinGW/no-ASan — the ASan/UBSan run is
   CI's job).

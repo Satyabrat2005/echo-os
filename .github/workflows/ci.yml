@@ -347,7 +347,11 @@ jobs:
             echo '```';
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Non-blocking: the report is a convenience artifact. The coverage % is already
+      # in the run summary and the XML feeds Codecov, so an artifact hiccup (e.g. the
+      # account's Actions storage quota) must not redden the job.
       - name: Upload coverage report artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
