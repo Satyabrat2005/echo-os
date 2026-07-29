@@ -16,6 +16,20 @@ The device is worn by people living with memory loss and by their caregivers.
 Every decision in this codebase is made in service of five non-negotiable design
 principles.
 
+## Documentation
+
+New here? Start with these four docs — they give the fastest honest picture of
+the system:
+
+| Doc | Read it for |
+|-----|-------------|
+| 📐 [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) | The system diagram and a 10-second mental model — the core loop and the apps isolation boundary. |
+| 📊 [**docs/STATE.md**](docs/STATE.md) | Honest project status: what's built vs. still pending real-world validation, and test coverage by module. **Read this first.** |
+| 🚀 [**docs/RUNBOOK.md**](docs/RUNBOOK.md) | The consolidated, linear checklist to actually run it for real — deps, accounts, scripts, in order. |
+| 🧭 [**docs/DECISIONS.md**](docs/DECISIONS.md) | The architectural decision log — the real choices made and why. |
+
+The sections below remain the detailed, phase-by-phase reference.
+
 ## Design principles
 
 1. **Premium and calm.** Minimal visual noise, voice-first interaction, large
