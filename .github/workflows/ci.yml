@@ -1,0 +1,148 @@
+# ECHO OS — Continuous Integration (Phase 7)
+#
+# The safety net that makes "run the full test suite before every merge" automatic
+# and mandatory instead of a thing someone has to remember. Runs on every push and
+# every pull request targeting master.
+#
+# Three jobs:
+#   1. stub-build    — the dependency-free CI baseline (every ECHO_WITH_*/ECHO_REAL_AI
+#                      flag OFF). Zero external deps, zero secrets. This job must ALWAYS
+#                      be green; every future phase depends on it as the floor.
+#   2. network-build — configures -DECHO_WITH_NETWORK=ON, installs libcurl, and runs the
+#                      appkit + apps suites. Proves the Phase 5/6 network branch compiles
+#                      and passes on a clean machine, not just a developer's laptop.
+#   3. secret-scan   — runs the existing scripts/check_secrets.sh rules on every PR so a
+#                      credential can never land in the repo, even if a future session
+#                      forgets to run the check manually.
+#
+# DELIBERATELY EXCLUDED — the real local-AI matrix (ECHO_REAL_AI=ON with
+# whisper.cpp / llama.cpp / Porcupine / Piper). That build needs multi-gigabyte model
+# downloads and, for Porcupine, an account-gated Picovoice access key. Neither belongs
+# in CI: the downloads blow the time budget and the key is a secret we will not put in a
+# workflow. The stub build above is the deliberate dependency-free proxy that exercises
+# the same code paths with stub adapters. See the README "CI" section for how to add real
+# local-AI coverage later, once model hosting/caching is worked out.
+#
+# NOTE ON SECRETS: this file contains no secrets and needs none. The network job installs
+# libcurl from the runner's package manager and does not make live API calls — it only
+# compiles and runs the dependency-free unit/smoke tests, which never touch a real
+# credential.
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Least privilege: CI only needs to read the repo.
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR cancels an in-flight run — faster feedback, less
+# wasted runner time.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Stub build — the always-green baseline. No external dependencies, no secrets.
+  #    All ECHO_WITH_*/ECHO_REAL_AI flags stay at their default OFF, exactly as the
+  #    dependency-free default has built since Phase 1.
+  # ---------------------------------------------------------------------------
+  stub-build:
+    name: Stub build (no deps) + full ctest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools (cmake, ccache)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ccache
+
+      # Cache compiled objects across runs so PRs don't rebuild from scratch every
+      # time (constraint #2, fast feedback). ccache keys on compiler + source, so it
+      # stays correct across CMake reconfigures.
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-stub-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-stub-${{ runner.os }}-
+
+      - name: Configure (all engine flags OFF — the dependency-free default)
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test (full suite)
+        run: ctest --test-dir build --output-on-failure
+
+  # ---------------------------------------------------------------------------
+  # 2. Network build — validates the Phase 5/6 real-integration branch compiles and
+  #    passes on a clean machine. Installs libcurl, configures -DECHO_WITH_NETWORK=ON,
+  #    and runs the appkit + apps suites: JSON parsing (incl. the deep-nesting overflow
+  #    guard), the Gmail header-injection regression test, the confirm-before-action
+  #    gate, and the NLU mail/browser routing fix. No live API calls — the tests are
+  #    dependency-free and credential-free; libcurl only needs to link.
+  # ---------------------------------------------------------------------------
+  network-build:
+    name: Network build (ECHO_WITH_NETWORK=ON) + appkit/apps tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools + libcurl
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ccache libcurl4-openssl-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-network-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-network-${{ runner.os }}-
+
+      - name: Configure (ECHO_WITH_NETWORK=ON)
+        run: >
+          cmake -S . -B build-network
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DECHO_WITH_NETWORK=ON
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build
+        run: cmake --build build-network --parallel
+
+      # Scope to the appkit + apps suites the network branch is about:
+      #   echo-appkit-tests  (JSON, URL, credentials, confirmation gate, readability)
+      #   echo-apps-smoke    (Gmail header-injection guard, confirmation gate end-to-end)
+      #   echo-nlu-routing   (Phase 6 mail/browser routing fix)
+      - name: Test (appkit + apps suites)
+        run: >
+          ctest --test-dir build-network --output-on-failure
+          -R "appkit|apps|nlu"
+
+  # ---------------------------------------------------------------------------
+  # 3. Secret-scan gate — runs the existing scripts/check_secrets.sh rules on every push
+  #    and PR. With nothing staged in CI, the script scans every tracked file (a superset
+  #    of the PR diff), so a real API key, OAuth secret, private key, token cache, or
+  #    committed .env fails the job and blocks merge. No secrets required to run.
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: Secret scan (check_secrets.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan tracked files for credentials
+        run: bash scripts/check_secrets.sh
