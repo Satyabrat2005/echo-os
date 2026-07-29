@@ -1,0 +1,65 @@
+# ECHO OS — clang-tidy ruleset (Phase 8).
+#
+# Tuned for a C++17 embedded / network-facing codebase. The point of this file is
+# the bug CLASSES that manual review missed once already: the Phase 6 Gmail
+# header-injection (untrusted data flowing into a protocol string) and the JSON
+# parser's unbounded recursion. clang-tidy's bugprone-, cert-, and
+# clang-analyzer-security checks are exactly the family that flags those.
+#
+# We start from nothing (-*) and turn on curated groups, then disable individual
+# checks that are noise for this codebase (with a reason on each). Enabled checks
+# are errors in CI (WarningsAsErrors below) so a regression can't slip in green.
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  misc-*,
+  performance-*,
+  portability-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  -misc-non-private-member-variables-in-classes,
+  -misc-no-recursion,
+  -misc-include-cleaner,
+  -misc-const-correctness,
+  -cert-dcl21-cpp,
+  -cert-err58-cpp,
+  -portability-avoid-pragma-once,
+  -performance-enum-size
+
+# Rationale for the disabled checks:
+#   bugprone-easily-swappable-parameters      — stylistic; flags any two same-typed
+#                                               params, overwhelming signal for zero
+#                                               real defects here.
+#   misc-non-private-member-variables-in-classes — the plain-data structs in this
+#                                               tree intentionally expose fields.
+#   misc-no-recursion                         — the JSON recursive-descent parser is
+#                                               recursive BY DESIGN, and its depth is
+#                                               explicitly bounded (kMaxDepth). The
+#                                               fuzz target guards the actual risk.
+#   cert-dcl21-cpp                            — postfix operator return-const style;
+#                                               not relevant, no such operators.
+#   cert-err58-cpp                            — throwing static initializers; our
+#                                               statics are trivial (a default Json).
+#   bugprone-exception-escape                 — fires on any implicitly-defaulted
+#                                               move/ctor of a struct holding a
+#                                               std::string/std::map because the
+#                                               allocation may throw std::bad_alloc.
+#                                               That is not a defect we can or should
+#                                               "fix"; real noexcept-violations are
+#                                               still caught by the compiler.
+#   portability-avoid-pragma-once             — the whole tree standardized on
+#                                               '#pragma once' by policy; this check
+#                                               would flag every header.
+#   performance-enum-size                     — micro-optimization (1-byte enum base);
+#                                               forcing it across dozens of public
+#                                               enums is churn with no measured size
+#                                               win on this target.
+
+# Only diagnose OUR headers, never system or third-party ones we don't control
+# (constraint #3: don't chase findings in code we can't cleanly fix).
+HeaderFilterRegex: 'echo-os/(apps|common|sensor-pipeline|perception|cognitive-core|voice-ui|companion-sync|power-mgmt|boot)/'
+
+# Enabled checks are hard errors in CI.
+WarningsAsErrors: '*'

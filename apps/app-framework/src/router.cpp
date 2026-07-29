@@ -19,8 +19,8 @@ void Router::register_app(IApp* app) {
         auto [it, inserted] = by_intent_.emplace(intent, app);
         if (!inserted) {
             char buf[160];
-            std::snprintf(buf, sizeof(buf), "intent '%s' claimed by '%s', ignoring '%s'",
-                          intent.c_str(), it->second->metadata().id.c_str(), meta.id.c_str());
+            (void)std::snprintf(buf, sizeof(buf), "intent '%s' claimed by '%s', ignoring '%s'",
+                                intent.c_str(), it->second->metadata().id.c_str(), meta.id.c_str());
             log_warn("router", buf);
             continue;
         }

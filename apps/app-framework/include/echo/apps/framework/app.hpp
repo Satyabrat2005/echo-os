@@ -41,9 +41,9 @@ struct VoiceCommand {
     std::string                         text;
     std::map<std::string, std::string>  slots;
 
-    std::string slot(const std::string& key, std::string fallback = {}) const {
+    std::string slot(const std::string& key, const std::string& fallback = {}) const {
         auto it = slots.find(key);
-        return it == slots.end() ? std::move(fallback) : it->second;
+        return it == slots.end() ? fallback : it->second;
     }
 };
 

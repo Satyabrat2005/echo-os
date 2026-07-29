@@ -44,7 +44,8 @@ std::string gmail_refresh_body(const std::string& client_id,
 // header. Without this, a "To"/"Subject" carrying an embedded newline could inject
 // extra headers (e.g. a hidden Bcc) into the outgoing mail — header injection. The
 // body is exempt: it lives after the blank-line separator and cannot forge headers.
-static std::string sanitize_header_value(const std::string& v) {
+namespace {
+std::string sanitize_header_value(const std::string& v) {
     std::string out;
     out.reserve(v.size());
     for (char c : v) {
@@ -55,6 +56,7 @@ static std::string sanitize_header_value(const std::string& v) {
     }
     return out;
 }
+}  // namespace
 
 std::string gmail_build_raw_message(const std::string& to, const std::string& subject,
                                     const std::string& body) {
@@ -133,7 +135,7 @@ public:
                 const std::string&) override {
         // Mock never touches the network; it reports success so the confirmation
         // flow (and its smoke test) exercises end-to-end without credentials.
-        log_info("mail", (std::string("[mock] would send to ") + to).c_str());
+        log_info("mail", std::string("[mock] would send to ") + to);
         return Status::Ok;
     }
 };

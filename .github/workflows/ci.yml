@@ -1,10 +1,10 @@
-# ECHO OS — Continuous Integration (Phase 7)
+# ECHO OS — Continuous Integration (Phase 7 + Phase 8)
 #
 # The safety net that makes "run the full test suite before every merge" automatic
 # and mandatory instead of a thing someone has to remember. Runs on every push and
 # every pull request targeting master.
 #
-# Three jobs:
+# Phase 7 jobs (build + test + secrets):
 #   1. stub-build    — the dependency-free CI baseline (every ECHO_WITH_*/ECHO_REAL_AI
 #                      flag OFF). Zero external deps, zero secrets. This job must ALWAYS
 #                      be green; every future phase depends on it as the floor.
@@ -14,6 +14,22 @@
 #   3. secret-scan   — runs the existing scripts/check_secrets.sh rules on every PR so a
 #                      credential can never land in the repo, even if a future session
 #                      forgets to run the check manually.
+#
+# Phase 8 jobs (static analysis, fuzzing, coverage) — the automated backstop for the
+# bug class Phase 6 caught by hand (JSON unbounded recursion, Gmail header injection):
+#   4. clang-tidy    — bugprone-/cert-/clang-analyzer-security ruleset over first-party
+#                      sources; findings are hard errors (see .clang-tidy). Configure-only,
+#                      no compile, so it is fast.
+#   5. cppcheck      — a second, differently-implemented analyzer over the compile
+#                      database; different tools catch different things.
+#   6. fuzz-json     — a bounded (~2 min) libFuzzer run against Json::parse under ASan/UBSan,
+#                      seeded from apps/appkit/fuzz/corpus. The parser eats untrusted network
+#                      bytes and already had a crash bug; this catches the next one.
+#   7. coverage      — gcov/gcovr over the test build; publishes an HTML/XML report artifact
+#                      and the line-coverage % to the run summary (and Codecov for the badge).
+#
+# All Phase 8 jobs are additive CI-only steps: none is required for a local dev build,
+# so the stub build stays zero-dependency (constraint #1).
 #
 # DELIBERATELY EXCLUDED — the real local-AI matrix (ECHO_REAL_AI=ON with
 # whisper.cpp / llama.cpp / Porcupine / Piper). That build needs multi-gigabyte model
@@ -146,3 +162,208 @@ jobs:
 
       - name: Scan tracked files for credentials
         run: bash scripts/check_secrets.sh
+
+  # ---------------------------------------------------------------------------
+  # 4. clang-tidy — static analysis with a bugprone-/cert-/clang-analyzer ruleset
+  #    (.clang-tidy at the repo root), the family that flags the untrusted-data-into-
+  #    protocol-string pattern behind the Phase 6 header-injection bug. Findings are
+  #    hard errors (WarningsAsErrors in .clang-tidy). Configure-only: clang-tidy needs
+  #    just compile_commands.json, so there is no compile step and the job is fast.
+  # ---------------------------------------------------------------------------
+  clang-tidy:
+    name: clang-tidy (bugprone/cert/security)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-tidy + cmake
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang clang-tidy
+
+      # Configure with clang so the compile database carries clang-native flags
+      # (avoids gcc-only flags tripping clang-tidy's parser). No build needed.
+      - name: Configure (export compile_commands.json)
+        run: >
+          cmake -S . -B build
+          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Run clang-tidy over first-party sources
+        run: bash scripts/run_clang_tidy.sh build
+
+  # ---------------------------------------------------------------------------
+  # 5. cppcheck — a second, differently-implemented static analyzer over the same
+  #    compile database. Different engines catch different defects, so cppcheck runs
+  #    alongside clang-tidy rather than instead of it. --error-exitcode=1 fails the
+  #    job on any warning/performance/portability finding.
+  # ---------------------------------------------------------------------------
+  cppcheck:
+    name: cppcheck (static analysis)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck + cmake
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake cppcheck
+
+      - name: Configure (export compile_commands.json)
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      # missingInclude(System) is suppressed because cppcheck cannot see the
+      # toolchain's system headers and it is not our code to fix; every other
+      # warning/performance/portability finding fails the job.
+      - name: Run cppcheck
+        run: >
+          cppcheck
+          --enable=warning,performance,portability
+          --inline-suppr
+          --suppress=missingIncludeSystem
+          --suppress=missingInclude
+          --std=c++17
+          --error-exitcode=1
+          --project=build/compile_commands.json
+          -j"$(nproc)"
+
+  # ---------------------------------------------------------------------------
+  # 6. fuzz-json — a bounded, coverage-guided libFuzzer run against Json::parse, the
+  #    one parser that consumes untrusted network bytes and already had a crash bug
+  #    (Phase 6 deep-nesting stack overflow). Built with Clang under Address/Undefined
+  #    sanitizers and seeded from the checked-in corpus. Time-bounded to ~2 minutes so
+  #    it never balloons CI runtime (constraint #2); run it longer locally per
+  #    apps/appkit/fuzz/README.md. Any crash is uploaded as an artifact.
+  # ---------------------------------------------------------------------------
+  fuzz-json:
+    name: Fuzz JSON parser (libFuzzer, bounded)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang + cmake + ccache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang ccache
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-fuzz-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-fuzz-${{ runner.os }}-
+
+      # Global sanitizer flags instrument the code under test (echo-appkit / json.cpp)
+      # for coverage + ASan/UBSan; the fuzz target itself adds the libFuzzer main.
+      - name: Configure (fuzzers ON, Clang + sanitizers)
+        run: >
+          cmake -S . -B build-fuzz
+          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_CXX_COMPILER=clang++
+          -DECHO_BUILD_FUZZERS=ON
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_FLAGS="-fsanitize=fuzzer-no-link,address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g -O1"
+
+      - name: Build fuzz target
+        run: cmake --build build-fuzz --target echo-json-fuzzer --parallel
+
+      - name: Fuzz (bounded ~2 minutes)
+        run: |
+          mkdir -p fuzz-artifacts
+          ./build-fuzz/fuzz/echo-json-fuzzer \
+            apps/appkit/fuzz/corpus \
+            -max_total_time=120 -timeout=10 -rss_limit_mb=2048 \
+            -artifact_prefix=fuzz-artifacts/ -print_final_stats=1
+
+      - name: Upload crash artifacts (only if a crash was found)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: json-fuzz-crashes
+          path: fuzz-artifacts/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # 7. coverage — build the test suite with gcov instrumentation, run ctest, and turn
+  #    the counters into a report with gcovr. The line-coverage % goes to the run
+  #    summary (visible + trending in the Actions history on its own), the HTML/XML
+  #    report is uploaded as an artifact, and the XML feeds Codecov for the README
+  #    badge. Deliberately NOT gated on a threshold yet — the number is made visible
+  #    and trending first; a floor on a codebase this size would be premature.
+  # ---------------------------------------------------------------------------
+  coverage:
+    name: Coverage (gcov/gcovr)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cmake + gcovr + ccache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake gcovr ccache
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-coverage-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-coverage-${{ runner.os }}-
+
+      - name: Configure (coverage instrumentation ON)
+        run: >
+          cmake -S . -B build-coverage
+          -DCMAKE_BUILD_TYPE=Debug
+          -DECHO_COVERAGE=ON
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build
+        run: cmake --build build-coverage --parallel
+
+      - name: Test (full suite — generates the coverage counters)
+        run: ctest --test-dir build-coverage --output-on-failure
+
+      - name: Generate coverage report (gcovr)
+        run: |
+          mkdir -p coverage
+          # --print-summary writes the line/function/branch % to stdout (stable across
+          # gcovr versions); tee it so we can echo it into the run summary too.
+          gcovr --root . \
+            --exclude '.*/tests/.*' --exclude '.*/fuzz/.*' --exclude '.*/build.*' \
+            --html-details coverage/index.html \
+            --xml coverage/coverage.xml \
+            --print-summary | tee coverage/summary.txt
+          # Surface the coverage % in the Actions run summary so the number is
+          # visible and trending natively, independent of any external service.
+          {
+            echo "### Code coverage";
+            echo '```';
+            grep -E '^(lines|functions|branches):' coverage/summary.txt || tail -n 3 coverage/summary.txt;
+            echo '```';
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Non-blocking: the report is a convenience artifact. The coverage % is already
+      # in the run summary and the XML feeds Codecov, so an artifact hiccup (e.g. the
+      # account's Actions storage quota) must not redden the job.
+      - name: Upload coverage report artifact
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+      # Feeds the README coverage badge. Tokenless upload works for a public repo;
+      # non-fatal so a Codecov hiccup never reddens CI. Until the repo is enabled on
+      # Codecov (one-time, like the Phase 7 branch-protection step), the badge reads
+      # "unknown" while the % above is still visible in every run.
+      - name: Upload coverage to Codecov (badge source)
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage/coverage.xml
+          fail_ci_if_error: false
+          verbose: true

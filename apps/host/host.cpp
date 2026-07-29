@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
     for (auto& e : registry::all()) {
         auto app = e.make(mock);
         if (app->initialize() != Status::Ok && mock) {
-            log_warn("host", (std::string("app '") + e.id + "' failed to initialize").c_str());
+            log_warn("host", std::string("app '") + e.id + "' failed to initialize");
         }
         apps.push_back(std::move(app));
     }
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
             supervisor.add(spec);
         }
         int up = supervisor.start_all();
-        log_info("host", (std::to_string(up) + " app process(es) supervised").c_str());
+        log_info("host", std::to_string(up) + " app process(es) supervised");
     }
 
     // --- Voice loop: read utterances from stdin (the mic substitute) ----------

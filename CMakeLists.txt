@@ -29,6 +29,23 @@ else()
         -Wall -Wextra -Wpedantic)
 endif()
 
+# --- Code coverage (Phase 8) -------------------------------------------------
+# Instrument every first-party target (they all link echo-project-options) with
+# gcov/llvm-cov counters. OFF by default so normal and CI stub builds are
+# unaffected — coverage is a dedicated CI job, never a local-dev requirement
+# (constraint #1). See the CI "coverage" job and the README "Code Quality"
+# section.
+option(ECHO_COVERAGE "Instrument first-party targets for gcov/llvm-cov coverage" OFF)
+if(ECHO_COVERAGE)
+    if(MSVC)
+        message(WARNING "ECHO_COVERAGE has no effect with MSVC; use a gcc/clang build")
+    else()
+        target_compile_options(echo-project-options INTERFACE --coverage -O0 -g)
+        target_link_options(echo-project-options INTERFACE --coverage)
+        message(STATUS "ECHO OS: coverage instrumentation ON (--coverage)")
+    endif()
+endif()
+
 # Default to a release-ish build if the caller didn't choose (embedded target
 # cares about size/latency).
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

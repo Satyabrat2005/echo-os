@@ -30,10 +30,10 @@ void log(LogLevel level, std::string_view module, std::string_view message) noex
         return;
     }
     // On device this is a lock-free journal write; here, stderr is fine.
-    std::fprintf(stderr, "[echo][%s][%.*s] %.*s\n",
-                 level_tag(level),
-                 static_cast<int>(module.size()), module.data(),
-                 static_cast<int>(message.size()), message.data());
+    (void)std::fprintf(stderr, "[echo][%s][%.*s] %.*s\n",
+                       level_tag(level),
+                       static_cast<int>(module.size()), module.data(),
+                       static_cast<int>(message.size()), message.data());
 }
 
 }  // namespace echo

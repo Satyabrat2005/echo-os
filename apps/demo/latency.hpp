@@ -50,7 +50,8 @@ public:
         for (double v : totals_) { sum += v; mn = v < mn ? v : mn; mx = v > mx ? v : mx; }
         std::printf("\n  [latency] %zu turn(s): min=%.1f  avg=%.1f  max=%.1f ms  "
                     "(target %.0f ms)  -> written to %s\n",
-                    totals_.size(), mn, sum / totals_.size(), mx, kEndToEndBudgetMs, path_.c_str());
+                    totals_.size(), mn, sum / static_cast<double>(totals_.size()), mx,
+                    kEndToEndBudgetMs, path_.c_str());
     }
 
 private:

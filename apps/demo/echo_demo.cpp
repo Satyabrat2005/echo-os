@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
     using namespace echo::apps;
     namespace hud = echo::apps::hud;
 
-    std::signal(SIGINT, on_signal);
+    (void)std::signal(SIGINT, on_signal);  // prior handler intentionally discarded
     set_log_level(LogLevel::Info);
 
     const bool text_mode   = has_flag(argc, argv, "--text");
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
         if (!obs.speech) return;
         const std::string transcript = obs.speech->text;
         const std::string t = lower(transcript);
-        log_info("demo", (std::string("heard: \"") + transcript + "\"").c_str());
+        log_info("demo", std::string("heard: \"") + transcript + "\"");
         hud_c->present("echo", hud::HudFrame{}.with_subtitle(transcript, 4000)
                                    .with_status(hud::StatusKind::Working));
 
@@ -239,9 +239,15 @@ int main(int argc, char** argv) {
         // --- Real capture: webcam + mic, each on its OWN SPSC lane ------------
         sensor::FrameQueue cam_q, mic_q;
         std::unique_ptr<sensor::ISensorSource> cam, mic;
-        if (!no_camera) { cam = sensor::make_real_camera_source(); cam->start(cam_q); }
+        if (!no_camera) {
+            cam = sensor::make_real_camera_source();
+            if (cam) cam->start(cam_q);
+        }
         mic = sensor::make_real_microphone_source();
-        if (mic->start(mic_q) != Status::Ok)
+        // Guard the deref: the cleanup path below already treats mic as possibly
+        // null (`if (mic)`), and a real mic backend can legitimately fail to open
+        // the device and return null. Fail like a missing mic, not with a crash.
+        if (!mic || mic->start(mic_q) != Status::Ok)
             log_error("demo", "microphone unavailable — try --text mode");
 
         std::cout << "\nECHO demo listening. Say \"Hey ECHO\" then a request "
