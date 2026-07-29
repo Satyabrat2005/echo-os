@@ -1,5 +1,7 @@
 # ECHO OS
 
+[![CI](https://github.com/Satyabrat2005/echo-os/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Satyabrat2005/echo-os/actions/workflows/ci.yml)
+
 **The on-device software runtime for ECHO smart glasses.**
 
 ECHO OS is the real-time software platform that runs on ECHO's glasses hardware
@@ -155,6 +157,53 @@ through the stub pipeline, shuts down cleanly):
 ```bash
 ./build/boot/echo-os          # (build/boot/echo-os.exe on Windows/MinGW)
 ```
+
+## Continuous Integration (CI)
+
+Every push and every pull request targeting `master` runs
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) on GitHub Actions. Before
+Phase 7 the full test suite was run by hand before each merge — which caught real
+bugs (the Phase 6 JSON stack-overflow and Gmail header-injection fixes are proof),
+but only as long as someone remembered to run it. CI makes that automatic and
+mandatory instead of optional.
+
+**What's covered**
+
+| Job | What it does | Deps / secrets |
+|-----|--------------|----------------|
+| **Stub build** | Configures with every `ECHO_WITH_*` / `ECHO_REAL_AI` flag OFF (the dependency-free default since Phase 1), builds, and runs the **full** `ctest` suite. This job is the safety net every future phase depends on — it must always be green. | None. No external deps, no secrets. |
+| **Network build** | Installs libcurl, configures `-DECHO_WITH_NETWORK=ON`, builds, and runs the appkit + apps suites — JSON parsing (incl. the deep-nesting overflow guard), the Gmail header-injection regression test, the confirm-before-action gate, and the NLU mail/browser routing fix. Proves the Phase 5/6 network branch compiles and passes on a clean machine, not just a developer's laptop. | libcurl (from the runner's apt). **No live API calls** — the tests are credential-free; libcurl only needs to link. |
+| **Secret scan** | Runs the existing [`scripts/check_secrets.sh`](scripts/check_secrets.sh) rules over the tree, so a real API key, OAuth secret, private key, token cache, or committed `.env` fails the run and blocks merge — even if a future session forgets to run the check manually. | None. |
+
+Dependency caching (ccache) keeps PR feedback fast, so runs don't rebuild every
+object from scratch. A newer push to the same branch cancels the in-flight run.
+
+**Deliberately excluded — the real local-AI matrix.** The `ECHO_REAL_AI=ON` build
+(whisper.cpp / llama.cpp / Porcupine / Piper) is **not** run in CI, by design, not
+oversight. It needs multi-gigabyte model downloads that blow any reasonable CI time
+budget, and Porcupine additionally needs an account-gated Picovoice access key — a
+secret we will not put in a workflow. The **stub build** is the deliberate
+dependency-free proxy: it exercises the same code paths with stub adapters and stays
+deterministic. To add real local-AI coverage later, once model hosting/caching is
+worked out: host the quantized models somewhere cacheable (a release asset or an
+`actions/cache` keyed on `models/INSTALLED_VERSIONS.md`), add a job that restores
+them and configures the `ECHO_WITH_*` engines à la carte, and supply the Porcupine
+key via a repository **secret** (never inline). Until then, keeping it out and saying
+why is the honest choice.
+
+**Branch protection (manual step — repo admin).** The workflow blocks merge only once
+branch protection actually requires it; that is a GitHub repo-settings action, not
+something committed in code. Whoever has admin access should, under
+**Settings → Branches → Branch protection rules** for `master`:
+
+- **Require status checks to pass before merging**, and select the three CI checks:
+  *Stub build (no deps) + full ctest*, *Network build (ECHO_WITH_NETWORK=ON) +
+  appkit/apps tests*, and *Secret scan (check_secrets.sh)*.
+- **Require branches to be up to date before merging** (so checks run against the
+  post-merge tree).
+
+Without this, the badge is informational only; with it, a red run genuinely stops
+the merge — which is the point of the phase.
 
 ## Phase 3: Real Local AI
 
