@@ -1,20 +1,23 @@
 #include "echo/apps/net/url.hpp"
 
 #include <cctype>
-#include <cstdio>
 
 namespace echo::apps::net {
 
 std::string url_encode(const std::string& raw) {
+    static constexpr char kHex[] = "0123456789ABCDEF";
     std::string out;
     out.reserve(raw.size() * 3);
     for (unsigned char c : raw) {
         if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
             out.push_back(static_cast<char>(c));
         } else {
-            char buf[4];
-            std::snprintf(buf, sizeof(buf), "%%%02X", c);
-            out.append(buf);
+            // Percent-encode directly — cheaper than snprintf in this hot path,
+            // and no ignored return value to reason about (c is one byte, so the
+            // output is always exactly "%HH").
+            out.push_back('%');
+            out.push_back(kHex[(c >> 4) & 0x0F]);
+            out.push_back(kHex[c & 0x0F]);
         }
     }
     return out;

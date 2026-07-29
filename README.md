@@ -1,6 +1,7 @@
 # ECHO OS
 
 [![CI](https://github.com/Satyabrat2005/echo-os/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Satyabrat2005/echo-os/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Satyabrat2005/echo-os/branch/master/graph/badge.svg)](https://codecov.io/gh/Satyabrat2005/echo-os)
 
 **The on-device software runtime for ECHO smart glasses.**
 
@@ -196,14 +197,109 @@ branch protection actually requires it; that is a GitHub repo-settings action, n
 something committed in code. Whoever has admin access should, under
 **Settings → Branches → Branch protection rules** for `master`:
 
-- **Require status checks to pass before merging**, and select the three CI checks:
+- **Require status checks to pass before merging**, and select the CI checks:
   *Stub build (no deps) + full ctest*, *Network build (ECHO_WITH_NETWORK=ON) +
-  appkit/apps tests*, and *Secret scan (check_secrets.sh)*.
+  appkit/apps tests*, *Secret scan (check_secrets.sh)*, and — added in Phase 8 —
+  *clang-tidy (bugprone/cert/security)*, *cppcheck (static analysis)*,
+  *Fuzz JSON parser (libFuzzer, bounded)*, and *Coverage (gcov/gcovr)*.
 - **Require branches to be up to date before merging** (so checks run against the
   post-merge tree).
 
 Without this, the badge is informational only; with it, a red run genuinely stops
 the merge — which is the point of the phase.
+
+## Code Quality (Phase 8)
+
+Phase 6 found two real bugs by careful manual review — the JSON parser's unbounded
+recursion (a stack overflow on hostile input) and the Gmail header-injection hole.
+Both are textbook cases for automated tooling. Manual review doesn't scale and won't
+happen with the same rigor every time, so Phase 8 gives CI teeth against exactly this
+class of bug: static analysis, fuzzing, and coverage, all wired into
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+**What's now checked automatically, on every push and PR**
+
+| Check | What it catches | Config |
+|-------|-----------------|--------|
+| **clang-tidy** | The `bugprone-*`, `cert-*`, and `clang-analyzer-*` families — the category that flags untrusted data flowing into a protocol string (the header-injection pattern). Runs over every first-party translation unit; findings are hard errors. | [`.clang-tidy`](.clang-tidy), driven by [`scripts/run_clang_tidy.sh`](scripts/run_clang_tidy.sh) |
+| **cppcheck** | A second, independently-implemented analyzer over the same compile database — different engines catch different defects, so it runs *alongside* clang-tidy, not instead of it. `warning`/`performance`/`portability` findings fail the job. | inline in the workflow |
+| **Fuzzing (JSON)** | A coverage-guided libFuzzer harness for `Json::parse` — the one parser that eats untrusted network bytes and already had a crash bug — run bounded (~2 min) under AddressSanitizer/UndefinedBehaviorSanitizer, seeded from a checked-in corpus. | [`apps/appkit/fuzz/`](apps/appkit/fuzz/) (`-DECHO_BUILD_FUZZERS=ON`) |
+| **Coverage** | Line/function/branch coverage via gcov + gcovr. The % is printed to the Actions run summary (visible and trending on its own), the full HTML/XML report is uploaded as an artifact, and the XML feeds the Codecov badge above. | `-DECHO_COVERAGE=ON` |
+
+All four are **additive CI-only jobs**. Every `ECHO_WITH_*` / `ECHO_REAL_AI` /
+`ECHO_BUILD_FUZZERS` / `ECHO_COVERAGE` flag defaults **off**, so a normal local
+build — and the always-green stub build — stays zero-dependency and unaffected
+(constraint #1). The fuzz job is time-bounded and the build jobs are ccache-cached so
+this doesn't balloon CI runtime (constraint #2).
+
+**Findings fixed this phase (fix, don't defer — same discipline as Phase 6)**
+
+Running the analyzers on the existing tree surfaced real quality/robustness issues,
+fixed here rather than filed for later:
+
+- **cppcheck** — a latent null-dereference in the demo's real-capture path
+  ([`apps/demo/echo_demo.cpp`](apps/demo/echo_demo.cpp)): `mic->start()` was called
+  unguarded while the cleanup path and the "microphone unavailable" log both already
+  treated `mic` as possibly-null. Today's factories never return null, so it can't
+  crash *yet* — but a real mic backend that fails to open the device would. Now
+  guarded, so it degrades to the existing "unavailable" message instead of a crash.
+- **clang-tidy** — 15 findings, all fixed: a pointless `std::move` in
+  `VoiceCommand::slot` that the compiler couldn't honor (a copy happened anyway, and
+  the by-value default was copied per call — now a `const` reference); a hot-path
+  `snprintf` in `url_encode` replaced with direct hex writing (faster, no ignored
+  return); the Phase 6 `sanitize_header_value` moved into an anonymous namespace; and
+  twelve `cert-err33-c` sites — all C-stdlib format/log calls (`snprintf` into a fixed
+  buffer, `fprintf`/`fflush`, `signal`) whose return is conventionally and safely
+  ignored — made explicit with `(void)` casts so the check stays live to catch a
+  *future* ignored `fopen`/`malloc`.
+- **Fuzzing** — no new crash surfaced (locally, 30k mutated inputs; in CI, the bounded
+  ASan/UBSan run). That's the expected, good outcome: the one known parser crash was
+  already fixed in Phase 6 with the depth cap. The harness's value is ongoing
+  regression protection — it's there so the *next* such bug is caught by a machine.
+
+Several checks are deliberately **tuned, not blindly maxed** — each disabled check in
+[`.clang-tidy`](.clang-tidy) carries a one-line reason (e.g. the recursive-descent
+parser legitimately recurses; the tree standardized on `#pragma once`). Tuning out
+genuine noise is documented; nothing with a real defect behind it is suppressed
+(constraint #3).
+
+**What's deliberately *not* done yet**
+
+- **Fuzzing is scoped to the JSON parser** — the highest-risk parser (untrusted
+  network input, a prior crash bug). The other text/network parsers (URL encoding,
+  the `readable.cpp` HTML extractor, base64) are sound candidates for their own
+  harnesses and are noted as future work; each would follow the same
+  `apps/appkit/fuzz/` pattern.
+- **Coverage is not gated on a threshold.** The number is made *visible and trending*
+  first; an arbitrary floor on a codebase this size — much of which is still
+  intentionally stubbed core — would be premature and would reward writing tests for
+  stub code. A minimum comes later, once the real engines land and the meaningful
+  denominator settles.
+- **The real local-AI matrix stays excluded**, exactly as in the CI section above:
+  clang-tidy/cppcheck run over the dependency-free first-party sources, not the
+  account-gated, multi-GB `ECHO_REAL_AI` build.
+
+**Running it locally**
+
+```bash
+# Static analysis (needs clang-tidy / cppcheck on PATH):
+cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+scripts/run_clang_tidy.sh build
+cppcheck --enable=warning,performance,portability --std=c++17 \
+  --project=build/compile_commands.json
+
+# Coverage (needs gcovr):
+cmake -S . -B build-coverage -DCMAKE_BUILD_TYPE=Debug -DECHO_COVERAGE=ON
+cmake --build build-coverage --parallel && ctest --test-dir build-coverage
+gcovr --root . --exclude '.*/tests/.*' --exclude '.*/fuzz/.*' --print-summary
+
+# Fuzzing — see apps/appkit/fuzz/README.md for a full local session (Clang) and for
+# replaying a crash on the default toolchain without Clang.
+```
+
+The Codecov badge reads `unknown` until the repository is enabled on Codecov — a
+one-time repo-settings step, like branch protection above. The coverage **percentage
+is visible without it**, in every run's Actions summary.
 
 ## Phase 3: Real Local AI
 

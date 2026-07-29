@@ -76,8 +76,8 @@ public:
     }
     void clear(std::string_view app_id) override {
         char buf[96];
-        std::snprintf(buf, sizeof(buf), "clear [%.*s]",
-                      static_cast<int>(app_id.size()), app_id.data());
+        (void)std::snprintf(buf, sizeof(buf), "clear [%.*s]",
+                            static_cast<int>(app_id.size()), app_id.data());
         log_debug("hud", buf);
     }
     void shutdown() override { log_info("hud", "compositor shut down"); }
@@ -101,7 +101,7 @@ public:
                     static_cast<int>(app_id.size()), app_id.data(), icon, status);
         std::printf("  \xE2\x94\x82 %s\n", text.c_str());
         std::printf("  \xE2\x94\x94\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\n");
-        std::fflush(stdout);
+        (void)std::fflush(stdout);
     }
     void clear(std::string_view /*app_id*/) override {}
     void shutdown() override { log_info("hud", "compositor shut down"); }

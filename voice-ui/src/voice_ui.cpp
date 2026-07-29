@@ -145,17 +145,17 @@ public:
         StageTimer timer(Stage::VoiceOutput);
         (void)timer;
         char buf[256];
-        std::snprintf(buf, sizeof(buf), "speak[%s]: %.*s",
-                      to_string(utterance.tone),
-                      static_cast<int>(utterance.text.size()), utterance.text.data());
+        (void)std::snprintf(buf, sizeof(buf), "speak[%s]: %.*s",
+                            to_string(utterance.tone),
+                            static_cast<int>(utterance.text.size()), utterance.text.data());
         log_info("voice", buf);
         return Status::Ok;
     }
 
     Status play_earcon(std::string_view name) override {
         char buf[128];
-        std::snprintf(buf, sizeof(buf), "earcon: %.*s",
-                      static_cast<int>(name.size()), name.data());
+        (void)std::snprintf(buf, sizeof(buf), "earcon: %.*s",
+                            static_cast<int>(name.size()), name.data());
         log_info("voice", buf);
         return Status::Ok;
     }

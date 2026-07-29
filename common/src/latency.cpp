@@ -29,8 +29,8 @@ StageTimer::~StageTimer() {
     const double ms = elapsed_ms();
     if (ms > budget_ms(stage_)) {
         char buf[128];
-        std::snprintf(buf, sizeof(buf), "%s overran budget: %.2fms > %.2fms",
-                      to_string(stage_), ms, budget_ms(stage_));
+        (void)std::snprintf(buf, sizeof(buf), "%s overran budget: %.2fms > %.2fms",
+                            to_string(stage_), ms, budget_ms(stage_));
         log_warn("latency", buf);
     }
 }

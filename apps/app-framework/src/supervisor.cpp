@@ -39,14 +39,14 @@ Status Supervisor::start(const std::string& id) {
     auto spawned = ChildProcess::spawn(opts);
     if (!spawned) {
         char buf[192];
-        std::snprintf(buf, sizeof(buf), "failed to spawn app '%s' (%s)",
-                      id.c_str(), m->spec.executable.c_str());
+        (void)std::snprintf(buf, sizeof(buf), "failed to spawn app '%s' (%s)",
+                            id.c_str(), m->spec.executable.c_str());
         log_error("supervisor", buf);
         return spawned.status();
     }
     m->proc = std::make_unique<ChildProcess>(std::move(spawned.value()));
     char buf[128];
-    std::snprintf(buf, sizeof(buf), "app '%s' started (isolated process)", id.c_str());
+    (void)std::snprintf(buf, sizeof(buf), "app '%s' started (isolated process)", id.c_str());
     log_info("supervisor", buf);
     return Status::Ok;
 }
@@ -58,7 +58,7 @@ void Supervisor::stop(const std::string& id) {
     m->last_exit_code = m->proc->exit_code();
     m->proc.reset();
     char buf[96];
-    std::snprintf(buf, sizeof(buf), "app '%s' stopped", id.c_str());
+    (void)std::snprintf(buf, sizeof(buf), "app '%s' stopped", id.c_str());
     log_info("supervisor", buf);
 }
 
@@ -86,17 +86,17 @@ int Supervisor::reap() {
         m->proc.reset();
 
         char buf[192];
-        std::snprintf(buf, sizeof(buf), "app '%s' exited (code=%d)",
-                      m->spec.id.c_str(),
-                      m->last_exit_code ? *m->last_exit_code : -1);
+        (void)std::snprintf(buf, sizeof(buf), "app '%s' exited (code=%d)",
+                            m->spec.id.c_str(),
+                            m->last_exit_code ? *m->last_exit_code : -1);
         log_warn("supervisor", buf);
 
         if (!m->spec.auto_restart) continue;
         if (m->restarts >= m->spec.max_restarts) {
             m->gave_up = true;
-            std::snprintf(buf, sizeof(buf),
-                          "app '%s' exceeded %d restarts — parking it",
-                          m->spec.id.c_str(), m->spec.max_restarts);
+            (void)std::snprintf(buf, sizeof(buf),
+                                "app '%s' exceeded %d restarts — parking it",
+                                m->spec.id.c_str(), m->spec.max_restarts);
             log_error("supervisor", buf);
             continue;
         }
