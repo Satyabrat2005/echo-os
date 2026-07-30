@@ -32,13 +32,18 @@ set -euo pipefail
 DEST="${1:-.real-engine-assets}"
 mkdir -p "$DEST"
 
-OPENCV_ZOO_COMMIT="47534e27c9851bb1128ccc0102f1145e27f23f98"
+# SFace (2021dec) lives at the recent pinned commit; YuNet is pinned to an OLDER
+# commit on purpose — the 2023mar YuNet needs OpenCV >=4.8, but Ubuntu's OpenCV is
+# 4.6, so we use the 4.6-compatible 2022mar model (2023mar trips an eltwise-layer
+# shape assertion in 4.6's DNN backend).
+OPENCV_ZOO_SFACE_COMMIT="47534e27c9851bb1128ccc0102f1145e27f23f98"
+OPENCV_ZOO_YUNET_COMMIT="7e062e54cf5410c09b795ff71b4a255e58498c79"
 
 # rel/path                              sha256                                                             url
 read -r -d '' ASSETS <<EOF || true
 ggml-tiny.en.bin|921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f|https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
-face_detection_yunet.onnx|8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4|https://github.com/opencv/opencv_zoo/raw/${OPENCV_ZOO_COMMIT}/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
-face_recognition_sface.onnx|0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79|https://github.com/opencv/opencv_zoo/raw/${OPENCV_ZOO_COMMIT}/models/face_recognition_sface/face_recognition_sface_2021dec.onnx
+face_detection_yunet.onnx|50ef07f702a31741ca46a4c0d947773b64143b9362780237bf0d427d6c79bab7|https://github.com/opencv/opencv_zoo/raw/${OPENCV_ZOO_YUNET_COMMIT}/models/face_detection_yunet/face_detection_yunet_2022mar.onnx
+face_recognition_sface.onnx|0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79|https://github.com/opencv/opencv_zoo/raw/${OPENCV_ZOO_SFACE_COMMIT}/models/face_recognition_sface/face_recognition_sface_2021dec.onnx
 voices/en_US-amy-medium.onnx|b3a6e47b57b8c7fbe6a0ce2518161a50f59a9cdd8a50835c02cb02bdd6206c18|https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx
 voices/en_US-amy-medium.onnx.json|95a23eb4d42909d38df73bb9ac7f45f597dbfcde2d1bf9526fdeaf5466977d77|https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx.json
 piper_linux_x86_64.tar.gz|a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992|https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz

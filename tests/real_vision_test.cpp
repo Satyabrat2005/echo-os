@@ -31,7 +31,6 @@
 #include "echo/result.hpp"
 
 #include "check.hpp"
-#include "fixture_io.hpp"
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -120,12 +119,12 @@ void test_unknown_face_detected_but_unmatched() {
 }
 
 // --- No face: a non-face frame yields no detections --------------------------
-// Uses the committed synthetic no_face fixture (OpenCV decodes P6 PPM), so no
-// real image or download is needed for the negative case.
+// A plain mid-gray frame at a normal capture size — no face-like structure, so
+// YuNet must return nothing. Built in-memory (no fixture file / download needed)
+// and at a realistic size, avoiding any odd-tiny-input edge case in the detector.
 void test_no_face_frame_detects_nothing() {
-    const std::string path = echo::test::fixture_path("no_face.ppm");
-    std::vector<FaceHit> hits;
-    CHECK(detect_in_image(path, hits));
+    cv::Mat gray(240, 320, CV_8UC3, cv::Scalar(128, 128, 128));
+    std::vector<FaceHit> hits = g_vision->detect_faces(gray.data, gray.cols, gray.rows);
     CHECK(hits.empty());  // no face-like structure -> no detections
     std::printf("  no-face -> %zu detection(s) (expected 0)\n", hits.size());
 }
