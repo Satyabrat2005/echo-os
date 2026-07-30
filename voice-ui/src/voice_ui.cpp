@@ -176,7 +176,21 @@ Status piper_synthesize(const std::string& text, Tone tone, const std::string& o
                   "\"%s\" --model \"%s\" --length_scale %.2f --output_file \"%s\" < \"%s\"",
                   config::piper_binary().c_str(), config::piper_voice().c_str(),
                   length_scale_for(tone), out_wav.c_str(), tin.c_str());
-    if (std::system(cmd) != 0) {
+#if defined(_WIN32)
+    // std::system() runs the command through cmd.exe, which strips the first and
+    // last double-quote of the WHOLE command line. With several quoted tokens here
+    // (piper path, voice model, output, stdin file) — and a piper path that can
+    // contain spaces (e.g. "C:\Users\First Last\...") — that stripping corrupts the
+    // command and piper silently fails. Wrapping the entire command in one more pair
+    // of quotes makes cmd.exe strip THOSE, passing the inner command through intact.
+    // POSIX /bin/sh has no such rule, so this is guarded to Windows (where it was a
+    // latent bug: Linux CI paths had no spaces, so it never surfaced until the real
+    // Windows bring-up). See cmd.exe quoting rules (`cmd /?`).
+    const std::string full = std::string("\"") + cmd + "\"";
+#else
+    const std::string full = cmd;
+#endif
+    if (std::system(full.c_str()) != 0) {
         log_warn("voice", "piper synthesis failed");
         return Status::Unavailable;
     }

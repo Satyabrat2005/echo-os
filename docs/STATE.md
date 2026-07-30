@@ -237,6 +237,89 @@ surfaced while writing these docs is recorded here rather than fixed:
   and the code comments all match what the tree actually does. If a future doc
   pass finds a real discrepancy, list it here with a file/line pointer.
 
+## Phase 14 execution findings — real bring-up on the Windows/MinGW dev laptop
+
+Recorded during the Phase 14 agent-side bring-up (real toolchain: MinGW-w64 ucrt
+g++ 15.1, CMake 4.0, on Windows 11). These are genuine machine-specific signals
+CI's Ubuntu runners could not have surfaced. What the agent *cannot* do (speak
+into the physical mic, present a real face to the webcam, be the outside tester,
+and therefore produce the ≥20 spoken-turn latency numbers) is left for the human —
+see "What's pending real-world validation" above; those rows are **not** closed.
+
+- ✅ **Level 0 stub build + full CTest gate pass** on this machine: `cmake -B
+  build … && ctest` → 9/9 suites green (`echo-smoke`, `echo-sensor`,
+  `echo-perception`, `echo-voice`, `echo-companion`, `echo-e2e-fixture`,
+  `echo-appkit-tests`, `echo-apps-smoke`, `echo-nlu-routing`). `echo-demo --text`
+  routes and fires the safe-mode gate correctly in stub mode.
+- ✅ **Pinned models fetched + checksum-verified** into `models/`: whisper
+  `ggml-tiny.en.bin`, `llm.gguf` (Qwen2.5-0.5B-Instruct Q5_K_M), openWakeWord
+  trio, YuNet(2022mar)/SFace — all byte-identical to the MANIFEST SHA-256s.
+- ✅ **Real LLM engine built and run headlessly**: `-DECHO_WITH_LLAMA=ON` against a
+  MinGW-built llama.cpp resolves via `find_package(llama CONFIG)`, `llm.cpp`
+  compiles clean with **KV-clear=`current`**, and `echo-demo --text` loads the real
+  Qwen2.5-0.5B model and returns coherent reasoning (e.g. an open-ended "what
+  should I do if I feel lost" → a real, on-topic answer). It does **not** falsely
+  trip safe-mode — consistent with the Phase 12 finding that a real model never
+  returns empty text. The real cognitive inference **overran the 120 ms budget by
+  ~10×**, as the RUNBOOK predicts for a laptop CPU. (This is a *typed-text,
+  cognitive-stage-only* observation — **not** a spoken-turn measurement, so it is
+  deliberately kept out of the README/STATE latency tables, which still await the
+  human's ≥20 real spoken turns.)
+### Phase 14b — Windows native-dependency gap CLOSED
+
+The three native libraries that blocked `-DECHO_REAL_AI=ON` in the first pass
+(ONNX Runtime, OpenCV, SDL2) are now installed with this exact MinGW-ucrt
+toolchain, and **the full real-engine build configures, compiles, links, and runs
+a scripted turn on this Windows laptop.** Installed versions:
+
+| Dep | Version | How it was obtained on Windows/MinGW |
+|-----|---------|--------------------------------------|
+| ONNX Runtime | 1.17.3 (win-x64) | official MSVC DLL; C-ABI only, so linked from MinGW via a `dlltool`-generated `libonnxruntime.dll.a` import lib |
+| OpenCV | 4.10.0 | built from source with this toolchain (C++-ABI, so an MSVC build would **not** link) — modules core/imgproc/imgcodecs/videoio/objdetect/dnn |
+| SDL2 / SDL2_ttf | 2.30.9 / 2.22.0 | official prebuilt MinGW devel packages |
+| whisper.cpp | v1.9.1 | built `-DWHISPER_USE_SYSTEM_GGML=ON` against llama's ggml (see collision fix below) |
+| llama.cpp | (Phase-12 MinGW build) | reused; provides the single shared ggml |
+| Piper + voice | 2023.11.14-2 win-amd64 + `en_US-amy-medium` | official Windows binary; voice sha256 matches the MANIFEST pin |
+
+**Two real, previously-latent bugs were found and fixed on the way (fix, not route-around):**
+
+- **ORT header won't parse under MinGW** — root cause was *not* a hard wall: ORT's
+  `onnxruntime_c_api.h` spells its calling convention `_stdcall` (an MSVC-only
+  keyword) on the `_WIN32` branch. On x64 that convention is a no-op, so
+  `cmake/echo_ai.cmake` now maps `_stdcall`→`__stdcall` for MinGW on the ORT
+  interface target. The header then compiles and the real openWakeWord backend
+  **links and runs** (verified: `Ort::Env` + version query succeed). This corrects
+  the earlier Phase-13 note that ORT "does not compile on MinGW" — it does, with a
+  one-token define.
+- **Piper TTS silently failed on Windows** — `voice_ui.cpp` builds the piper
+  command with several quoted tokens and runs it via `std::system()`, i.e. through
+  **cmd.exe**, which strips the outer quote pair of the whole line and corrupts the
+  command when the piper path contains spaces (`C:\Users\First Last\…`). Linux CI
+  paths had no spaces, so it never surfaced. Fixed by wrapping the whole command in
+  one extra quote pair on `_WIN32`. Verified: piper now synthesizes real audio.
+
+- **ggml symbol/DLL collision (whisper vs llama)** — a genuine integration trap:
+  whisper v1.7.4 and the llama build ship **different ggml revisions under identical
+  DLL/symbol names** (`ggml.dll`, `ggml_*`), which cannot coexist in one process.
+  Resolved by building whisper **v1.9.1** with `WHISPER_USE_SYSTEM_GGML=ON` so it
+  links llama's ggml — one ggml for both engines. The three engines also live in
+  **separate CMake prefixes** (shared: OpenCV/SDL2/ORT; llama; whisper) to keep
+  their headers from cross-contaminating.
+
+✅ **`echo-demo --text` load sanity (build/load check, NOT a live-hardware test):**
+all five real engines initialize on this machine — `wake-word ready (openWakeWord,
+ONNX 3-stage pipeline)`, `ASR ready (whisper.cpp)`, `vision ready (OpenCV)`, `LLM
+ready (llama.cpp)`, `voice UI initialized (Piper TTS + SDL audio)` — and a scripted
+`--text` turn runs end-to-end without crashing, real TTS included. This confirms the
+build and the engine **loads**; it does **not** validate wake-word accuracy, face
+recognition, or voice quality — those need real mic/webcam/ears and remain the
+human's (see below).
+
+> Still exclusively the human's, unchanged by 14b: speaking "Hey ECHO" into the
+> physical mic, real face-recognition testing, the ≥20 real spoken-turn latency
+> run, and a non-founder tester. No latency numbers were written to the README/STATE
+> tables — those must come from real spoken turns, not this scripted load check.
+
 ## Bottom line for a new reader
 
 - **Trust the contracts.** Interfaces, isolation boundary, safe-mode gate, latency
