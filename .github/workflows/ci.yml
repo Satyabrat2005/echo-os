@@ -581,21 +581,26 @@ jobs:
       #     accidentally trigger the multi-variant CPU compile (one backend per
       #     microarchitecture) — one portable baseline build is all this job needs.
       #
-      # HONEST NOTE ON RUNTIME: this cold build is llama.cpp's full library (ggml + all
-      # model architectures) and takes ~20+ min on a 2-core runner — genuinely slow.
-      # It is a ONE-TIME cost, paid only on a cache miss: the install below is cached
-      # keyed on LLAMA_TAG, so every subsequent run skips this step entirely and the
-      # job finishes in a couple of minutes. Same trade-off Phase 11 accepted for its
-      # from-source whisper.cpp build. ccache softens the rare case where the install
-      # cache is evicted (7-day inactivity) but the ccache cache survives. Build, not
-      # inference, dominates here — the tiny model itself generates in seconds — so
-      # trimming the test's prompt count would not meaningfully change the job's time.
+      # HONEST NOTE ON RUNTIME + MEMORY: this cold build is llama.cpp's full library
+      # (ggml + every model architecture). It is a ONE-TIME cost, paid only on a cache
+      # miss — the install below is cached keyed on LLAMA_TAG, so every subsequent run
+      # skips this step and the job finishes in a couple of minutes (the same trade-off
+      # Phase 11 accepted for its from-source whisper.cpp build). ccache softens the
+      # rare case where the install cache is evicted but the ccache cache survives.
+      #
+      #   CXX at -O1: the single giant `src/llama.cpp` C++ TU compiled at the default
+      #   Release -O3 needs several GB of compiler RAM and OOM-kills the hosted runner
+      #   (observed: a deterministic exit-143 shutdown on exactly that file). -O1 slashes
+      #   GCC's peak memory; these TUs are orchestration, not hot compute, so runtime is
+      #   unaffected — ggml's C kernels keep the default -O3 and carry the actual math.
+      #   `--parallel 2` bounds peak memory while the model-arch TUs compile together.
       - name: Build + install llama.cpp (${{ env.LLAMA_TAG }})
         if: steps.llama-cache.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch "$LLAMA_TAG" https://github.com/ggml-org/llama.cpp
           cmake -S llama.cpp -B llama.cpp/build \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O1 -DNDEBUG" \
             -DLLAMA_BUILD_APP=OFF \
             -DLLAMA_BUILD_COMMON=OFF \
             -DLLAMA_BUILD_TESTS=OFF \
@@ -609,7 +614,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_INSTALL_PREFIX="$LLAMA_INSTALL"
-          cmake --build llama.cpp/build --parallel
+          cmake --build llama.cpp/build --parallel 2
           cmake --install llama.cpp/build
 
       - name: Configure (ECHO_WITH_LLAMA=ON)
