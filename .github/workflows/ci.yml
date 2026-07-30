@@ -577,6 +577,19 @@ jobs:
       #   - TESTS/EXAMPLES/TOOLS/SERVER OFF, CURL OFF: none are needed to link ECHO.
       #   - GGML_NATIVE OFF: portable baseline so a cached binary built on one runner's
       #     CPU never SIGILLs on another runner with an older microarchitecture.
+      #   - GGML_CPU_ALL_VARIANTS OFF: pinned defensively to its default so we never
+      #     accidentally trigger the multi-variant CPU compile (one backend per
+      #     microarchitecture) — one portable baseline build is all this job needs.
+      #
+      # HONEST NOTE ON RUNTIME: this cold build is llama.cpp's full library (ggml + all
+      # model architectures) and takes ~20+ min on a 2-core runner — genuinely slow.
+      # It is a ONE-TIME cost, paid only on a cache miss: the install below is cached
+      # keyed on LLAMA_TAG, so every subsequent run skips this step entirely and the
+      # job finishes in a couple of minutes. Same trade-off Phase 11 accepted for its
+      # from-source whisper.cpp build. ccache softens the rare case where the install
+      # cache is evicted (7-day inactivity) but the ccache cache survives. Build, not
+      # inference, dominates here — the tiny model itself generates in seconds — so
+      # trimming the test's prompt count would not meaningfully change the job's time.
       - name: Build + install llama.cpp (${{ env.LLAMA_TAG }})
         if: steps.llama-cache.outputs.cache-hit != 'true'
         run: |
@@ -591,7 +604,10 @@ jobs:
             -DLLAMA_BUILD_SERVER=OFF \
             -DLLAMA_CURL=OFF \
             -DGGML_NATIVE=OFF \
+            -DGGML_CPU_ALL_VARIANTS=OFF \
             -DBUILD_SHARED_LIBS=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_INSTALL_PREFIX="$LLAMA_INSTALL"
           cmake --build llama.cpp/build --parallel
           cmake --install llama.cpp/build
