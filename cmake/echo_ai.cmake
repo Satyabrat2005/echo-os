@@ -98,6 +98,16 @@ if(ECHO_WITH_OPENWAKEWORD)
     add_library(echo-dep-onnxruntime INTERFACE)
     target_include_directories(echo-dep-onnxruntime INTERFACE ${ONNXRUNTIME_INCLUDE_DIR})
     target_link_libraries(echo-dep-onnxruntime INTERFACE ${ONNXRUNTIME_LIB})
+    if(MINGW)
+        # ORT's C API header spells its calling convention `_stdcall` (an MSVC-only
+        # keyword) on the _WIN32 branch. MinGW's g++ doesn't accept that spelling and
+        # fails to parse onnxruntime_c_api.h — which is why this TU had only ever been
+        # compiled in Linux CI, never on the Windows/MinGW laptop. On x64 the stdcall
+        # convention is a no-op, so mapping it to MinGW's own __stdcall is ABI-safe and
+        # lets the real openWakeWord backend compile + link here against the Windows
+        # ONNX Runtime (linked via a dlltool-generated import lib for onnxruntime.dll).
+        target_compile_definitions(echo-dep-onnxruntime INTERFACE _stdcall=__stdcall)
+    endif()
     add_library(echo::dep-onnxruntime ALIAS echo-dep-onnxruntime)
     target_compile_definitions(echo-project-options INTERFACE ECHO_WITH_OPENWAKEWORD=1)
     message(STATUS "ECHO: openWakeWord wake-word enabled (${ONNXRUNTIME_LIB})")
