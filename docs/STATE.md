@@ -39,7 +39,8 @@ credentials, real hardware, measured latency — is wired up but unproven.**
 | Confirm-before-send gate (state-changing actions) | **Built & tested** | [`confirmation.cpp`](../apps/appkit/src/confirm/confirmation.cpp), 100% covered |
 | NLU mail/browser routing fix (Phase 6) | **Built & tested** | `echo-nlu-routing` regression suite |
 | Real AI adapters: whisper / OpenCV / Piper | **Run against real models in CI** (Phase 11) | `tests/real_*_test.cpp` in the `real-engines` job — real weights, on the fixtures (not field-tested) |
-| Real AI adapters: llama.cpp / Porcupine | **Compiles** behind `ECHO_WITH_*`, not run | Phase 3; account-gated (Porcupine) / too large for CI (llama) — real-hardware-run items |
+| Real AI adapter: llama.cpp reasoning | **Run against a real (tiny) model in CI** (Phase 12) | `tests/real_llm_test.cpp` in the `real-llm` job — real llama.cpp + Qwen2.5-0.5B-Instruct; route-tag parsing + safe-mode gate verified. **Production reasoning quality (larger model) still unverified** |
+| Real AI adapter: Porcupine wake-word | **Compiles** behind `ECHO_WITH_PORCUPINE`, not run | Phase 3; account-gated (Picovoice access key) — real-hardware-run item |
 | Real API backends (Spotify/Gmail/Search/YouTube) | **Compiles & links** behind `ECHO_WITH_NETWORK` | Phase 5/6; libcurl 8.21.0; **no live API call has run** |
 | JSON parser hardening (depth cap) + Gmail header-injection fix | **Built & tested** | Phase 6 fixes, both with regression tests + a fuzz harness |
 
@@ -80,7 +81,7 @@ concentrated exactly where Phase 9 flagged the weakness: the core loop.
 |--------|--------------:|--------------:|--------------|
 | `companion-sync` | **96 %** | 0 % | ⬆ real alert/status/firmware construction + lifecycle exercised; the privacy guarantee (no `SensorFrame` path) is now a **compile-time** assertion, not a comment |
 | `voice-ui` | **91 %** | 0 % | ⬆ real `to_utterance()` tone mapping + stub shell fully covered; the Piper **synthesis** path is now run for real in the Phase 11 `real-engines` job (separate from this gcov run); only the SDL **playback** backend (needs hardware) is uncovered |
-| `cognitive-core` | **84 %** | 67 % | ⬆ both gate branches now driven end-to-end (low-confidence *and* confident-but-no-LLM); the real `llm.cpp` adapter is still compiled out of the stub build |
+| `cognitive-core` | **84 %** | 67 % | ⬆ both gate branches now driven end-to-end (low-confidence *and* confident-but-no-LLM); the real `llm.cpp` adapter is compiled out of *this* stub gcov run, but is now exercised for real in the Phase 12 `real-llm` job (route-tag parsing + safe-mode gate against a real tiny model) |
 | `perception` | **69 %** | 7 % | ⬆ routing/framing/fusion + input guards covered. The real **ASR (whisper)** and **vision (OpenCV)** engines are now run against real weights in the Phase 11 `real-engines` job (separate from this stub gcov run, so they still read 0 here); the **wake-word (Porcupine)** model path and the wake-gated **endpoint→transcribe** branch stay genuinely uncovered — an explicitly asserted gap, not padding |
 | `sensor-pipeline` | **42 %** | 0 % | ⬆ the real `SensorPipeline` + SPSC queue at **85 %**; the two 0 % files are the scaffold no-op stub factories (deliberately bypassed) and the SDL/OpenCV real-capture path (compiled out) |
 | `apps/appkit` | **76 %** | 70 % | confirm gate (100 %), JSON, URL, readability; base64 / token-store / http transport still near 0 % |
@@ -124,12 +125,39 @@ portraits) — the tests prove the engines *work at all* on good input, not that
 `tiny.en` or SFace hold up under field noise, poor light, motion, or a real human
 speaking naturally. That still needs the on-hardware run.
 
+**Phase 12 narrowed the LLM part of that gap too — revisiting a call Phase 11
+made.** Phase 11 listed llama.cpp as impractical for CI, but that judgement was
+written for a full-size 3B–4B model. Phase 12 uses a genuinely *tiny* instruct
+model (Qwen2.5-0.5B-Instruct, Q5_K_M, ~498 MiB — pinned + SHA-256-verified in
+[`MANIFEST.md`](../MANIFEST.md)) that runs one short greedy CPU inference in
+seconds, so the **real llama.cpp reasoning path now runs in CI** (the `real-llm`
+job), not just compiled-out:
+
+- **Route-tag parsing on real output** — the tiny model, given ECHO's real system
+  prompt, emits `[route:media]` for "play some jazz music", and the Phase-6-hardened
+  parser extracts `media` from the model's actual output format (not an idealized
+  stub). — `tests/real_llm_test.cpp`
+- **Safe-mode gate with a real LLM wired in** — a low-confidence observation carrying
+  that *same* clear command still lands in safe mode: the gate keys on perception
+  confidence and short-circuits before the model, so the real LLM is never consulted.
+  A **real finding, not routed around** (constraint #4): unlike the stub — which
+  returns empty text and so trips the LLM-failure fallback — a real model produces
+  confident text for *every* prompt, so the safe-mode guarantee here rests on the
+  perception-confidence gate, exactly as the code intends.
+- **Sanity generation** — a simple question returns non-empty, non-crashing text.
+
+What this **does not** claim: production reasoning quality. A 0.5B model exists here
+only to exercise the real *integration* (load, generate, KV-clear), the parser, and
+the gate. The larger model used in the real deployment is **not** validated by this
+test — that remains an on-hardware item.
+
 What remains genuinely untested, and needs the libraries/credentials/hardware:
 
 - **Porcupine wake-word** — needs an account-gated Picovoice access key; stays a
   real-hardware-run item.
-- **llama.cpp / full LLM reasoning** — multi-GB model + CI runtime cost make it
-  impractical in a workflow; stays a real-hardware-run item.
+- **Production-quality LLM reasoning** — the *integration* is now verified in CI
+  against a tiny model (Phase 12), but the deployment-grade model's actual answer
+  quality still needs the on-hardware run.
 - **Live behaviour** — real mic/webcam capture, latency under load, and a human
   speaking/moving naturally (vs. a clean recorded fixture), plus the SDL audio
   **playback** path and the on-hardware sensor DMA/real-capture code.
@@ -156,18 +184,21 @@ Every push and PR to `master` runs [`.github/workflows/ci.yml`](../.github/workf
 | **Fuzz (JSON)** | bounded libFuzzer under ASan/UBSan on the one parser that eats untrusted bytes |
 | **Coverage** | gcov + gcovr; % printed to the run summary, XML to Codecov |
 | **Real engines** (Phase 11) | `-DECHO_WITH_WHISPER/OPENCV/PIPER=ON`; downloads + **SHA-256-verifies** the free models and runs `tests/real_*` against real weights on the fixtures. Runs in parallel; models + whisper build cached |
+| **Real LLM** (Phase 12) | `-DECHO_WITH_LLAMA=ON`; builds llama.cpp + downloads/**SHA-256-verifies** a tiny instruct model and runs `tests/real_llm_test.cpp` — route-tag parsing + safe-mode gate against a real model's real output. Runs in parallel; model + llama build cached |
 
 Two one-time repo-admin steps remain outside code: **branch protection** (require
 these checks before merge) and **enabling Codecov** (the badge reads `unknown`
 until then; the percentage is visible in every run regardless).
 
-The `real-engines` job (Phase 11) now runs whisper.cpp, OpenCV, and Piper against
-real models in CI — they are free, need no account, and are small enough to cache.
-What stays deliberately **excluded**: the full `ECHO_REAL_AI=ON` matrix, because
-its remaining two engines don't belong in a workflow — **Porcupine** (account-gated
-access key) and **llama.cpp** (multi-GB model + runtime cost). Every model the real
-job does download is checksum-verified before use (running unverified third-party
-model binaries in CI is a supply-chain risk, not a hypothetical one).
+The `real-engines` job (Phase 11) runs whisper.cpp, OpenCV, and Piper against real
+models in CI, and the `real-llm` job (Phase 12) adds the real llama.cpp reasoning
+path against a **tiny** instruct model — all free, account-free, and small enough to
+cache. What stays deliberately **excluded**: **Porcupine** (account-gated access
+key), and **production-grade LLM reasoning** — Phase 12 verifies the llama.cpp
+*integration* + parser + gate with a 0.5B model, but a deployment-size model's
+answer quality is a multi-GB, on-hardware concern, not a per-commit CI one. Every
+model either job downloads is SHA-256-verified before use (running unverified
+third-party model binaries in CI is a supply-chain risk, not a hypothetical one).
 
 ## Known issues / inconsistencies noted during this doc pass
 

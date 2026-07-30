@@ -201,6 +201,7 @@ mandatory instead of optional.
 | **Network build** | Installs libcurl, configures `-DECHO_WITH_NETWORK=ON`, builds, and runs the appkit + apps suites — JSON parsing (incl. the deep-nesting overflow guard), the Gmail header-injection regression test, the confirm-before-action gate, and the NLU mail/browser routing fix. Proves the Phase 5/6 network branch compiles and passes on a clean machine, not just a developer's laptop. | libcurl (from the runner's apt). **No live API calls** — the tests are credential-free; libcurl only needs to link. |
 | **Secret scan** | Runs the existing [`scripts/check_secrets.sh`](scripts/check_secrets.sh) rules over the tree, so a real API key, OAuth secret, private key, token cache, or committed `.env` fails the run and blocks merge — even if a future session forgets to run the check manually. | None. |
 | **Real engines** (Phase 11) | Configures `-DECHO_WITH_WHISPER/OPENCV/PIPER=ON`, downloads and **SHA-256-verifies** the free models (whisper `tiny.en`, OpenCV YuNet+SFace, a Piper voice) + two public-domain face photos, builds whisper.cpp from source, and runs [`tests/real_*_test.cpp`](tests/) against **real weights** on the Phase 10 fixtures. Runs in parallel with the fast jobs; models + whisper build are cached. See "Running the real-engine tests locally" below. | Free models only — **no account, no secret**. Every download is checksum-verified before use. |
+| **Real LLM** (Phase 12) | Configures `-DECHO_WITH_LLAMA=ON`, builds llama.cpp from a pinned tag, downloads and **SHA-256-verifies** a *tiny* instruct model (`Qwen2.5-0.5B-Instruct` Q5_K_M, ~498 MiB — see [`MANIFEST.md`](MANIFEST.md)), and runs [`tests/real_llm_test.cpp`](tests/real_llm_test.cpp): route-tag parsing and the safe-mode gate against a **real model's real output**. Runs in parallel; model + llama build are cached. | Free model only — **no account, no secret**. Checksum-verified before use. |
 
 Dependency caching (ccache) keeps PR feedback fast, so runs don't rebuild every
 object from scratch. A newer push to the same branch cancels the in-flight run.
@@ -214,11 +215,24 @@ claim field robustness — the fixtures are synthetic/clean, so passing here doe
 mean `tiny.en` or SFace hold up under real noise, motion, or poor light. That still
 needs the on-hardware run.
 
-**Still deliberately excluded.** Two of the real engines stay out of CI, by design:
-**Porcupine** wake-word (needs an account-gated Picovoice access key — a secret we
-will not put in a workflow) and **llama.cpp / the full LLM** (multi-gigabyte model +
-runtime cost that blows the CI budget). The **stub build** remains the deterministic
-dependency-free proxy for those paths, and both stay real-hardware-run items.
+**The real-LLM job (Phase 12) — what it proves, and what it doesn't.** Phase 11
+listed llama.cpp as too large for CI; that was true of a full 3B–4B model, so
+Phase 12 uses a genuinely *tiny* one (0.5B, ~498 MiB) that runs one short greedy CPU
+inference in seconds. The `real-llm` job verifies, against the real model's real
+output: the route-tag parser extracts `media` from `[route:media]…` the model
+actually emits for "play some jazz music"; the safe-mode gate still refuses a
+low-confidence turn with the real LLM wired in (keying on perception confidence, not
+model text — a **real finding**, since unlike the stub a real model never returns
+the empty string that would trip the LLM-failure path); and a plain question returns
+non-empty text. It does **not** claim production reasoning quality — a 0.5B model
+only exercises the *integration*; the deployment-size model is untested here.
+
+**Still deliberately excluded.** **Porcupine** wake-word stays out of CI (needs an
+account-gated Picovoice access key — a secret we will not put in a workflow), and so
+does **production-grade LLM reasoning** (a deployment-size, multi-gigabyte model —
+Phase 12 verifies the llama.cpp *integration* with a tiny model, not answer quality).
+The **stub build** remains the deterministic dependency-free proxy, and both stay
+real-hardware-run items.
 
 **Branch protection (manual step — repo admin).** The workflow blocks merge only once
 branch protection actually requires it; that is a GitHub repo-settings action, not
@@ -229,8 +243,9 @@ something committed in code. Whoever has admin access should, under
   *Stub build (no deps) + full ctest*, *Network build (ECHO_WITH_NETWORK=ON) +
   appkit/apps tests*, *Secret scan (check_secrets.sh)*, and — added in Phase 8 —
   *clang-tidy (bugprone/cert/security)*, *cppcheck (static analysis)*,
-  *Fuzz JSON parser (libFuzzer, bounded)*, *Coverage (gcov/gcovr)*, and — added in
-  Phase 11 — *Real engines (whisper/OpenCV/Piper) vs. fixtures*.
+  *Fuzz JSON parser (libFuzzer, bounded)*, *Coverage (gcov/gcovr)*, — added in
+  Phase 11 — *Real engines (whisper/OpenCV/Piper) vs. fixtures*, and — added in
+  Phase 12 — *Real LLM (llama.cpp tiny model) route-tag + safe-mode gate*.
 - **Require branches to be up to date before merging** (so checks run against the
   post-merge tree).
 
@@ -282,6 +297,20 @@ Each real test **self-skips** (green, with a loud message) if you build with an
 engine flag ON but haven't provided its model — so you can bring the engines up one
 at a time. The exact steps CI runs are in the `real-engines` job of
 [`ci.yml`](.github/workflows/ci.yml).
+
+**The real-LLM test (Phase 12)** works the same way, behind `-DECHO_WITH_LLAMA=ON`.
+Fetch just the model with the fetch script's substring filter, point the adapter at
+it, and run the `real-llm` suite:
+
+```bash
+A="$PWD/.real-llm-assets"
+bash scripts/fetch_real_engine_assets.sh "$A" llm.gguf   # ~498 MB, SHA-256-verified
+# build llama.cpp and configure with -DECHO_WITH_LLAMA=ON -DCMAKE_PREFIX_PATH=<llama-install>
+# (see the "Phase 3/4" llama.cpp notes below), then:
+ECHO_LLAMA_MODEL="$A/llm.gguf" ctest --test-dir build-real-llm --output-on-failure -R "real-llm"
+```
+
+Exact steps are in the `real-llm` job of [`ci.yml`](.github/workflows/ci.yml).
 
 ## Code Quality (Phase 8)
 

@@ -81,3 +81,16 @@ if(ECHO_WITH_PIPER)
     target_include_directories(echo-real-tts-tests PRIVATE ${CMAKE_SOURCE_DIR}/voice-ui/src)
     add_test(NAME echo-real-tts COMMAND echo-real-tts-tests)
 endif()
+
+# --- Phase 12: REAL reasoning-LLM verification -------------------------------
+# Real LLM: the llama.cpp adapter against a tiny quantized instruct GGUF, proving
+# route-tag parsing and the safe-mode gate against a real model's real output.
+# Built ONLY with -DECHO_WITH_LLAMA=ON; needs the private llm.hpp from
+# cognitive-core/src (make_llm()/ILlm/LlmReply). Self-skips (exit 0, loud) when the
+# flag is on but the model file isn't present. See the dedicated "real-llm" CI job.
+if(ECHO_WITH_LLAMA)
+    echo_add_core_test(echo-real-llm-tests real_llm_test.cpp
+        echo::common echo::perception echo::cognitive)
+    target_include_directories(echo-real-llm-tests PRIVATE ${CMAKE_SOURCE_DIR}/cognitive-core/src)
+    add_test(NAME echo-real-llm COMMAND echo-real-llm-tests)
+endif()
