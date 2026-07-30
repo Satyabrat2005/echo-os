@@ -25,6 +25,77 @@ invalidated exactly when a pinned asset changes ("cache by checksum").
 
 ---
 
+## Phase 13 — wake-word (openWakeWord + ONNX Runtime)
+
+The account-free wake-word backend. openWakeWord runs a fixed **three-model ONNX
+pipeline** on **ONNX Runtime**; all four files below download free (no Picovoice
+account, no key), which is the entire point of this backend versus the
+account-gated Porcupine `.ppn` (which stays available for a production build — see
+`docs/DECISIONS.md`). Used by `tests/real_wakeword_test.cpp` (the wake-word part of
+the `real-engines` CI job) via `ECHO_OWW_MELSPEC` / `ECHO_OWW_EMBEDDING` /
+`ECHO_OWW_MODEL`, built with `-DECHO_WITH_OPENWAKEWORD=ON`.
+
+### openWakeWord feature front-end — melspectrogram
+
+| | |
+|---|---|
+| **File** | `openwakeword/melspectrogram.onnx` |
+| **URL** | https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/melspectrogram.onnx |
+| **SHA-256** | `ba2b0e0f8b7b875369a2c89cb13360ff53bac436f2895cced9f479fa65eb176f` |
+| **Size** | 1,087,958 bytes |
+| **License** | Apache-2.0 (openWakeWord) |
+| **Why** | Stage 1: raw 16 kHz int16 audio → (frames × 32) log-mel spectrogram (input name `input`). Shared across all keywords. |
+
+### openWakeWord speech-embedding
+
+| | |
+|---|---|
+| **File** | `openwakeword/embedding_model.onnx` |
+| **URL** | https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/embedding_model.onnx |
+| **SHA-256** | `70d164290c1d095d1d4ee149bc5e00543250a7316b59f31d056cff7bd3075c1f` |
+| **Size** | 1,326,578 bytes |
+| **License** | Apache-2.0 (Google `speech_embedding`, redistributed by openWakeWord) |
+| **Why** | Stage 2: a sliding 76-frame × 32-mel window (step 8) → a 96-d embedding (input `input_1`). Shared across all keywords. |
+
+### openWakeWord wake-word classifier — "Hey Jarvis"
+
+| | |
+|---|---|
+| **File** | `openwakeword/hey_jarvis_v0.1.onnx` |
+| **URL** | https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/hey_jarvis_v0.1.onnx |
+| **SHA-256** | `94a13cfe60075b132f6a472e7e462e8123ee70861bc3fb58434a73712ee0d2cb` |
+| **Size** | 1,271,370 bytes |
+| **License** | Apache-2.0 (openWakeWord) |
+| **Why** | Stage 3: a sliding 16-embedding window → one score in [0,1] (input `[1,16,96]`). See "Custom 'Hey ECHO'" below for why this pretrained model, not a custom one. |
+
+### ONNX Runtime (the inference engine)
+
+| | |
+|---|---|
+| **File** | `onnxruntime-linux-x64.tgz` → `onnxruntime-linux-x64-1.17.3/` |
+| **URL** | https://github.com/microsoft/onnxruntime/releases/download/v1.17.3/onnxruntime-linux-x64-1.17.3.tgz |
+| **SHA-256** | `f2f11f9da1e3e19b22a8b378b9af57a58433f40e3db6a803e75c0ec0eba97a20` |
+| **Size** | 5,796,502 bytes |
+| **License** | MIT (Microsoft ONNX Runtime) |
+| **Why** | openWakeWord's models are authored and tested against ONNX Runtime; the official prebuilt CPU tarball links against ECHO with no from-source build (unlike whisper/llama). CMake finds it via `-DONNXRUNTIME_ROOT`. |
+
+**Why openWakeWord at all.** Phases 11–12 verified every real engine in CI *except*
+wake-word, which was left out only because the Porcupine backend needs an
+account-gated Picovoice key we will not put in a workflow. openWakeWord closes that
+gap without the account: Apache-2.0 models, an MIT runtime, all anonymously
+fetchable — the same discipline as every other asset here.
+
+**Custom "Hey ECHO" is out of scope for this phase (honest note).** This phase ships
+the **pretrained** `hey_jarvis` model as the closest account-free stand-in. A truly
+custom "Hey ECHO" model is a *training* undertaking (synthesize thousands of TTS
+utterances, mine negatives, train + validate), which is a much bigger job than
+downloading a pretrained model and is a documented follow-up, not something this
+phase claims to have done. Because openWakeWord's own training set is
+Piper-TTS-synthesized speech, a Piper-synthesized "hey jarvis" clip is a fair,
+**in-distribution** positive for CI (see `tests/fixtures/README.md`).
+
+---
+
 ## Phase 12 — reasoning LLM (llama.cpp)
 
 | | |

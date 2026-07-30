@@ -5,8 +5,9 @@ validation, how well it's tested, and what quality gates are in place. This is
 the document to read first — a YC partner or a new engineer should be able to
 trust every line of it. It is an internal reference, not marketing copy.*
 
-Last updated: Phase 9 (documentation pass). Source of truth for every claim is
-the repo at this commit; nothing here is aspirational unless explicitly labelled.
+Last updated: Phase 13 (real wake-word verification in CI). Source of truth for
+every claim is the repo at this commit; nothing here is aspirational unless
+explicitly labelled.
 
 ## In one paragraph
 
@@ -17,11 +18,14 @@ fully local AI pipeline on top. The architecture is real and complete: a
 sub-120 ms perception → cognitive → voice core loop with a confidence-gated
 safe-mode fallback, a hard-isolated apps layer in separate processes, and a
 build that compiles dependency-free on any host with deterministic stubs. What is
-**not yet done** is running the real AI models and real third-party APIs on real
-hardware with real users — the seams for all of it exist and compile, but the
-live bring-up (Phases 4–6, Part B) has not happened. The honest one-liner: **the
-skeleton and the contracts are solid and tested; the flesh — real models, real
-credentials, real hardware, measured latency — is wired up but unproven.**
+**not yet done** is running the whole stack on real hardware with a real user:
+every real AI engine (wake-word, ASR, vision, TTS, LLM) is now run against real
+models in CI on fixtures/synthetic speech (Phases 11–13), but real third-party APIs
+and the live mic/webcam/human/latency bring-up (Phases 4–6, Part B) have not
+happened. The honest one-liner: **the skeleton, the contracts, and every real-model
+integration are solid and CI-tested; what's left is the flesh that can't be
+simulated — real hardware, a real human in a real room, real credentials, and
+measured latency.**
 
 ## What's built and verified ✅
 
@@ -40,7 +44,8 @@ credentials, real hardware, measured latency — is wired up but unproven.**
 | NLU mail/browser routing fix (Phase 6) | **Built & tested** | `echo-nlu-routing` regression suite |
 | Real AI adapters: whisper / OpenCV / Piper | **Run against real models in CI** (Phase 11) | `tests/real_*_test.cpp` in the `real-engines` job — real weights, on the fixtures (not field-tested) |
 | Real AI adapter: llama.cpp reasoning | **Run against a real (tiny) model in CI** (Phase 12) | `tests/real_llm_test.cpp` in the `real-llm` job — real llama.cpp + Qwen2.5-0.5B-Instruct; route-tag parsing + safe-mode gate verified. **Production reasoning quality (larger model) still unverified** |
-| Real AI adapter: Porcupine wake-word | **Compiles** behind `ECHO_WITH_PORCUPINE`, not run | Phase 3; account-gated (Picovoice access key) — real-hardware-run item |
+| Real AI adapter: openWakeWord wake-word | **Run against real models in CI** (Phase 13) | `tests/real_wakeword_test.cpp` in the `real-engines` job — real 3-stage ONNX pipeline on ONNX Runtime; wake phrase fires, silence/garble/ordinary speech do not (account-free, on fixtures — not field-tested) |
+| Real AI adapter: Porcupine wake-word | **Compiles** behind `ECHO_WITH_PORCUPINE`, not run | Phase 3; account-gated (Picovoice key) — kept as a higher-accuracy **production option**, superseded in CI by openWakeWord |
 | Real API backends (Spotify/Gmail/Search/YouTube) | **Compiles & links** behind `ECHO_WITH_NETWORK` | Phase 5/6; libcurl 8.21.0; **no live API call has run** |
 | JSON parser hardening (depth cap) + Gmail header-injection fix | **Built & tested** | Phase 6 fixes, both with regression tests + a fuzz harness |
 
@@ -60,7 +65,7 @@ evidence exists.
 | 5 | Live credentialed Spotify/Gmail/Search/YouTube calls | 5 | real developer-app credentials + the network build; only mock traffic has run |
 | 6 | One-time OAuth authorize helper (`scripts/authorize.*`) | 5 | currently a documented manual browser-paste step |
 | 7 | On-glasses sensor DMA frontends + BLE/WiFi companion transport | hardware | the real embedded target; today these are stubs |
-| 8 | Porcupine AccessKey + custom "Hey ECHO" `.ppn` | 4 | account-gated (Picovoice console); user-provided, never committed |
+| 8 | Custom-trained "Hey ECHO" wake word (either backend) | 13 | CI verifies wake-word with openWakeWord's **pretrained** "hey jarvis"; a bespoke "Hey ECHO" model is a *training* undertaking (openWakeWord: synthesize+train; or Porcupine: account-gated `.ppn`) — a documented follow-up, not a bug |
 
 The README's Phase 4/5 tables are the canonical place these numbers get filled in
 **during** the real bring-up, and are deliberately left as `_—_` placeholders
@@ -82,7 +87,7 @@ concentrated exactly where Phase 9 flagged the weakness: the core loop.
 | `companion-sync` | **96 %** | 0 % | ⬆ real alert/status/firmware construction + lifecycle exercised; the privacy guarantee (no `SensorFrame` path) is now a **compile-time** assertion, not a comment |
 | `voice-ui` | **91 %** | 0 % | ⬆ real `to_utterance()` tone mapping + stub shell fully covered; the Piper **synthesis** path is now run for real in the Phase 11 `real-engines` job (separate from this gcov run); only the SDL **playback** backend (needs hardware) is uncovered |
 | `cognitive-core` | **84 %** | 67 % | ⬆ both gate branches now driven end-to-end (low-confidence *and* confident-but-no-LLM); the real `llm.cpp` adapter is compiled out of *this* stub gcov run, but is now exercised for real in the Phase 12 `real-llm` job (route-tag parsing + safe-mode gate against a real tiny model) |
-| `perception` | **69 %** | 7 % | ⬆ routing/framing/fusion + input guards covered. The real **ASR (whisper)** and **vision (OpenCV)** engines are now run against real weights in the Phase 11 `real-engines` job (separate from this stub gcov run, so they still read 0 here); the **wake-word (Porcupine)** model path and the wake-gated **endpoint→transcribe** branch stay genuinely uncovered — an explicitly asserted gap, not padding |
+| `perception` | **69 %** | 7 % | ⬆ routing/framing/fusion + input guards covered. The real **ASR (whisper)**, **vision (OpenCV)**, and now **wake-word (openWakeWord)** engines are run against real weights in the `real-engines` job (Phases 11 + 13; separate from this stub gcov run, so they still read 0 here); the wake-gated **endpoint→transcribe** branch stays genuinely uncovered — an explicitly asserted gap, not padding |
 | `sensor-pipeline` | **42 %** | 0 % | ⬆ the real `SensorPipeline` + SPSC queue at **85 %**; the two 0 % files are the scaffold no-op stub factories (deliberately bypassed) and the SDL/OpenCV real-capture path (compiled out) |
 | `apps/appkit` | **76 %** | 70 % | confirm gate (100 %), JSON, URL, readability; base64 / token-store / http transport still near 0 % |
 | `apps/app-framework` | **74 %** | 71 % | supervisor / router / IPC / NLU — still the best-tested app-layer code |
@@ -151,16 +156,36 @@ only to exercise the real *integration* (load, generate, KV-clear), the parser, 
 the gate. The larger model used in the real deployment is **not** validated by this
 test — that remains an on-hardware item.
 
-What remains genuinely untested, and needs the libraries/credentials/hardware:
+**Phase 13 closed the last real-engine gap — wake-word — the same account-free
+way.** Phase 11 left wake-word out only because the Porcupine backend needs an
+account-gated Picovoice key. Phase 13 adds **openWakeWord** alongside Porcupine
+(behind the same `wake_word.hpp` interface, default backend, Porcupine kept as a
+production option): its pretrained three-stage ONNX pipeline runs on ONNX Runtime,
+all Apache-2.0 / MIT and anonymously fetchable, so it runs in the `real-engines` CI
+job against real models — `tests/real_wakeword_test.cpp`:
 
-- **Porcupine wake-word** — needs an account-gated Picovoice access key; stays a
-  real-hardware-run item.
-- **Production-quality LLM reasoning** — the *integration* is now verified in CI
-  against a tiny model (Phase 12), but the deployment-grade model's actual answer
-  quality still needs the on-hardware run.
-- **Live behaviour** — real mic/webcam capture, latency under load, and a human
-  speaking/moving naturally (vs. a clean recorded fixture), plus the SDL audio
-  **playback** path and the on-hardware sensor DMA/real-capture code.
+- **Fires on the wake phrase** — a Piper-synthesized "hey jarvis" (an *in-distribution*
+  positive: openWakeWord itself trains on Piper TTS) clears the detection threshold.
+- **Does not false-accept** — ordinary non-wake speech, silence, and loud garble all
+  stay below threshold. The test prints every observed score and asserts on the
+  model's *actual* probabilistic behavior, not a manufactured perfect separation.
+
+What this **does not** claim: a custom "Hey ECHO" model (it ships the pretrained
+"hey jarvis" — training a bespoke word is a documented follow-up, gap #8), nor field
+robustness (clean synthetic clips, not a human in a noisy room).
+
+**With Phase 13, every real engine — wake-word, ASR, vision, TTS, LLM — is now
+verified against real models in CI on synthetic/fixture input.** What remains is a
+single, *permanent* gap that cannot be simulated and is not claimed as covered:
+
+- **Live-hardware behaviour with a real human** — real mic/webcam capture, a person
+  speaking and moving naturally in a real room with real background noise, latency
+  under load, the SDL audio **playback** path, and the on-hardware sensor DMA /
+  real-capture code. This is inherently un-simulatable and stays honestly open.
+- (Two narrower, non-"engine" items also remain by nature: **production-grade LLM
+  answer quality** — the deployment-size model, vs. the 0.5B CI stand-in — and a
+  **custom-trained "Hey ECHO"** word; both are documented above, not engine-integration
+  gaps.)
 
 The tests mark each remaining gap explicitly rather than reporting high coverage
 on code they never run.
@@ -183,22 +208,24 @@ Every push and PR to `master` runs [`.github/workflows/ci.yml`](../.github/workf
 | **cppcheck** | second independent analyzer; `warning`/`performance`/`portability` fail the job |
 | **Fuzz (JSON)** | bounded libFuzzer under ASan/UBSan on the one parser that eats untrusted bytes |
 | **Coverage** | gcov + gcovr; % printed to the run summary, XML to Codecov |
-| **Real engines** (Phase 11) | `-DECHO_WITH_WHISPER/OPENCV/PIPER=ON`; downloads + **SHA-256-verifies** the free models and runs `tests/real_*` against real weights on the fixtures. Runs in parallel; models + whisper build cached |
+| **Real engines** (Phases 11 + 13) | `-DECHO_WITH_WHISPER/OPENCV/PIPER/OPENWAKEWORD=ON`; downloads + **SHA-256-verifies** the free models (incl. the openWakeWord ONNX pipeline + ONNX Runtime) and runs `tests/real_*` (ASR, vision, TTS, **wake-word**) against real weights on the fixtures + Piper-synthesized speech. Runs in parallel; models + whisper build cached |
 | **Real LLM** (Phase 12) | `-DECHO_WITH_LLAMA=ON`; builds llama.cpp + downloads/**SHA-256-verifies** a tiny instruct model and runs `tests/real_llm_test.cpp` — route-tag parsing + safe-mode gate against a real model's real output. Runs in parallel; model + llama build cached |
 
 Two one-time repo-admin steps remain outside code: **branch protection** (require
 these checks before merge) and **enabling Codecov** (the badge reads `unknown`
 until then; the percentage is visible in every run regardless).
 
-The `real-engines` job (Phase 11) runs whisper.cpp, OpenCV, and Piper against real
-models in CI, and the `real-llm` job (Phase 12) adds the real llama.cpp reasoning
-path against a **tiny** instruct model — all free, account-free, and small enough to
-cache. What stays deliberately **excluded**: **Porcupine** (account-gated access
-key), and **production-grade LLM reasoning** — Phase 12 verifies the llama.cpp
-*integration* + parser + gate with a 0.5B model, but a deployment-size model's
-answer quality is a multi-GB, on-hardware concern, not a per-commit CI one. Every
-model either job downloads is SHA-256-verified before use (running unverified
-third-party model binaries in CI is a supply-chain risk, not a hypothetical one).
+The `real-engines` job (Phases 11 + 13) runs whisper.cpp, OpenCV, Piper, and — now —
+openWakeWord against real models in CI, and the `real-llm` job (Phase 12) adds the
+real llama.cpp reasoning path against a **tiny** instruct model — all free,
+account-free, and small enough to cache. What stays deliberately **excluded**:
+**Porcupine** (account-gated key — kept only as a production wake-word option, since
+openWakeWord now covers wake-word in CI account-free), and **production-grade LLM
+reasoning** — Phase 12 verifies the llama.cpp *integration* + parser + gate with a
+0.5B model, but a deployment-size model's answer quality is a multi-GB, on-hardware
+concern, not a per-commit CI one. Every model any job downloads is SHA-256-verified
+before use (running unverified third-party model binaries in CI is a supply-chain
+risk, not a hypothetical one).
 
 ## Known issues / inconsistencies noted during this doc pass
 

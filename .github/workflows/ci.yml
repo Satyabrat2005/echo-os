@@ -369,25 +369,29 @@ jobs:
           verbose: true
 
   # ---------------------------------------------------------------------------
-  # 8. real-engines (Phase 11) — verify the REAL local-AI engines, not the stubs.
+  # 8. real-engines (Phase 11 + 13) — verify the REAL local-AI engines, not the stubs.
   #    This is the deliberately-heavier job the other jobs are the fast proxy for:
-  #    it turns ECHO_WITH_WHISPER/OPENCV/PIPER ON, downloads the three free models
-  #    (whisper tiny.en, OpenCV YuNet+SFace, a Piper voice) + two public-domain
-  #    face photos, VERIFIES every one against a pinned SHA-256, and runs the
-  #    tests/real_*_test.cpp suite against real weights on the Phase 10 fixtures.
+  #    it turns ECHO_WITH_WHISPER/OPENCV/PIPER + (Phase 13) OPENWAKEWORD ON, downloads
+  #    the free models (whisper tiny.en, OpenCV YuNet+SFace, a Piper voice, the
+  #    openWakeWord ONNX pipeline + ONNX Runtime) + two public-domain face photos,
+  #    VERIFIES every one against a pinned SHA-256, and runs the tests/real_*_test.cpp
+  #    suite against real weights on the Phase 10 fixtures + Piper-synthesized speech.
   #
   #    Kept as its own job so it runs IN PARALLEL with the fast stub/network/
   #    analysis jobs above and never gates their feedback (constraint #1). It is
-  #    heavier (a whisper.cpp source build + ~230 MB of models), so both the models
+  #    heavier (a whisper.cpp source build + ~240 MB of models), so both the models
   #    and the whisper build are cached; a warm run skips the downloads and rebuild.
   #
-  #    STILL out of scope here (documented in docs/STATE.md): Porcupine wake-word
-  #    (account-gated access key) and any llama.cpp/full-LLM path (model size / CI
-  #    runtime), plus all live mic/webcam/human behaviour — this validates the
-  #    engines RUN correctly on clean fixtures, not field robustness.
+  #    Phase 13 closes the wake-word gap Phase 11 left open: openWakeWord is
+  #    account-free (Apache-2.0 models, MIT ONNX Runtime), so unlike Porcupine
+  #    (account-gated key — still out of scope, kept as a production option) it can
+  #    run here. STILL out of scope: any llama.cpp/full-LLM path lives in the
+  #    separate real-llm job, and all live mic/webcam/human behaviour — this
+  #    validates the engines RUN correctly on clean fixtures, not field robustness
+  #    (documented in docs/STATE.md).
   # ---------------------------------------------------------------------------
   real-engines:
-    name: Real engines (whisper/OpenCV/Piper) vs. fixtures
+    name: Real engines (whisper/OpenCV/Piper/openWakeWord) vs. fixtures
     runs-on: ubuntu-latest
     env:
       WHISPER_TAG: v1.7.4
@@ -461,6 +465,25 @@ jobs:
               --output_file "$ASSETS_DIR/speech.wav"
           ls -l "$ASSETS_DIR/speech.wav"
 
+      # Phase 13 wake-word clips: a POSITIVE ("hey jarvis" — the pretrained
+      # openWakeWord model's phrase; openWakeWord trains on Piper TTS, so this is an
+      # in-distribution positive) and a NEGATIVE ordinary sentence that must NOT
+      # trigger (tests for false accepts on real speech). Silence/garble negatives
+      # reuse the committed synthetic fixtures. The test resamples 22.05 kHz Piper
+      # audio to the 16 kHz openWakeWord expects.
+      - name: Synthesize the wake-word clips with Piper
+        run: |
+          export LD_LIBRARY_PATH="$ASSETS_DIR/piper:${LD_LIBRARY_PATH:-}"
+          echo "hey jarvis" | \
+            "$ASSETS_DIR/piper/piper" \
+              --model "$ASSETS_DIR/voices/en_US-amy-medium.onnx" \
+              --output_file "$ASSETS_DIR/wake_hey_jarvis.wav"
+          echo "what time is the next train to boston" | \
+            "$ASSETS_DIR/piper/piper" \
+              --model "$ASSETS_DIR/voices/en_US-amy-medium.onnx" \
+              --output_file "$ASSETS_DIR/not_wake_speech.wav"
+          ls -l "$ASSETS_DIR/wake_hey_jarvis.wav" "$ASSETS_DIR/not_wake_speech.wav"
+
       # whisper.cpp's installed whisper-config.cmake unconditionally set_and_check's
       # WHISPER_BIN_DIR (${prefix}/bin), but with examples/tools OFF nothing is
       # installed there, so the dir is absent and find_package() hard-errors. An
@@ -469,22 +492,24 @@ jobs:
       - name: Work around whisper-config bin-dir check
         run: mkdir -p "$WHISPER_INSTALL/bin"
 
-      - name: Configure (ECHO_WITH_WHISPER + OPENCV + PIPER ON)
+      - name: Configure (ECHO_WITH_WHISPER + OPENCV + PIPER + OPENWAKEWORD ON)
         run: >
           cmake -S . -B build-real
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
           -DECHO_WITH_WHISPER=ON
           -DECHO_WITH_OPENCV=ON
           -DECHO_WITH_PIPER=ON
+          -DECHO_WITH_OPENWAKEWORD=ON
+          -DONNXRUNTIME_ROOT="$ASSETS_DIR/onnxruntime-linux-x64-1.17.3"
           -DCMAKE_PREFIX_PATH="$WHISPER_INSTALL"
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
         run: cmake --build build-real --parallel
 
-      # Run only the real-engine suite (echo-real-asr / -vision / -tts). The env
-      # points every adapter at the verified assets; LD_LIBRARY_PATH lets the
-      # Piper binary find its bundled .so files.
+      # Run only the real-engine suite (echo-real-asr / -vision / -tts /
+      # -wakeword). The env points every adapter at the verified assets;
+      # LD_LIBRARY_PATH lets the Piper binary + libonnxruntime.so resolve.
       - name: Test (real engines against fixtures)
         env:
           ECHO_WHISPER_MODEL: ${{ env.ASSETS_DIR }}/ggml-tiny.en.bin
@@ -496,9 +521,16 @@ jobs:
           ECHO_PIPER_BIN: ${{ env.ASSETS_DIR }}/piper/piper
           ECHO_PIPER_VOICE: ${{ env.ASSETS_DIR }}/voices/en_US-amy-medium.onnx
           ECHO_ASR_SPEECH_WAV: ${{ env.ASSETS_DIR }}/speech.wav
+          # Phase 13 openWakeWord: the three ONNX models + the two synthesized clips.
+          ECHO_OWW_MELSPEC: ${{ env.ASSETS_DIR }}/openwakeword/melspectrogram.onnx
+          ECHO_OWW_EMBEDDING: ${{ env.ASSETS_DIR }}/openwakeword/embedding_model.onnx
+          ECHO_OWW_MODEL: ${{ env.ASSETS_DIR }}/openwakeword/hey_jarvis_v0.1.onnx
+          ECHO_WAKE_CLIP: ${{ env.ASSETS_DIR }}/wake_hey_jarvis.wav
+          ECHO_NOTWAKE_CLIP: ${{ env.ASSETS_DIR }}/not_wake_speech.wav
         run: |
-          # Piper's bundled .so files + (if whisper built shared) its install libs.
-          export LD_LIBRARY_PATH="$ASSETS_DIR/piper:$WHISPER_INSTALL/lib:${LD_LIBRARY_PATH:-}"
+          # Piper's bundled .so files + (if whisper built shared) its install libs +
+          # (Phase 13) ONNX Runtime's lib dir so libonnxruntime.so resolves.
+          export LD_LIBRARY_PATH="$ASSETS_DIR/piper:$WHISPER_INSTALL/lib:$ASSETS_DIR/onnxruntime-linux-x64-1.17.3/lib:${LD_LIBRARY_PATH:-}"
           ctest --test-dir build-real --output-on-failure -R "real"
 
   # ---------------------------------------------------------------------------

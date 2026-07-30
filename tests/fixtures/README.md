@@ -73,3 +73,32 @@ face YuNet can detect. Following the rule just above, those larger/real assets a
 The two negative/robustness cases still reuse the committed synthetic fixtures:
 `silence.wav` and `noisy_garble.wav` (silence/garble need no real speech) and
 `no_face.ppm` (OpenCV decodes P6 PPM; a 32×32 frame → YuNet finds no face).
+
+## Wake-word fixtures (Phase 13) — synthesized, not committed
+
+The real wake-word test (`tests/real_wakeword_test.cpp`) needs speech, so — exactly
+like the ASR speech clip above — the two speech clips are **synthesized on the fly
+by Piper in CI**, not committed:
+
+- **Positive — the wake phrase:** `wake_hey_jarvis.wav`, Piper synthesizing
+  "hey jarvis". This is a **fair, in-distribution** positive: openWakeWord's own
+  training data is Piper-TTS-synthesized speech, so a Piper "hey jarvis" clip is the
+  kind of audio the model was trained to fire on. Passed to the test via
+  `$ECHO_WAKE_CLIP`. (This phase ships the pretrained `hey_jarvis` model rather than
+  a custom "Hey ECHO" — training a custom wake word is a documented follow-up, see
+  `MANIFEST.md`.)
+- **Negative — ordinary speech that is NOT the wake word:** `not_wake_speech.wav`,
+  Piper synthesizing a plain sentence ("what time is the next train to boston").
+  This tests for **false accepts on real speech**, not just on silence. Passed via
+  `$ECHO_NOTWAKE_CLIP`.
+
+The other two negatives reuse the committed synthetic fixtures `silence.wav` and
+`noisy_garble.wav` (a wake detector must not fire on silence or garble either).
+
+**On error rates (honest).** Wake-word detection is probabilistic — a real model has
+nonzero false-accept and false-reject rates. The test asserts on the model's *actual*
+behavior against these clips (peak score on the wake clip clears the threshold; peak
+score on each non-wake clip stays below it), prints every observed score, and is not
+tuned to manufacture a perfect separation the model cannot honestly deliver. What it
+still cannot exercise — a real human, in a real room, with real background noise — is
+called out in `docs/STATE.md` as the one remaining live-hardware gap.

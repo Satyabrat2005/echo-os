@@ -51,6 +51,10 @@ std::string porcupine_access_key() {
     return join(models_dir(), "porcupine_access_key.txt");
 }
 
+std::string openwakeword_melspec()   { return resolve("ECHO_OWW_MELSPEC",   "melspectrogram.onnx"); }
+std::string openwakeword_embedding() { return resolve("ECHO_OWW_EMBEDDING", "embedding_model.onnx"); }
+std::string openwakeword_model()     { return resolve("ECHO_OWW_MODEL",     "hey_jarvis_v0.1.onnx"); }
+
 std::string whisper_model()       { return resolve("ECHO_WHISPER_MODEL", "ggml-base.en-q5_1.bin"); }
 
 std::string llama_model()         { return resolve("ECHO_LLAMA_MODEL", "llm.gguf"); }
