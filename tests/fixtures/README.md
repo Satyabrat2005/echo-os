@@ -53,3 +53,23 @@ is a recognizable stand-in.
 Total footprint is well under 100 KB. Do not add large media assets here — if a
 future test needs a bigger or real recording, keep it out of the repo (fetch it
 in CI or gate it behind the real-hardware bring-up) so the tree stays lean.
+
+## Real-engine assets (Phase 11) — fetched, not committed
+
+The Phase 11 real-engine tests (`tests/real_asr_test.cpp`, `real_vision_test.cpp`,
+`real_tts_test.cpp`) need inputs the synthetic fixtures above deliberately can't
+provide: a 32×32 tone isn't intelligible speech, and a 32×32 oval isn't a real
+face YuNet can detect. Following the rule just above, those larger/real assets are
+**fetched and SHA-256-verified at run time** by
+[`scripts/fetch_real_engine_assets.sh`](../../scripts/fetch_real_engine_assets.sh),
+**not committed**:
+
+- **Speech:** synthesized on the fly by Piper (no committed audio; license-clean).
+- **Faces:** two public-domain photographs of public figures and classic CV test
+  images — Grace Hopper (US Navy) as the enrolled identity, the "astronaut" Eileen
+  Collins (NASA) as an unknown identity. Real faces are kept out of the tree on
+  purpose (privacy + the rule above), living only in the ephemeral CI/checkout dir.
+
+The two negative/robustness cases still reuse the committed synthetic fixtures:
+`silence.wav` and `noisy_garble.wav` (silence/garble need no real speech) and
+`no_face.ppm` (OpenCV decodes P6 PPM; a 32×32 frame → YuNet finds no face).

@@ -200,22 +200,25 @@ mandatory instead of optional.
 | **Stub build** | Configures with every `ECHO_WITH_*` / `ECHO_REAL_AI` flag OFF (the dependency-free default since Phase 1), builds, and runs the **full** `ctest` suite. This job is the safety net every future phase depends on — it must always be green. | None. No external deps, no secrets. |
 | **Network build** | Installs libcurl, configures `-DECHO_WITH_NETWORK=ON`, builds, and runs the appkit + apps suites — JSON parsing (incl. the deep-nesting overflow guard), the Gmail header-injection regression test, the confirm-before-action gate, and the NLU mail/browser routing fix. Proves the Phase 5/6 network branch compiles and passes on a clean machine, not just a developer's laptop. | libcurl (from the runner's apt). **No live API calls** — the tests are credential-free; libcurl only needs to link. |
 | **Secret scan** | Runs the existing [`scripts/check_secrets.sh`](scripts/check_secrets.sh) rules over the tree, so a real API key, OAuth secret, private key, token cache, or committed `.env` fails the run and blocks merge — even if a future session forgets to run the check manually. | None. |
+| **Real engines** (Phase 11) | Configures `-DECHO_WITH_WHISPER/OPENCV/PIPER=ON`, downloads and **SHA-256-verifies** the free models (whisper `tiny.en`, OpenCV YuNet+SFace, a Piper voice) + two public-domain face photos, builds whisper.cpp from source, and runs [`tests/real_*_test.cpp`](tests/) against **real weights** on the Phase 10 fixtures. Runs in parallel with the fast jobs; models + whisper build are cached. See "Running the real-engine tests locally" below. | Free models only — **no account, no secret**. Every download is checksum-verified before use. |
 
 Dependency caching (ccache) keeps PR feedback fast, so runs don't rebuild every
 object from scratch. A newer push to the same branch cancels the in-flight run.
 
-**Deliberately excluded — the real local-AI matrix.** The `ECHO_REAL_AI=ON` build
-(whisper.cpp / llama.cpp / Porcupine / Piper) is **not** run in CI, by design, not
-oversight. It needs multi-gigabyte model downloads that blow any reasonable CI time
-budget, and Porcupine additionally needs an account-gated Picovoice access key — a
-secret we will not put in a workflow. The **stub build** is the deliberate
-dependency-free proxy: it exercises the same code paths with stub adapters and stays
-deterministic. To add real local-AI coverage later, once model hosting/caching is
-worked out: host the quantized models somewhere cacheable (a release asset or an
-`actions/cache` keyed on `models/INSTALLED_VERSIONS.md`), add a job that restores
-them and configures the `ECHO_WITH_*` engines à la carte, and supply the Porcupine
-key via a repository **secret** (never inline). Until then, keeping it out and saying
-why is the honest choice.
+**What the real-engines job proves — and what it doesn't.** It verifies the real
+whisper.cpp, OpenCV, and Piper engines *run correctly on clean fixtures* (silence →
+near-empty transcript, a clear phrase → the expected words; enrolled face → matched,
+a different face → not matched, a non-face frame → nothing; both TTS tones →
+valid non-silent audio, reassuring measurably slower than neutral). It does **not**
+claim field robustness — the fixtures are synthetic/clean, so passing here does not
+mean `tiny.en` or SFace hold up under real noise, motion, or poor light. That still
+needs the on-hardware run.
+
+**Still deliberately excluded.** Two of the real engines stay out of CI, by design:
+**Porcupine** wake-word (needs an account-gated Picovoice access key — a secret we
+will not put in a workflow) and **llama.cpp / the full LLM** (multi-gigabyte model +
+runtime cost that blows the CI budget). The **stub build** remains the deterministic
+dependency-free proxy for those paths, and both stay real-hardware-run items.
 
 **Branch protection (manual step — repo admin).** The workflow blocks merge only once
 branch protection actually requires it; that is a GitHub repo-settings action, not
@@ -226,12 +229,59 @@ something committed in code. Whoever has admin access should, under
   *Stub build (no deps) + full ctest*, *Network build (ECHO_WITH_NETWORK=ON) +
   appkit/apps tests*, *Secret scan (check_secrets.sh)*, and — added in Phase 8 —
   *clang-tidy (bugprone/cert/security)*, *cppcheck (static analysis)*,
-  *Fuzz JSON parser (libFuzzer, bounded)*, and *Coverage (gcov/gcovr)*.
+  *Fuzz JSON parser (libFuzzer, bounded)*, *Coverage (gcov/gcovr)*, and — added in
+  Phase 11 — *Real engines (whisper/OpenCV/Piper) vs. fixtures*.
 - **Require branches to be up to date before merging** (so checks run against the
   post-merge tree).
 
 Without this, the badge is informational only; with it, a red run genuinely stops
 the merge — which is the point of the phase.
+
+### Running the real-engine tests locally (Phase 11)
+
+You don't need to wait on CI to reproduce the real-engine verification. On Linux
+(the tests target it; OpenCV/SDL2 come from apt, whisper.cpp builds from source):
+
+```bash
+# 1. OpenCV (>=4.6, ships YuNet+SFace) and SDL2 (so the Piper voice lib links):
+sudo apt-get install -y cmake build-essential git libopencv-dev libsdl2-dev
+
+# 2. Fetch + SHA-256-verify the free models and two public-domain face photos.
+#    Idempotent and checksum-guarded; downloads ~230 MB the first time.
+scripts/fetch_real_engine_assets.sh .real-engine-assets
+A="$PWD/.real-engine-assets"
+
+# 3. Build + install whisper.cpp (no apt package), so find_package(whisper) resolves:
+git clone --depth 1 --branch v1.7.4 https://github.com/ggerganov/whisper.cpp
+cmake -S whisper.cpp -B whisper.cpp/build -DCMAKE_BUILD_TYPE=Release \
+  -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=OFF \
+  -DCMAKE_INSTALL_PREFIX="$PWD/.whisper-install"
+cmake --build whisper.cpp/build --parallel && cmake --install whisper.cpp/build
+
+# 4. Synthesize the ASR "clear speech" clip with the fetched Piper voice:
+export LD_LIBRARY_PATH="$A/piper:$PWD/.whisper-install/lib:${LD_LIBRARY_PATH:-}"
+echo "the quick brown fox jumps over the lazy dog" | \
+  "$A/piper/piper" --model "$A/voices/en_US-amy-medium.onnx" --output_file "$A/speech.wav"
+
+# 5. Configure with the three engines ON, build, and run just the real suite:
+cmake -S . -B build-real -DECHO_WITH_WHISPER=ON -DECHO_WITH_OPENCV=ON \
+  -DECHO_WITH_PIPER=ON -DCMAKE_PREFIX_PATH="$PWD/.whisper-install"
+cmake --build build-real --parallel
+ECHO_WHISPER_MODEL="$A/ggml-tiny.en.bin" \
+ECHO_FACE_DETECT_MODEL="$A/face_detection_yunet.onnx" \
+ECHO_FACE_RECOG_MODEL="$A/face_recognition_sface.onnx" \
+ECHO_FACES_DIR="$A/faces/enrolled" \
+ECHO_FACE_ENROLLED_IMG="$A/faces/enrolled/grace_hopper.jpg" \
+ECHO_FACE_UNKNOWN_IMG="$A/faces/astronaut.png" \
+ECHO_PIPER_BIN="$A/piper/piper" ECHO_PIPER_VOICE="$A/voices/en_US-amy-medium.onnx" \
+ECHO_ASR_SPEECH_WAV="$A/speech.wav" \
+  ctest --test-dir build-real --output-on-failure -R "real"
+```
+
+Each real test **self-skips** (green, with a loud message) if you build with an
+engine flag ON but haven't provided its model — so you can bring the engines up one
+at a time. The exact steps CI runs are in the `real-engines` job of
+[`ci.yml`](.github/workflows/ci.yml).
 
 ## Code Quality (Phase 8)
 

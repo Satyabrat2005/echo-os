@@ -38,7 +38,8 @@ credentials, real hardware, measured latency — is wired up but unproven.**
 | HUD: exactly three overlay primitives | **Built** | [`hud.hpp`](../apps/hud-compositor/include/echo/apps/hud/hud.hpp) |
 | Confirm-before-send gate (state-changing actions) | **Built & tested** | [`confirmation.cpp`](../apps/appkit/src/confirm/confirmation.cpp), 100% covered |
 | NLU mail/browser routing fix (Phase 6) | **Built & tested** | `echo-nlu-routing` regression suite |
-| Real AI adapters (whisper/llama/Piper/Porcupine/OpenCV) | **Compiles** behind `ECHO_WITH_*` | Phase 3; **never run against real models in-sandbox** — see pending |
+| Real AI adapters: whisper / OpenCV / Piper | **Run against real models in CI** (Phase 11) | `tests/real_*_test.cpp` in the `real-engines` job — real weights, on the fixtures (not field-tested) |
+| Real AI adapters: llama.cpp / Porcupine | **Compiles** behind `ECHO_WITH_*`, not run | Phase 3; account-gated (Porcupine) / too large for CI (llama) — real-hardware-run items |
 | Real API backends (Spotify/Gmail/Search/YouTube) | **Compiles & links** behind `ECHO_WITH_NETWORK` | Phase 5/6; libcurl 8.21.0; **no live API call has run** |
 | JSON parser hardening (depth cap) + Gmail header-injection fix | **Built & tested** | Phase 6 fixes, both with regression tests + a fuzz harness |
 
@@ -78,9 +79,9 @@ concentrated exactly where Phase 9 flagged the weakness: the core loop.
 | Module | Line coverage | Was (Phase 9) | Read this as |
 |--------|--------------:|--------------:|--------------|
 | `companion-sync` | **96 %** | 0 % | ⬆ real alert/status/firmware construction + lifecycle exercised; the privacy guarantee (no `SensorFrame` path) is now a **compile-time** assertion, not a comment |
-| `voice-ui` | **91 %** | 0 % | ⬆ real `to_utterance()` tone mapping + stub shell fully covered; only the SDL/Piper playback backend (needs the libs) is uncovered |
+| `voice-ui` | **91 %** | 0 % | ⬆ real `to_utterance()` tone mapping + stub shell fully covered; the Piper **synthesis** path is now run for real in the Phase 11 `real-engines` job (separate from this gcov run); only the SDL **playback** backend (needs hardware) is uncovered |
 | `cognitive-core` | **84 %** | 67 % | ⬆ both gate branches now driven end-to-end (low-confidence *and* confident-but-no-LLM); the real `llm.cpp` adapter is still compiled out of the stub build |
-| `perception` | **69 %** | 7 % | ⬆ routing/framing/fusion + input guards covered; the wake-gated **endpoint→transcribe** branch and the real wake/ASR/vision **model** paths stay uncovered (need Porcupine/whisper/OpenCV) — an explicitly asserted gap, not padding |
+| `perception` | **69 %** | 7 % | ⬆ routing/framing/fusion + input guards covered. The real **ASR (whisper)** and **vision (OpenCV)** engines are now run against real weights in the Phase 11 `real-engines` job (separate from this stub gcov run, so they still read 0 here); the **wake-word (Porcupine)** model path and the wake-gated **endpoint→transcribe** branch stay genuinely uncovered — an explicitly asserted gap, not padding |
 | `sensor-pipeline` | **42 %** | 0 % | ⬆ the real `SensorPipeline` + SPSC queue at **85 %**; the two 0 % files are the scaffold no-op stub factories (deliberately bypassed) and the SDL/OpenCV real-capture path (compiled out) |
 | `apps/appkit` | **76 %** | 70 % | confirm gate (100 %), JSON, URL, readability; base64 / token-store / http transport still near 0 % |
 | `apps/app-framework` | **74 %** | 71 % | supervisor / router / IPC / NLU — still the best-tested app-layer code |
@@ -100,12 +101,41 @@ best-tested, core safety loop least-tested — is now **substantially corrected*
 The perception→cognitive→voice core loop and the privacy-critical companion path
 went from 0–7 % to 42–96 %, and the single most load-bearing behavior (an unsure
 turn falling to the calm safe-mode fallback) is now asserted end-to-end by
-`echo-e2e-fixture`. What remains uncovered is honest and specific: the **real
-engine paths** — Porcupine wake-word, whisper ASR, OpenCV vision, the llama.cpp
-LLM, and the SDL/Piper audio backend — plus the on-hardware sensor DMA/real-capture
-code. Those need the installed libraries and the credentialed real-hardware
-bring-up, and the tests mark each gap explicitly rather than reporting high
-coverage on code they never run.
+`echo-e2e-fixture`.
+
+**Phase 11 narrowed the "real engines untested" gap — the part of it that never
+actually needed the hardware.** Three of the real engines are free, account-free,
+and small enough for CI, so they are now run against real weights in the
+`real-engines` CI job (see below), not just stubbed:
+
+- **ASR — real whisper.cpp** (`tiny.en`) transcribes the fixtures: silence →
+  near-empty, garble → no crash, and a clear (Piper-synthesized) phrase → a
+  non-empty transcript with the expected words. — `tests/real_asr_test.cpp`
+- **Vision — real OpenCV YuNet + SFace** detect and recognize real public-domain
+  face photos: enrolled → detected **and** matched, a different person → detected
+  but **not** matched, a non-face frame → no detection. — `tests/real_vision_test.cpp`
+- **TTS — real Piper** synthesizes both the neutral and reassuring voice-ui tones
+  into valid, non-silent audio, with the reassuring tone measurably slower (the
+  tone setting changes the real waveform, not just a label). — `tests/real_tts_test.cpp`
+
+What that **does not** claim, and STATE.md will not let it imply: real-world
+robustness. Those fixtures are clean and synthetic (a TTS phrase, well-lit frontal
+portraits) — the tests prove the engines *work at all* on good input, not that
+`tiny.en` or SFace hold up under field noise, poor light, motion, or a real human
+speaking naturally. That still needs the on-hardware run.
+
+What remains genuinely untested, and needs the libraries/credentials/hardware:
+
+- **Porcupine wake-word** — needs an account-gated Picovoice access key; stays a
+  real-hardware-run item.
+- **llama.cpp / full LLM reasoning** — multi-GB model + CI runtime cost make it
+  impractical in a workflow; stays a real-hardware-run item.
+- **Live behaviour** — real mic/webcam capture, latency under load, and a human
+  speaking/moving naturally (vs. a clean recorded fixture), plus the SDL audio
+  **playback** path and the on-hardware sensor DMA/real-capture code.
+
+The tests mark each remaining gap explicitly rather than reporting high coverage
+on code they never run.
 
 > Coverage is **not gated on a threshold** yet (a deliberate Phase 8 choice — an
 > arbitrary floor on a codebase that is still intentionally stubbed at its core
@@ -125,12 +155,19 @@ Every push and PR to `master` runs [`.github/workflows/ci.yml`](../.github/workf
 | **cppcheck** | second independent analyzer; `warning`/`performance`/`portability` fail the job |
 | **Fuzz (JSON)** | bounded libFuzzer under ASan/UBSan on the one parser that eats untrusted bytes |
 | **Coverage** | gcov + gcovr; % printed to the run summary, XML to Codecov |
+| **Real engines** (Phase 11) | `-DECHO_WITH_WHISPER/OPENCV/PIPER=ON`; downloads + **SHA-256-verifies** the free models and runs `tests/real_*` against real weights on the fixtures. Runs in parallel; models + whisper build cached |
 
 Two one-time repo-admin steps remain outside code: **branch protection** (require
 these checks before merge) and **enabling Codecov** (the badge reads `unknown`
-until then; the percentage is visible in every run regardless). The real-AI
-matrix (`ECHO_REAL_AI=ON`) is deliberately **excluded** from CI — multi-GB model
-downloads and an account-gated Porcupine key don't belong in a workflow.
+until then; the percentage is visible in every run regardless).
+
+The `real-engines` job (Phase 11) now runs whisper.cpp, OpenCV, and Piper against
+real models in CI — they are free, need no account, and are small enough to cache.
+What stays deliberately **excluded**: the full `ECHO_REAL_AI=ON` matrix, because
+its remaining two engines don't belong in a workflow — **Porcupine** (account-gated
+access key) and **llama.cpp** (multi-GB model + runtime cost). Every model the real
+job does download is checksum-verified before use (running unverified third-party
+model binaries in CI is a supply-chain risk, not a hypothetical one).
 
 ## Known issues / inconsistencies noted during this doc pass
 

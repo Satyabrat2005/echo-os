@@ -43,10 +43,11 @@ inline std::uint16_t rd_u16(const unsigned char* p) {
 }
 
 // Minimal RIFF/WAVE reader: walks chunks, honors the fmt/data pair, and accepts
-// only 16-bit PCM (what the fixtures and the wake-word/ASR path use).
-inline WavClip load_wav(const std::string& name) {
+// only 16-bit PCM (what the fixtures and the wake-word/ASR path use). Reads an
+// ABSOLUTE (or cwd-relative) path — see load_wav() for the fixtures-relative form.
+inline WavClip load_wav_path(const std::string& path) {
     WavClip clip;
-    std::ifstream f(fixture_path(name), std::ios::binary);
+    std::ifstream f(path, std::ios::binary);
     if (!f) return clip;
     std::vector<unsigned char> b((std::istreambuf_iterator<char>(f)),
                                  std::istreambuf_iterator<char>());
@@ -78,6 +79,11 @@ inline WavClip load_wav(const std::string& name) {
     }
     clip.ok = (bits == 16 && clip.sample_rate > 0 && !clip.samples.empty());
     return clip;
+}
+
+// Fixtures-relative convenience: load "<fixtures>/<name>".
+inline WavClip load_wav(const std::string& name) {
+    return load_wav_path(fixture_path(name));
 }
 
 // ---- PPM (binary P6) --------------------------------------------------------

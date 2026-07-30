@@ -3,6 +3,8 @@
 #include "echo/latency.hpp"
 #include "echo/log.hpp"
 
+#include "tts_synth.hpp"
+
 #include <cstdio>
 #include <string>
 
@@ -37,17 +39,6 @@ const char* to_string(Tone t) noexcept {
 
 #if defined(ECHO_WITH_PIPER)
 
-// Map tone to Piper's --length_scale (higher = slower/warmer) so the scaffold's
-// reassuring/neutral distinction becomes an audible difference, not just a label.
-double length_scale_for(Tone t) {
-    switch (t) {
-        case Tone::Reassuring: return 1.15;  // slower, calmer for safe-mode/distress
-        case Tone::Alert:      return 0.95;  // a touch quicker to catch attention
-        case Tone::Neutral:    return 1.0;
-    }
-    return 1.0;
-}
-
 // Real TTS: shell out to the local `piper` binary (fully on-device) to synthesize
 // a WAV, then play it through SDL audio. Playback is non-blocking — speak()
 // returns once the first samples are queued and the device is unpaused, keeping
@@ -59,7 +50,6 @@ public:
             log_error("voice", "SDL audio init failed; TTS disabled");
             return Status::NotReady;
         }
-        tmp_in_  = (std::filesystem::temp_directory_path() / "echo_tts_in.txt").string();
         tmp_wav_ = (std::filesystem::temp_directory_path() / "echo_tts_out.wav").string();
         log_info("voice", "voice UI initialized (Piper TTS + SDL audio)");
         return Status::Ok;
@@ -70,19 +60,9 @@ public:
         (void)timer;
         if (utterance.text.empty()) return Status::Ok;
 
-        // 1) text -> temp file (avoids shell-quoting the whole utterance)
-        { std::ofstream(tmp_in_) << utterance.text; }
-
-        // 2) synthesize with the tone's pacing
-        char cmd[1024];
-        std::snprintf(cmd, sizeof(cmd),
-                      "\"%s\" --model \"%s\" --length_scale %.2f --output_file \"%s\" < \"%s\"",
-                      config::piper_binary().c_str(), config::piper_voice().c_str(),
-                      length_scale_for(utterance.tone), tmp_wav_.c_str(), tmp_in_.c_str());
-        if (std::system(cmd) != 0) {
-            log_warn("voice", "piper synthesis failed");
-            return Status::Unavailable;
-        }
+        // 1+2) synthesize a WAV with the tone's pacing (headless, no audio device)
+        Status s = detail::piper_synthesize(utterance.text, utterance.tone, tmp_wav_);
+        if (s != Status::Ok) return s;
 
         // 3) play (non-blocking)
         return play_wav(tmp_wav_);
@@ -128,7 +108,7 @@ private:
     void close_device() { if (dev_) { SDL_CloseAudioDevice(dev_); dev_ = 0; } }
 
     SDL_AudioDeviceID dev_ = 0;
-    std::string tmp_in_, tmp_wav_;
+    std::string tmp_wav_;
 };
 
 #endif  // ECHO_WITH_PIPER
@@ -165,6 +145,46 @@ public:
 };
 
 }  // namespace
+
+// --- Internal synthesis helpers (declared in tts_synth.hpp) ------------------
+// Kept out of the anonymous namespace so the Phase 11 real-engine test can link
+// them and exercise the real Piper path without the SDL playback step.
+#if defined(ECHO_WITH_PIPER)
+namespace detail {
+
+double length_scale_for(Tone t) noexcept {
+    switch (t) {
+        case Tone::Reassuring: return 1.15;  // slower, calmer for safe-mode/distress
+        case Tone::Alert:      return 0.95;  // a touch quicker to catch attention
+        case Tone::Neutral:    return 1.0;
+    }
+    return 1.0;
+}
+
+Status piper_synthesize(const std::string& text, Tone tone, const std::string& out_wav) {
+    if (text.empty()) return Status::Unavailable;  // nothing to synthesize
+
+    // text -> temp file (avoids shell-quoting the whole utterance). This is the
+    // file-producing half of speak(); no audio device is touched, so it is safe
+    // on a headless CI runner.
+    const std::string tin =
+        (std::filesystem::temp_directory_path() / "echo_tts_synth_in.txt").string();
+    { std::ofstream(tin) << text; }
+
+    char cmd[1024];
+    std::snprintf(cmd, sizeof(cmd),
+                  "\"%s\" --model \"%s\" --length_scale %.2f --output_file \"%s\" < \"%s\"",
+                  config::piper_binary().c_str(), config::piper_voice().c_str(),
+                  length_scale_for(tone), out_wav.c_str(), tin.c_str());
+    if (std::system(cmd) != 0) {
+        log_warn("voice", "piper synthesis failed");
+        return Status::Unavailable;
+    }
+    return Status::Ok;
+}
+
+}  // namespace detail
+#endif  // ECHO_WITH_PIPER
 
 std::unique_ptr<IVoiceUi> make_voice_ui() {
 #if defined(ECHO_WITH_PIPER)
