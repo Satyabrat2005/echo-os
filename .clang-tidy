@@ -59,7 +59,9 @@ Checks: >
 
 # Only diagnose OUR headers, never system or third-party ones we don't control
 # (constraint #3: don't chase findings in code we can't cleanly fix).
-HeaderFilterRegex: 'echo-os/(apps|common|sensor-pipeline|perception|cognitive-core|voice-ui|companion-sync|power-mgmt|boot)/'
+# memory/ is scoped to its first-party subdirs so the vendored SQLite header
+# (memory/vendor/sqlite3/sqlite3.h) is never diagnosed — it is upstream code.
+HeaderFilterRegex: 'echo-os/(apps|common|sensor-pipeline|perception|cognitive-core|voice-ui|companion-sync|power-mgmt|boot)/|echo-os/memory/(include|src)/'
 
 # Enabled checks are hard errors in CI.
 WarningsAsErrors: '*'

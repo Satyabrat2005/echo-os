@@ -118,9 +118,11 @@ private:
         auto faces = vision_->detect_faces(frame.data,
                                            static_cast<int>(frame.width),
                                            static_cast<int>(frame.height));
-        for (auto& f : faces)
-            p.faces.push_back(FaceObservation{f.identity, Confidence{f.confidence},
-                                              f.x, f.y, f.w, f.h});
+        for (auto& f : faces) {
+            FaceObservation fo{f.identity, Confidence{f.confidence}, f.x, f.y, f.w, f.h, {}};
+            fo.embedding = std::move(f.embedding);
+            p.faces.push_back(std::move(fo));
+        }
 
         auto objects = vision_->classify_objects(frame.data,
                                                  static_cast<int>(frame.width),

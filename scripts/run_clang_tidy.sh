@@ -33,7 +33,7 @@ fi
 mapfile -t FILES < <(python3 - "$DB" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1]))
-first = ("apps", "common", "perception", "cognitive-core", "sensor-pipeline",
+first = ("apps", "common", "memory", "perception", "cognitive-core", "sensor-pipeline",
          "voice-ui", "companion-sync", "power-mgmt", "boot")
 seen = set()
 for x in d:
@@ -41,7 +41,10 @@ for x in d:
     if f in seen:
         continue
     seen.add(f)
-    if any(("/" + s + "/") in f for s in first) and "/tests/" not in f and "/fuzz/" not in f:
+    # Vendored third-party code (e.g. memory/vendor/sqlite3) is NOT first-party — we
+    # do not lint it (it would drown the run in upstream findings we won't fix).
+    if any(("/" + s + "/") in f for s in first) and "/tests/" not in f \
+            and "/fuzz/" not in f and "/vendor/" not in f:
         print(x["file"])
 PY
 )

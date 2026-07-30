@@ -64,4 +64,9 @@ std::string object_model();       // ECHO_OBJECT_MODEL       | mobilenet_v2.onnx
 std::string object_labels();      // ECHO_OBJECT_LABELS      | imagenet_classes.txt
 std::string faces_dir();          // ECHO_FACES_DIR          | <models-dir>/faces
 
+// --- Phase 15: the on-device memory store -----------------------------------
+// The SQLite file that persists people/reminders/events. Written data (not a
+// downloaded model), so it lives outside models/. Never leaves the device.
+std::string memory_db();          // ECHO_MEMORY_DB          | echo_memory.db
+
 }  // namespace echo::config

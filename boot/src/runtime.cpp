@@ -1,12 +1,16 @@
 #include "echo/boot/runtime.hpp"
+#include "echo/config.hpp"
 #include "echo/latency.hpp"
 #include "echo/log.hpp"
 
 namespace echo::boot {
 
 Runtime::Runtime()
-    : perception_(perception::make_perception_engine()),
-      cognitive_(cognitive::make_cognitive_core()),
+    : memory_(memory::make_memory_engine()),
+      perception_(perception::make_perception_engine()),
+      // The cognitive core gets a NON-OWNING pointer to the memory engine. The
+      // pointer is stable for the runtime's lifetime; the store is opened in boot().
+      cognitive_(cognitive::make_cognitive_core({}, memory_.get())),
       voice_(voice::make_voice_ui()),
       companion_(companion::make_companion_sync()),
       power_(power::make_power_manager()) {}
@@ -23,6 +27,12 @@ void Runtime::set_state(RuntimeState s) noexcept {
 Status Runtime::boot() {
     set_state(RuntimeState::Booting);
     log_info("boot", "ECHO OS cold-boot sequence starting");
+
+    // Open the on-device memory store. Best-effort: a store that fails to open
+    // leaves the device running without recall (better than refusing to boot), and
+    // the cognitive core simply skips its memory branches (it checks is_open()).
+    if (memory_->open(config::memory_db()) != Status::Ok)
+        log_warn("boot", "memory store unavailable; running without recall");
 
     // Initialize in dependency order. Power first so throttling is available
     // during the (heavier) model warm-ups.
@@ -64,9 +74,25 @@ void Runtime::handle_response(const cognitive::Response& response) {
     }
 }
 
+void Runtime::deliver_due_reminders() {
+    if (!memory_ || !memory_->is_open()) return;
+    const memory::UnixTime now = memory::unix_now();
+    for (const auto& r : memory_->pending_deliveries(now)) {
+        // Delivered through the SAME voice path as any other response — reminders
+        // aren't a special output channel, just another thing ECHO says.
+        voice_->speak(voice::Utterance{"Reminder: " + r.text + ".", voice::Tone::Alert});
+        memory_->mark_fired(r.id, now);
+    }
+}
+
 RuntimeState Runtime::tick() {
     // Let power-mgmt veto toward Throttled based on current constraints.
     power_->evaluate(power::PowerState{/*battery*/90, /*temp*/32.0f, /*charging*/false});
+
+    // Reminders are checked on this same core tick (constraint #3: reuse the loop,
+    // don't add a competing timer). This runs every tick, before the frame drain,
+    // so a due reminder fires even when no sensor frame arrived this iteration.
+    deliver_due_reminders();
 
     auto frame = sensors_.next_frame();
     if (!frame) {
@@ -118,6 +144,7 @@ void Runtime::shutdown() {
     if (cognitive_) cognitive_->shutdown();
     if (perception_)perception_->shutdown();
     if (power_)     power_->shutdown();
+    if (memory_)    memory_->close();  // flush + release the store after the core stops using it
     log_info("runtime", "shutdown complete");
 }
 

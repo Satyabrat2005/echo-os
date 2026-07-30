@@ -27,8 +27,11 @@ constexpr const char* kSystemPrompt =
     "begin your reply with a tag on its own: [route:media] for music/audio, "
     "[route:mail] for messages, [route:telephony] for calls, [route:search] for "
     "web lookups, [route:camera] to take a photo, [route:gallery] for photos, "
-    "[route:video] to watch video, [route:browser] to open a page. Otherwise omit "
-    "the tag and just answer.";
+    "[route:video] to watch video, [route:browser] to open a page. If the request "
+    "is about the wearer's own memory — who a person is, whether they took their "
+    "medication, what they're supposed to do — begin with [route:memory] and do NOT "
+    "guess the answer; ECHO will fill it in from its records. Otherwise omit the tag "
+    "and just answer.";
 
 #if defined(ECHO_WITH_LLAMA)
 

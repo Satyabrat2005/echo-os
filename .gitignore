@@ -36,6 +36,15 @@ models/**
 latency_log.csv
 demo_out.txt
 
+# Phase 15: the on-device memory store written at runtime (people/reminders/events)
+# plus SQLite's WAL/SHM sidecars. On-device data — never committed. The vendored
+# SQLite SOURCE (memory/vendor/sqlite3/) IS tracked; only the runtime .db is not.
+echo_memory.db
+echo_memory.db-wal
+echo_memory.db-shm
+*.db-wal
+*.db-shm
+
 # Phase 5: real third-party credentials and cached OAuth tokens. NEVER commit
 # these. `.env` holds API keys/secrets; `.echo-tokens/` holds access/refresh
 # tokens written by the token store. Only `.env.example` (no real values) is tracked.

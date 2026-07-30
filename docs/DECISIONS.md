@@ -201,6 +201,71 @@ account-gated (a one-time setup step, never committed). The loopback consent is
 still a manual browser paste until `scripts/authorize.*` is written (STATE.md
 gap #6).
 
+## ADR-12 — A dedicated on-device memory & recall engine, wired into the loop
+*Decided: Phase 15 · 2026-07-31*
+
+**Decision.** Add a new `memory/` module that persists the three things the product
+is actually about: **people** (a name + relationship the wearer stated, plus the
+SFace embedding that identifies them), **reminders** (text + due time/recurrence +
+acknowledged state), and a narrow **event log** (person-seen, reminder-fired/
+acknowledged). It is wired *into* the existing pipeline, not bolted alongside it:
+`cognitive-core` holds a non-owning pointer to it and, on a confident face match,
+returns an **enriched recall** ("That's Priya, your daughter. You last saw her two
+days ago.") *before* the safe-mode gate — a stored fact is retrieval, not an LLM
+guess. The `boot/` runtime checks due reminders on the **same core tick** (no second
+timer loop) and speaks them through the existing `voice-ui` path. A new
+**`[route:memory]`** tag (parsed by Phase 6's unchanged route-tag parser) lets the
+LLM defer a memory question to the engine and answer from the real record.
+
+**Why.** Phases 1–14 built real, working *generic* voice-assistant plumbing; none
+of it remembered anything. "Glasses that remember for you" needs a component that
+actually persists who a face belongs to and what the wearer must do. Putting recall
+*before* the confidence gate is deliberate: ADR-4 forbids the LLM from *guessing*,
+but recalling a person the wearer explicitly named is a lookup, and gating it on the
+(numerically low) face-cosine confidence would suppress the product's core feature.
+
+**Trade-off.** `cognitive-core` now depends on `memory`, and `respond()` grew three
+memory branches. Kept honest by guarding every branch on an attached, open engine so
+the pre-Phase-15 behavior (and every existing test) is byte-for-byte unchanged when
+no store is present. A person is created **only** when the wearer names someone —
+never auto-invented from an unknown face (proven by test); the cost is that ECHO
+stays silent about strangers until told who they are, which is the correct default.
+
+## ADR-13 — SQLite (vendored amalgamation) for the store; permissions, not encryption
+*Decided: Phase 15 · 2026-07-31*
+
+**Decision.** The memory store is **SQLite**, vendored as the single-file
+**amalgamation** (`memory/vendor/sqlite3/sqlite3.c`, v3.46.1, public domain) and
+compiled into a small `echo-sqlite3` static lib. Not a hand-rolled flat file, and
+not an in-memory-only toy — the database is a real file on disk (`echo_memory.db`),
+so records survive a reboot, which is the entire point of a memory device.
+
+**Why.** An embedded record store with concurrent readers/writers (perception writes
+sightings, cognitive-core reads for recall, a future companion-sync export reads for
+a caregiver view) is exactly SQLite's job: ACID, WAL-mode concurrency, a stable
+on-disk format, and a decades-hardened C core. Vendoring the amalgamation keeps the
+**dependency-free stub build** (ADR-8) green — it is one C file compiled in-tree,
+needing no system package — so the memory tests run with zero external deps, against
+fixture embeddings, on the same code path CI already uses.
+
+**MinGW reality (constraint #4).** SQLite 3.46.1 compiles **cleanly** under the
+project's MinGW-w64 ucrt g++ 15.1 toolchain — ~10 s, zero warnings, links and runs
+first try. This is the opposite of the ORT/OpenCV native-dep friction documented in
+Phase 14b (see [STATE.md](STATE.md)); there was no toolchain gap to work around, so
+none was invented. C had to be enabled as a project language for that one TU.
+
+**Trade-off — honest scope.** What this phase achieves at rest is **file-permission
+restriction** (best-effort owner-only via `std::filesystem::permissions`), **not
+encryption-at-rest**. On POSIX that is chmod 0600; on Windows `std::filesystem` maps
+it loosely (ACL inheritance still applies), so the guarantee is not overstated.
+True encryption would be **SQLCipher** (a heavier, non-amalgamation dependency) and
+is deliberately left as a follow-up. The privacy guarantee this phase *does* make
+absolute is structural: the store's raw content **cannot reach `companion-sync`** —
+proven at compile time (extending ADR-5's `SensorFrame` proof to embeddings, person
+records, and events; see `tests/memory_engine_test.cpp`). Recognition is a linear
+cosine scan over all stored people — fine for the handful a wearer knows, an ANN
+index is future work if the enrolled set ever grows large.
+
 ---
 
 *To add an entry: append with the next ADR number, a date, the decision, the why,

@@ -42,9 +42,18 @@ add_test(NAME echo-voice COMMAND echo-voice-tests)
 echo_add_core_test(echo-companion-tests companion_sync_test.cpp echo::common echo::companion)
 add_test(NAME echo-companion COMMAND echo-companion-tests)
 
-# End-to-end: sensor-pipeline -> perception -> cognitive-core -> voice-ui.
+# memory engine (Phase 15): real SQLite-backed store against fixture embeddings —
+# CRUD, recurrence, the no-auto-create rule, the RAG medication query, utterance
+# parsing, and a COMPILE-TIME extension of the companion-sync privacy proof (hence
+# the echo::companion link). Runs entirely in the dependency-free stub build.
+echo_add_core_test(echo-memory-tests memory_engine_test.cpp
+    echo::common echo::memory echo::companion)
+add_test(NAME echo-memory COMMAND echo-memory-tests)
+
+# End-to-end: sensor-pipeline -> perception -> cognitive-core -> voice-ui, now with
+# the memory engine attached (Phase 15 face-recall turn added).
 echo_add_core_test(echo-e2e-tests e2e_pipeline_test.cpp
-    echo::common echo::sensor echo::perception echo::cognitive echo::voice)
+    echo::common echo::sensor echo::perception echo::cognitive echo::memory echo::voice)
 add_test(NAME echo-e2e-fixture COMMAND echo-e2e-tests)
 
 # --- Phase 11: REAL engine verification (only when the engine is compiled in) --
