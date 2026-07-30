@@ -1,0 +1,5 @@
+# Test fixtures must stay byte-exact across platforms: the WAV/PPM loaders and the
+# RMS thresholds in the Phase 10 harness depend on the exact bytes, so never apply
+# line-ending conversion to them (CI checks out on Linux).
+*.wav binary
+*.ppm binary

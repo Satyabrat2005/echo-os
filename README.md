@@ -154,6 +154,17 @@ and telephony; that two apps render through the one shared HUD surface; the
 permission gate; and real cross-process supervision (IPC round-trip + crash
 containment). They run as part of `ctest` below.
 
+**Core-pipeline harness (Phase 10).** A fixture-driven suite feeds tiny,
+checked-in synthetic audio/images ([`tests/fixtures/`](tests/fixtures/README.md))
+through the **real** core modules — `echo-sensor` (real capture queue),
+`echo-perception` (routing/framing/fusion in stub-engine mode), `echo-voice`
+(tone mapping), `echo-companion` (a compile-time proof that no transport path
+accepts a `SensorFrame`), and `echo-e2e-fixture` (a full sensor→perception→
+cognitive→voice turn landing in the safe-mode fallback). It exercises production
+code, not mocks, and marks the real wake/ASR/vision/LLM model paths as an explicit
+gap where the installed libraries are required. See coverage in
+[`docs/STATE.md`](docs/STATE.md).
+
 ## Building
 
 Requires CMake ≥ 3.16 and a C++17 compiler. No external dependencies — the

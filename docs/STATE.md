@@ -28,10 +28,11 @@ credentials, real hardware, measured latency — is wired up but unproven.**
 | Area | Status | Evidence |
 |------|--------|----------|
 | Module boundaries & public interfaces | **Built** | `common`, `sensor-pipeline`, `perception`, `cognitive-core`, `voice-ui`, `companion-sync`, `power-mgmt`, `boot` all compile as static libs |
-| Lock-free SPSC ring buffer (sensor handoff) | **Built** | [`ring_buffer.hpp`](../sensor-pipeline/include/echo/sensor/ring_buffer.hpp) |
+| Lock-free SPSC ring buffer (sensor handoff) | **Built & tested** | [`ring_buffer.hpp`](../sensor-pipeline/include/echo/sensor/ring_buffer.hpp); fixture frames traverse the real queue in `echo-sensor` |
 | 120 ms latency budget as an enforced contract | **Built & tested** | encoded in [`latency.hpp`](../common/include/echo/latency.hpp), asserted by unit test |
 | Safe-mode gate (principle #5) | **Built & tested** | [`cognitive_core.cpp`](../cognitive-core/src/cognitive_core.cpp), threshold 0.72; degrades on failure |
-| Privacy-by-shape companion transport (principle #4) | **Built** | [`companion_sync.hpp`](../companion-sync/include/echo/companion/companion_sync.hpp) — no API accepts a `SensorFrame` |
+| Privacy-by-shape companion transport (principle #4) | **Built & tested** | [`companion_sync.hpp`](../companion-sync/include/echo/companion/companion_sync.hpp) — "no API accepts a `SensorFrame`" is now a compile-time assertion in `echo-companion` |
+| End-to-end core turn (sensor→perception→cognitive→voice) | **Built & tested** | fixture audio → safe-mode fallback spoken, asserted in `echo-e2e-fixture` |
 | Apps layer: 8 apps as real supervised processes | **Built & tested** | IPC round-trip + crash containment in `echo-apps-smoke` |
 | Hard core/apps isolation in the build graph | **Built** | `echo::app-sdk` links no core module (CMake-enforced) |
 | HUD: exactly three overlay primitives | **Built** | [`hud.hpp`](../apps/hud-compositor/include/echo/apps/hud/hud.hpp) |
@@ -65,35 +66,46 @@ rather than fabricated.
 
 ## Test coverage by module
 
-Measured with `gcov`/`gcovr` on the default **stub-build** test suite (the four
-CTest suites: `echo-smoke`, `echo-appkit-tests`, `echo-apps-smoke`,
-`echo-nlu-routing`), excluding test and fuzz-harness code. Overall: **≈40 %
-lines** (1058 / 2675), 39 % functions, 22 % branches.
+Measured with `gcov`/`gcovr` on the default **stub-build** test suite, excluding
+test and fuzz-harness code. After **Phase 10** this suite is **nine** CTest
+suites: the four earlier ones (`echo-smoke`, `echo-appkit-tests`,
+`echo-apps-smoke`, `echo-nlu-routing`) plus the fixture-driven core-pipeline
+harness `echo-sensor`, `echo-perception`, `echo-voice`, `echo-companion`, and the
+end-to-end `echo-e2e-fixture`. Overall: **≈44 % lines** (1161 / 2614), 50 %
+functions, 24 % branches — up from ≈40 % before Phase 10, with the gain
+concentrated exactly where Phase 9 flagged the weakness: the core loop.
 
-| Module | Line coverage | Read this as |
-|--------|--------------:|--------------|
-| `cognitive-core` | **67 %** | safe-mode **gate logic** well-covered; the real `llm.cpp` adapter is compiled out of the stub build, so its live path is unexercised |
-| `apps/app-framework` | **71 %** | supervisor / router / IPC / NLU — the newest, best-tested code |
-| `apps/appkit` | **70 %** | confirm gate (100 %), JSON, URL, readability well-covered; base64 / token-store / http transport at 0 % |
-| `apps/*` (8 apps) | ~30 % | mock app logic covered; the **real** network backends (spotify/gmail/youtube/search) near 0 % |
-| `common` | 20 % | latency + log partly covered; config/types/result thin |
-| `perception` | **7 %** | ⚠️ core product, barely exercised — only the stub engine ticks |
-| `sensor-pipeline` | **0 %** | ⚠️ core product — lock-free buffer has correctness weight, near-zero test coverage |
-| `voice-ui` | **0 %** | ⚠️ core product |
-| `companion-sync` | **0 %** | ⚠️ the privacy-critical off-device path |
-| `power-mgmt` | **0 %** | not on the tested path |
-| `hud-compositor` | **0 %** | the sole visual surface |
-| `boot` (runtime wiring) | **0 %** | integration wiring, exercised only by running the binary |
+| Module | Line coverage | Was (Phase 9) | Read this as |
+|--------|--------------:|--------------:|--------------|
+| `companion-sync` | **96 %** | 0 % | ⬆ real alert/status/firmware construction + lifecycle exercised; the privacy guarantee (no `SensorFrame` path) is now a **compile-time** assertion, not a comment |
+| `voice-ui` | **91 %** | 0 % | ⬆ real `to_utterance()` tone mapping + stub shell fully covered; only the SDL/Piper playback backend (needs the libs) is uncovered |
+| `cognitive-core` | **84 %** | 67 % | ⬆ both gate branches now driven end-to-end (low-confidence *and* confident-but-no-LLM); the real `llm.cpp` adapter is still compiled out of the stub build |
+| `perception` | **69 %** | 7 % | ⬆ routing/framing/fusion + input guards covered; the wake-gated **endpoint→transcribe** branch and the real wake/ASR/vision **model** paths stay uncovered (need Porcupine/whisper/OpenCV) — an explicitly asserted gap, not padding |
+| `sensor-pipeline` | **42 %** | 0 % | ⬆ the real `SensorPipeline` + SPSC queue at **85 %**; the two 0 % files are the scaffold no-op stub factories (deliberately bypassed) and the SDL/OpenCV real-capture path (compiled out) |
+| `apps/appkit` | **76 %** | 70 % | confirm gate (100 %), JSON, URL, readability; base64 / token-store / http transport still near 0 % |
+| `apps/app-framework` | **74 %** | 71 % | supervisor / router / IPC / NLU — still the best-tested app-layer code |
+| `apps/*` (8 apps) | ~22 % | ~30 % | mock app logic covered; the **real** network backends (spotify/gmail/youtube/search) near 0 % |
+| `common` | 20 % | 20 % | latency + log partly covered; config/types/result thin |
+| `power-mgmt` | **0 %** | 0 % | not on the tested path |
+| `hud-compositor` | **0 %** | 0 % | the sole visual surface (lives under `apps/hud`) |
+| `boot` (runtime wiring) | **0 %** | 0 % | integration wiring, exercised only by running the binary |
 
-**The headline the coverage numbers tell:** the *newest* code (the apps
-framework and appkit, Phases 5–8) is the *best*-tested, while the **core
-safety-critical product loop — perception, sensor-pipeline, voice-ui, and the
-privacy-critical companion-sync path — is the least-tested.** `cognitive-core` is
-a partial exception: its gate *decision logic* is well-covered, but its real LLM
-adapter is not. This inversion is the single most important thing for a reviewer
-to understand: the parts most load-bearing for user safety have the thinnest
-automated safety net today. Closing it is the natural next testing investment,
-and it depends on the same real-hardware bring-up as the gaps above.
+> Numbers are re-measured on the Phase-10 coverage build (`-DECHO_COVERAGE=ON`,
+> Debug) over all nine suites; the few points of movement in the `apps/*` /
+> appkit rows are measurement/build variance, not new app-layer tests — Phase 10
+> touched only the core loop.
+
+**The headline the coverage numbers tell:** Phase 9's inversion — newest code
+best-tested, core safety loop least-tested — is now **substantially corrected**.
+The perception→cognitive→voice core loop and the privacy-critical companion path
+went from 0–7 % to 42–96 %, and the single most load-bearing behavior (an unsure
+turn falling to the calm safe-mode fallback) is now asserted end-to-end by
+`echo-e2e-fixture`. What remains uncovered is honest and specific: the **real
+engine paths** — Porcupine wake-word, whisper ASR, OpenCV vision, the llama.cpp
+LLM, and the SDL/Piper audio backend — plus the on-hardware sensor DMA/real-capture
+code. Those need the installed libraries and the credentialed real-hardware
+bring-up, and the tests mark each gap explicitly rather than reporting high
+coverage on code they never run.
 
 > Coverage is **not gated on a threshold** yet (a deliberate Phase 8 choice — an
 > arbitrary floor on a codebase that is still intentionally stubbed at its core
