@@ -200,7 +200,7 @@ mandatory instead of optional.
 | **Stub build** | Configures with every `ECHO_WITH_*` / `ECHO_REAL_AI` flag OFF (the dependency-free default since Phase 1), builds, and runs the **full** `ctest` suite. This job is the safety net every future phase depends on — it must always be green. | None. No external deps, no secrets. |
 | **Network build** | Installs libcurl, configures `-DECHO_WITH_NETWORK=ON`, builds, and runs the appkit + apps suites — JSON parsing (incl. the deep-nesting overflow guard), the Gmail header-injection regression test, the confirm-before-action gate, and the NLU mail/browser routing fix. Proves the Phase 5/6 network branch compiles and passes on a clean machine, not just a developer's laptop. | libcurl (from the runner's apt). **No live API calls** — the tests are credential-free; libcurl only needs to link. |
 | **Secret scan** | Runs the existing [`scripts/check_secrets.sh`](scripts/check_secrets.sh) rules over the tree, so a real API key, OAuth secret, private key, token cache, or committed `.env` fails the run and blocks merge — even if a future session forgets to run the check manually. | None. |
-| **Real engines** (Phase 11) | Configures `-DECHO_WITH_WHISPER/OPENCV/PIPER=ON`, downloads and **SHA-256-verifies** the free models (whisper `tiny.en`, OpenCV YuNet+SFace, a Piper voice) + two public-domain face photos, builds whisper.cpp from source, and runs [`tests/real_*_test.cpp`](tests/) against **real weights** on the Phase 10 fixtures. Runs in parallel with the fast jobs; models + whisper build are cached. See "Running the real-engine tests locally" below. | Free models only — **no account, no secret**. Every download is checksum-verified before use. |
+| **Real engines** (Phases 11 + 13) | Configures `-DECHO_WITH_WHISPER/OPENCV/PIPER/OPENWAKEWORD=ON`, downloads and **SHA-256-verifies** the free models (whisper `tiny.en`, OpenCV YuNet+SFace, a Piper voice, the openWakeWord ONNX pipeline + ONNX Runtime) + two public-domain face photos, builds whisper.cpp from source, and runs [`tests/real_*_test.cpp`](tests/) (ASR, vision, TTS, **wake-word**) against **real weights** on the Phase 10 fixtures + Piper-synthesized speech. Runs in parallel with the fast jobs; models + whisper build are cached. See "Running the real-engine tests locally" below. | Free models only — **no account, no secret**. Every download is checksum-verified before use. |
 | **Real LLM** (Phase 12) | Configures `-DECHO_WITH_LLAMA=ON`, builds llama.cpp from a pinned tag, downloads and **SHA-256-verifies** a *tiny* instruct model (`Qwen2.5-0.5B-Instruct` Q5_K_M, ~498 MiB — see [`MANIFEST.md`](MANIFEST.md)), and runs [`tests/real_llm_test.cpp`](tests/real_llm_test.cpp): route-tag parsing and the safe-mode gate against a **real model's real output**. Runs in parallel; model + llama build are cached. | Free model only — **no account, no secret**. Checksum-verified before use. |
 
 Dependency caching (ccache) keeps PR feedback fast, so runs don't rebuild every
@@ -227,12 +227,26 @@ the empty string that would trip the LLM-failure path); and a plain question ret
 non-empty text. It does **not** claim production reasoning quality — a 0.5B model
 only exercises the *integration*; the deployment-size model is untested here.
 
-**Still deliberately excluded.** **Porcupine** wake-word stays out of CI (needs an
-account-gated Picovoice access key — a secret we will not put in a workflow), and so
-does **production-grade LLM reasoning** (a deployment-size, multi-gigabyte model —
-Phase 12 verifies the llama.cpp *integration* with a tiny model, not answer quality).
-The **stub build** remains the deterministic dependency-free proxy, and both stay
-real-hardware-run items.
+**The wake-word job (Phase 13) — what it proves, and what it doesn't.** Phase 11
+left wake-word out of CI because the Porcupine backend needs an account-gated key.
+Phase 13 adds **openWakeWord** behind the same `IWakeWord` interface (default
+backend; Porcupine kept as a production option) — a pretrained three-stage ONNX
+pipeline on ONNX Runtime, all Apache-2.0 / MIT and anonymously fetchable. Its part
+of the `real-engines` job verifies, against real models: a Piper-synthesized
+"hey jarvis" clip clears the detection threshold (an *in-distribution* positive —
+openWakeWord itself trains on Piper TTS), while ordinary non-wake speech, silence,
+and garble stay below it (no false accept). It prints every observed score and
+asserts on the model's *actual* probabilistic behavior. It does **not** claim a
+custom "Hey ECHO" word (it ships the pretrained "hey jarvis"; training a bespoke word
+is a documented follow-up) nor field robustness.
+
+**Still deliberately excluded.** **Porcupine** stays out of CI (account-gated key —
+now redundant for CI since openWakeWord covers wake-word account-free; Porcupine
+remains a higher-accuracy *production* option), and so does **production-grade LLM
+reasoning** (a deployment-size, multi-gigabyte model — Phase 12 verifies the
+llama.cpp *integration* with a tiny model, not answer quality). The **stub build**
+remains the deterministic dependency-free proxy, and both stay real-hardware-run
+items.
 
 **Branch protection (manual step — repo admin).** The workflow blocks merge only once
 branch protection actually requires it; that is a GitHub repo-settings action, not
@@ -244,8 +258,8 @@ something committed in code. Whoever has admin access should, under
   appkit/apps tests*, *Secret scan (check_secrets.sh)*, and — added in Phase 8 —
   *clang-tidy (bugprone/cert/security)*, *cppcheck (static analysis)*,
   *Fuzz JSON parser (libFuzzer, bounded)*, *Coverage (gcov/gcovr)*, — added in
-  Phase 11 — *Real engines (whisper/OpenCV/Piper) vs. fixtures*, and — added in
-  Phase 12 — *Real LLM (llama.cpp tiny model) route-tag + safe-mode gate*.
+  Phases 11 + 13 — *Real engines (whisper/OpenCV/Piper/openWakeWord) vs. fixtures*,
+  and — added in Phase 12 — *Real LLM (llama.cpp tiny model) route-tag + safe-mode gate*.
 - **Require branches to be up to date before merging** (so checks run against the
   post-merge tree).
 
@@ -261,8 +275,9 @@ You don't need to wait on CI to reproduce the real-engine verification. On Linux
 # 1. OpenCV (>=4.6, ships YuNet+SFace) and SDL2 (so the Piper voice lib links):
 sudo apt-get install -y cmake build-essential git libopencv-dev libsdl2-dev
 
-# 2. Fetch + SHA-256-verify the free models and two public-domain face photos.
-#    Idempotent and checksum-guarded; downloads ~230 MB the first time.
+# 2. Fetch + SHA-256-verify the free models, the two public-domain face photos, and
+#    (Phase 13) the openWakeWord ONNX pipeline + ONNX Runtime. Idempotent and
+#    checksum-guarded; downloads ~240 MB the first time.
 scripts/fetch_real_engine_assets.sh .real-engine-assets
 A="$PWD/.real-engine-assets"
 
@@ -273,14 +288,21 @@ cmake -S whisper.cpp -B whisper.cpp/build -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$PWD/.whisper-install"
 cmake --build whisper.cpp/build --parallel && cmake --install whisper.cpp/build
 
-# 4. Synthesize the ASR "clear speech" clip with the fetched Piper voice:
-export LD_LIBRARY_PATH="$A/piper:$PWD/.whisper-install/lib:${LD_LIBRARY_PATH:-}"
+# 4. Synthesize the ASR "clear speech" clip + (Phase 13) the wake-word clips with Piper:
+export LD_LIBRARY_PATH="$A/piper:$PWD/.whisper-install/lib:$A/onnxruntime-linux-x64-1.17.3/lib:${LD_LIBRARY_PATH:-}"
 echo "the quick brown fox jumps over the lazy dog" | \
   "$A/piper/piper" --model "$A/voices/en_US-amy-medium.onnx" --output_file "$A/speech.wav"
+echo "hey jarvis" | \
+  "$A/piper/piper" --model "$A/voices/en_US-amy-medium.onnx" --output_file "$A/wake_hey_jarvis.wav"
+echo "what time is the next train to boston" | \
+  "$A/piper/piper" --model "$A/voices/en_US-amy-medium.onnx" --output_file "$A/not_wake_speech.wav"
 
-# 5. Configure with the three engines ON, build, and run just the real suite:
+# 5. Configure with the engines ON (incl. openWakeWord via ONNXRUNTIME_ROOT), build,
+#    and run just the real suite:
 cmake -S . -B build-real -DECHO_WITH_WHISPER=ON -DECHO_WITH_OPENCV=ON \
-  -DECHO_WITH_PIPER=ON -DCMAKE_PREFIX_PATH="$PWD/.whisper-install"
+  -DECHO_WITH_PIPER=ON -DECHO_WITH_OPENWAKEWORD=ON \
+  -DONNXRUNTIME_ROOT="$A/onnxruntime-linux-x64-1.17.3" \
+  -DCMAKE_PREFIX_PATH="$PWD/.whisper-install"
 cmake --build build-real --parallel
 ECHO_WHISPER_MODEL="$A/ggml-tiny.en.bin" \
 ECHO_FACE_DETECT_MODEL="$A/face_detection_yunet.onnx" \
@@ -290,6 +312,10 @@ ECHO_FACE_ENROLLED_IMG="$A/faces/enrolled/grace_hopper.jpg" \
 ECHO_FACE_UNKNOWN_IMG="$A/faces/astronaut.png" \
 ECHO_PIPER_BIN="$A/piper/piper" ECHO_PIPER_VOICE="$A/voices/en_US-amy-medium.onnx" \
 ECHO_ASR_SPEECH_WAV="$A/speech.wav" \
+ECHO_OWW_MELSPEC="$A/openwakeword/melspectrogram.onnx" \
+ECHO_OWW_EMBEDDING="$A/openwakeword/embedding_model.onnx" \
+ECHO_OWW_MODEL="$A/openwakeword/hey_jarvis_v0.1.onnx" \
+ECHO_WAKE_CLIP="$A/wake_hey_jarvis.wav" ECHO_NOTWAKE_CLIP="$A/not_wake_speech.wav" \
   ctest --test-dir build-real --output-on-failure -R "real"
 ```
 
@@ -438,7 +464,8 @@ Flip them all with `-DECHO_REAL_AI=ON`.
 
 | Stage | Module | Engine (option) | Suggested model + quantization |
 |-------|--------|-----------------|--------------------------------|
-| Wake word | `perception/` | Picovoice **Porcupine** (`ECHO_WITH_PORCUPINE`) | custom `Hey ECHO` `.ppn` keyword |
+| Wake word (default, account-free) | `perception/` | **openWakeWord** on ONNX Runtime (`ECHO_WITH_OPENWAKEWORD`) | `hey_jarvis_v0.1.onnx` + shared `melspectrogram.onnx` / `embedding_model.onnx` |
+| Wake word (production option) | `perception/` | Picovoice **Porcupine** (`ECHO_WITH_PORCUPINE`) | custom `Hey ECHO` `.ppn` keyword |
 | Speech-to-text | `perception/` | **whisper.cpp** (`ECHO_WITH_WHISPER`) | `ggml-base.en-q5_1.bin` (or `small.en`) |
 | Reasoning + intent routing | `cognitive-core/` | **llama.cpp** (`ECHO_WITH_LLAMA`) | `Llama-3.2-3B-Instruct` **Q4_K_M** (or `Phi-3.5-mini-instruct` Q4_K_M) |
 | Text-to-speech | `voice-ui/` | **Piper** (`ECHO_WITH_PIPER`) | `en_US-amy-medium` (`.onnx` + `.onnx.json`) |
@@ -447,12 +474,20 @@ Flip them all with `-DECHO_REAL_AI=ON`.
 | HUD overlay + mic/speaker I/O | `apps/hud-compositor/`, `voice-ui/`, `sensor-pipeline/` | **SDL2** (`ECHO_WITH_SDL`, +`SDL2_ttf` for subtitles) | — |
 
 Notes on the choices:
-- **Wake word — Porcupine over openWakeWord.** Porcupine has the simpler local C
-  API. It needs a **free AccessKey** obtained once from the Picovoice console;
-  that key is a one-time *setup* step and is validated **offline** — no audio or
-  request ever leaves the device at runtime. Put the key in
-  `models/porcupine_access_key.txt` (or `$PV_ACCESS_KEY`). The wake detector runs
-  continuously on the mic at negligible idle CPU.
+- **Wake word — openWakeWord (default) with Porcupine as a production option.**
+  Both sit behind the same `IWakeWord` interface; pick with
+  `-DECHO_WAKEWORD_BACKEND=openwakeword|porcupine` (default `openwakeword`).
+  **openWakeWord** is the default because it is entirely **account-free** — an
+  Apache-2.0 three-stage ONNX pipeline (`melspectrogram` → Google `speech_embedding`
+  → per-keyword classifier) on MIT-licensed **ONNX Runtime**, all anonymously
+  fetchable — which is exactly why it is the backend CI can exercise (Phase 13). It
+  ships the pretrained **"hey jarvis"** model; a custom "Hey ECHO" model is a
+  training follow-up (see [`MANIFEST.md`](MANIFEST.md)). **Porcupine** stays
+  available for production: it has the simpler local C API and higher accuracy, but
+  needs a **free AccessKey** obtained once from the Picovoice console (a one-time
+  *setup* step, validated **offline** — no audio leaves the device at runtime; put
+  the key in `models/porcupine_access_key.txt` or `$PV_ACCESS_KEY`). Either detector
+  runs continuously on the mic at negligible idle CPU.
 - **ASR** streams as batch-on-silence for this phase: the engine spots the wake
   word, captures until ~700 ms of trailing silence, then transcribes the
   utterance (energy-based endpointing in `perception/src/perception_engine.cpp`).

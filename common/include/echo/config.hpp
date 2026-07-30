@@ -38,6 +38,14 @@ std::string porcupine_params();   // ECHO_PORCUPINE_PARAMS   | porcupine_params.
 // $PV_ACCESS_KEY or models/porcupine_access_key.txt.
 std::string porcupine_access_key();
 
+// openWakeWord (Phase 13): the account-free wake-word backend. Its three-stage
+// ONNX pipeline is three separate model files — a shared audio-feature front end
+// (melspectrogram + Google speech-embedding) plus the per-keyword classifier.
+// All are fetched free (Apache-2.0), unlike Porcupine's account-gated .ppn.
+std::string openwakeword_melspec();    // ECHO_OWW_MELSPEC    | melspectrogram.onnx
+std::string openwakeword_embedding();  // ECHO_OWW_EMBEDDING  | embedding_model.onnx
+std::string openwakeword_model();      // ECHO_OWW_MODEL      | hey_jarvis_v0.1.onnx
+
 // whisper.cpp quantized model (e.g. ggml-base.en-q5_1.bin).
 std::string whisper_model();      // ECHO_WHISPER_MODEL      | ggml-base.en-q5_1.bin
 

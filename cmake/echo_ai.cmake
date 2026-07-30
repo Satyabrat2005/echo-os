@@ -15,17 +15,35 @@
 # builds swap the same options for their on-SoC equivalents (see README Phase 3).
 
 # --- The toggles ------------------------------------------------------------
-option(ECHO_WITH_PORCUPINE "Wake word via Picovoice Porcupine (perception)" OFF)
+option(ECHO_WITH_PORCUPINE   "Wake word via Picovoice Porcupine (perception)"        OFF)
+option(ECHO_WITH_OPENWAKEWORD "Wake word via openWakeWord/ONNX Runtime (perception)" OFF)
 option(ECHO_WITH_WHISPER   "Speech-to-text via whisper.cpp (perception)"    OFF)
 option(ECHO_WITH_OPENCV    "Face/object recognition + camera via OpenCV"    OFF)
 option(ECHO_WITH_LLAMA     "Reasoning via llama.cpp (cognitive-core)"       OFF)
 option(ECHO_WITH_PIPER     "Text-to-speech via Piper (voice-ui)"           OFF)
 option(ECHO_WITH_SDL       "SDL2 HUD overlay + laptop mic/speaker I/O"      OFF)
 
-# Convenience umbrella for the full laptop demo: -DECHO_REAL_AI=ON.
+# Which wake-word backend make_wake_word() prefers when more than one is compiled
+# in. Default openWakeWord — it is account-free (Apache-2.0 models, no Picovoice
+# key), so it is the one CI and anyone without a Picovoice account can actually
+# run. This only sets the *preference* among backends that are already compiled;
+# it never forces a backend ON (that stays each option's job, so the default stub
+# build has no wake-word dependency). Porcupine remains available/better-accuracy
+# for a production build that has done the account/key step (Phase 3).
+set(ECHO_WAKEWORD_BACKEND "openwakeword" CACHE STRING
+    "Preferred wake-word backend when compiled in: openwakeword | porcupine")
+set_property(CACHE ECHO_WAKEWORD_BACKEND PROPERTY STRINGS openwakeword porcupine)
+if(ECHO_WAKEWORD_BACKEND STREQUAL "porcupine")
+    target_compile_definitions(echo-project-options INTERFACE ECHO_WAKEWORD_PREFER_PORCUPINE=1)
+endif()
+
+# Convenience umbrella for the full laptop demo: -DECHO_REAL_AI=ON. The wake-word
+# slot uses openWakeWord (account-free) so the umbrella build is runnable by
+# anyone; Porcupine stays an explicit opt-in (-DECHO_WITH_PORCUPINE=ON) since it
+# needs the account-gated SDK + key.
 option(ECHO_REAL_AI "Enable the full real local-AI laptop stack" OFF)
 if(ECHO_REAL_AI)
-    set(ECHO_WITH_PORCUPINE ON CACHE BOOL "" FORCE)
+    set(ECHO_WITH_OPENWAKEWORD ON CACHE BOOL "" FORCE)
     set(ECHO_WITH_WHISPER   ON CACHE BOOL "" FORCE)
     set(ECHO_WITH_OPENCV    ON CACHE BOOL "" FORCE)
     set(ECHO_WITH_LLAMA     ON CACHE BOOL "" FORCE)
@@ -57,6 +75,32 @@ if(ECHO_WITH_PORCUPINE)
     add_library(echo::dep-porcupine ALIAS echo-dep-porcupine)
     target_compile_definitions(echo-project-options INTERFACE ECHO_WITH_PORCUPINE=1)
     message(STATUS "ECHO: Porcupine wake-word enabled (${PORCUPINE_LIB})")
+endif()
+
+# --- openWakeWord via ONNX Runtime (no upstream CMake config in the prebuilt) --
+# The prebuilt ONNX Runtime release tarball (onnxruntime-linux-x64-*) ships just
+# headers + libonnxruntime.so, no CMake package — so, like Porcupine, we point at
+# an unpacked root and find_path/find_library it. MIT-licensed, downloaded free
+# (no account/key), pinned + checksum-verified by the fetch script (see MANIFEST.md).
+if(ECHO_WITH_OPENWAKEWORD)
+    # Expected layout under ONNXRUNTIME_ROOT (the unpacked release tarball):
+    #   include/onnxruntime_cxx_api.h   lib/libonnxruntime.so
+    set(ONNXRUNTIME_ROOT "" CACHE PATH "Root of the unpacked ONNX Runtime release")
+    find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
+        HINTS ${ONNXRUNTIME_ROOT}/include ${ONNXRUNTIME_ROOT})
+    find_library(ONNXRUNTIME_LIB NAMES onnxruntime
+        HINTS ${ONNXRUNTIME_ROOT}/lib ${ONNXRUNTIME_ROOT})
+    if(NOT ONNXRUNTIME_INCLUDE_DIR OR NOT ONNXRUNTIME_LIB)
+        message(FATAL_ERROR
+            "ECHO_WITH_OPENWAKEWORD=ON but ONNX Runtime was not found. Set "
+            "-DONNXRUNTIME_ROOT=<path to unpacked onnxruntime-linux-x64-*>. See MANIFEST.md.")
+    endif()
+    add_library(echo-dep-onnxruntime INTERFACE)
+    target_include_directories(echo-dep-onnxruntime INTERFACE ${ONNXRUNTIME_INCLUDE_DIR})
+    target_link_libraries(echo-dep-onnxruntime INTERFACE ${ONNXRUNTIME_LIB})
+    add_library(echo::dep-onnxruntime ALIAS echo-dep-onnxruntime)
+    target_compile_definitions(echo-project-options INTERFACE ECHO_WITH_OPENWAKEWORD=1)
+    message(STATUS "ECHO: openWakeWord wake-word enabled (${ONNXRUNTIME_LIB})")
 endif()
 
 # --- whisper.cpp -------------------------------------------------------------

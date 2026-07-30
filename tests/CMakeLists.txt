@@ -82,6 +82,20 @@ if(ECHO_WITH_PIPER)
     add_test(NAME echo-real-tts COMMAND echo-real-tts-tests)
 endif()
 
+# --- Phase 13: REAL wake-word verification -----------------------------------
+# Real wake-word: the openWakeWord ONNX pipeline (on ONNX Runtime) against real
+# models + Piper-synthesized speech, proving the wake phrase fires and silence /
+# garble / ordinary speech do not. Built ONLY with -DECHO_WITH_OPENWAKEWORD=ON;
+# needs the private wake_word.hpp from perception/src. Self-skips (exit 0, loud)
+# when the flag is on but the model files aren't present. Runs in the "real-engines"
+# CI job (which already provides Piper for synthesis).
+if(ECHO_WITH_OPENWAKEWORD)
+    echo_add_core_test(echo-real-wakeword-tests real_wakeword_test.cpp
+        echo::common echo::perception)
+    target_include_directories(echo-real-wakeword-tests PRIVATE ${CMAKE_SOURCE_DIR}/perception/src)
+    add_test(NAME echo-real-wakeword COMMAND echo-real-wakeword-tests)
+endif()
+
 # --- Phase 12: REAL reasoning-LLM verification -------------------------------
 # Real LLM: the llama.cpp adapter against a tiny quantized instruct GGUF, proving
 # route-tag parsing and the safe-mode gate against a real model's real output.
