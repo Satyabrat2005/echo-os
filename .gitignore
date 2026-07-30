@@ -19,6 +19,13 @@ third_party/
 .whisper-install/
 whisper.cpp/
 
+# Phase 12: tiny-LLM test model + llama.cpp source build/install, produced locally by
+# scripts/fetch_real_engine_assets.sh (llm.gguf filter) and the README's local
+# instructions. Large, checksum-verified on fetch; never committed.
+.real-llm-assets/
+.llama-install/
+llama.cpp/
+
 # Phase 3: downloaded local model files (multi-GB; never committed) and run logs.
 # Keep the models/ directory structure and its README, but not the weights.
 models/**

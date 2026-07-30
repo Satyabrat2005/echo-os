@@ -1,75 +1,83 @@
-## Phase 11 — Real engine verification in CI (no account required)
+## Phase 12 — Real LLM verification in CI (tiny model, no account)
 
-`docs/STATE.md` has honestly carried a "real wake/ASR/vision/LLM paths remain
-untested — need installed libraries and the credentialed hardware run" line. That
-is true for **wake-word** (Porcupine, account-gated) and any **full LLM** (too
-large/slow for CI) — but it was *not* true for everything on the list. whisper.cpp
-`tiny.en` (~75 MB), OpenCV's YuNet + SFace ONNX models (a few MB), and a Piper
-voice are all free, direct downloads with **no account or credential**. This phase
-runs those **real engines** — not the stub logic around them — against Phase 10's
-fixtures, in CI, closing the slice of the gap that never actually needed the live
-hardware session.
+Phase 11 ruled real-LLM testing in CI *out of scope* as impractical — a fair call
+**for a full-size 3B–4B instruct model**. This phase narrows the ambition instead
+of abandoning it: it uses a genuinely **tiny** quantized instruct model
+(`Qwen2.5-0.5B-Instruct`, Q5_K_M, ~498 MiB) that runs one short greedy CPU inference
+in CI in seconds, and points it at the exact things worth proving against a *real*
+model's *real* output rather than the stub's canned reply: the **real llama.cpp
+integration**, the **safe-mode confidence gate**, and the **route-tag parser**
+(Phase 6's hardened logic).
+
+This is **not** meant to represent production-quality reasoning — that still depends
+on the larger deployment model, which this test does not validate (and says so, in
+both the test and `docs/STATE.md`).
 
 ### What's added
 
-- **`tests/real_asr_test.cpp`** — the **real whisper.cpp** engine (`tiny.en`) on
-  real audio: `silence.wav` → near-empty transcript, `noisy_garble.wav` → no crash
-  and a well-formed in-range result (extends Phase 10's robustness focus to the
-  real parser), and a clear, Piper-synthesized phrase → a **non-empty** transcript
-  containing the **expected words**. Content asserts on presence/rough content, not
-  brittle exact strings.
-- **`tests/real_vision_test.cpp`** — the **real OpenCV YuNet + SFace** on real
-  face images: an enrolled identity → **detected and matched**, a different person
-  → **detected but not matched**, and a non-face frame → **no detection**.
-- **`tests/real_tts_test.cpp`** — the **real Piper** engine synthesizing both the
-  neutral and reassuring voice-ui tones into valid, **non-silent** audio of
-  plausible duration, and asserting the reassuring tone is **measurably slower**
-  than neutral (the tone setting changes the real waveform, not just a label). Also
-  asserts the exact `length_scale` mapping voice-ui uses.
-- **A new `real-engines` CI job** (`.github/workflows/ci.yml`) that downloads the
-  three free models + two public-domain face photos, **SHA-256-verifies every one**
-  before use, builds whisper.cpp from source, builds ECHO with `ECHO_WITH_WHISPER/
-  OPENCV/PIPER=ON`, and runs the suite above. Kept a **separate, parallel** job so
-  it never gates the fast stub/network/analysis jobs; **models + the whisper build
-  are cached** (the model cache is keyed on the checksum manifest) so a warm run
-  skips ~230 MB of downloads and the source build.
-- **`scripts/fetch_real_engine_assets.sh`** — the idempotent, checksum-guarded
-  fetcher the CI job and the README's local instructions both use.
+- **A pinned tiny model**, the same rigorous way Phase 11 pinned whisper/OpenCV/
+  Piper: exact URL, exact SHA-256, size, license, and a documented reason —
+  `Qwen2.5-0.5B-Instruct` Q5_K_M, **Apache-2.0**, downloadable with **no account or
+  key**. Added to [`scripts/fetch_real_engine_assets.sh`](scripts/fetch_real_engine_assets.sh)
+  and a new [`MANIFEST.md`](MANIFEST.md) (which also back-fills the Phase 11 assets
+  so every fetched asset now has one place listing its URL + checksum + rationale).
+- **`tests/real_llm_test.cpp`** — three checks, against the real model:
+  1. **Route-tag parsing on real output** — "play some jazz music" → the model
+     emits `[route:media] …`, and the parser extracts `media` from the model's
+     *actual* output format (with the tag stripped from the spoken text), not an
+     idealized stub format.
+  2. **Safe-mode gate against a real LLM** — a low-confidence observation carrying
+     that *same* clear command still lands in safe mode: the gate keys on perception
+     confidence and short-circuits *before* the model, so the real LLM is never
+     consulted. Verified with the real model wired into the cognitive core.
+  3. **Sanity generation** — "What is two plus two?" → non-empty, non-crashing text
+     (no assertion on exact wording, which isn't deterministic across environments).
+- **A new `real-llm` CI job** — builds llama.cpp from a pinned tag, downloads +
+  **SHA-256-verifies** the model, builds ECHO with `-DECHO_WITH_LLAMA=ON`, and runs
+  the suite. A **separate, parallel** job so it never gates the fast jobs; the model
+  and the llama build are **cached** (model cache keyed on the fetch script's
+  checksum) so a warm run skips the ~498 MB download and the source build and
+  finishes in a couple of minutes.
 
-### Small refactor (to test the real path honestly)
+### An honest finding, documented rather than routed around (constraint #4)
 
-`voice-ui` gained an internal `tts_synth.hpp`: the Piper synthesis half of
-`speak()` (tone-scaled `--length_scale`, local `piper` subprocess) is split from
-the SDL **playback** half, so the test drives real synthesis **headlessly** on a CI
-runner. Playback (real speakers, a human ear) stays in `speak()` and is explicitly
-out of scope. `PiperVoiceUi::speak()` now calls the extracted helper — behavior is
-unchanged. `tests/fixture_io.hpp` gained `load_wav_path()` (absolute-path loader).
+The stub LLM triggers safe mode by returning **empty** text. A *real* model does
+not — it produces confident text for **every** prompt, including a deliberately
+ambiguous one. So the tiny model's output does **not** trip the LLM-failure fallback
+the way the stub does. Rather than weaken or bypass the gate to force that path, the
+test asserts the safe-mode guarantee where it actually lives: on the
+**perception-confidence gate**, which refuses a low-confidence turn before the LLM
+is ever called — exactly as the code intends. This is called out in the test, in
+`docs/STATE.md`, and in the README.
 
-### Honesty (constraint #3)
+### Verified locally, end-to-end
 
-These fixtures are **clean and synthetic** — a TTS phrase, well-lit frontal
-public-domain portraits — so the tests prove the engines **work at all** on good
-input, **not** that `tiny.en` or SFace hold up under field noise, motion, or poor
-light. `docs/STATE.md` now splits the old gap line accordingly:
+Built llama.cpp and ran the suite against the real pinned model before touching CI —
+this is also the first time `cognitive-core/src/llm.cpp`'s llama API calls have been
+**compiled and run against a real llama.cpp** (prior phases always compiled it out).
+It compiles cleanly (KV-clear `current` variant) and all four assertions pass:
 
-- **Now covered** (real weights, on fixtures, in CI): ASR, vision, TTS.
-- **Still uncovered** (needs libraries/credentials/hardware): Porcupine wake-word
-  (account-gated key), llama.cpp / full LLM (size + runtime), and all live
-  mic/webcam/latency/human behaviour plus the SDL playback path.
-
-### Deliberately out of scope, and documented as such
-
-- **Porcupine wake-word** — needs an account-gated Picovoice access key.
-- **llama.cpp / full LLM** — model size + CI runtime cost.
-- **Live mic/webcam capture** — needs physical hardware and a human; this phase
-  only exercises the engines against pre-recorded/synthesized fixtures.
+```
+route prompt   -> intent="media"  text="[track:jazz]"
+sanity prompt  -> intent=""  text="Two plus two is four."
+confident turn -> kind=Normal   intent="media"
+low-conf turn  -> kind=SafeMode  (LLM not consulted)
+[real-llm] all tests passed
+```
 
 ### Impact on existing jobs
 
-None. The real tests are built **only** when their `ECHO_WITH_*` flag is ON, so the
-default + stub CI build is completely unaffected — verified locally: **9/9 stub
-CTest suites still green**. Each real test also self-skips (green, loud message) if
-its flag is on but the model isn't present, so bringing engines up one at a time
-locally doesn't go red.
+None. `tests/real_llm_test.cpp` is built **only** under `-DECHO_WITH_LLAMA=ON`, so
+the default + stub CI build is unaffected. The test self-skips (green, loud message)
+if the flag is on but the model isn't present, so a local flag-on build without the
+download doesn't go red.
+
+### Honest scope (constraints #2, #4)
+
+- **Now verified in CI** (real llama.cpp, tiny model): the reasoning *integration*,
+  route-tag parsing, and the safe-mode gate against real model output.
+- **Still unverified**: production reasoning *quality* — the deployment-size model
+  is a multi-GB, on-hardware concern, not a per-commit CI one. `docs/STATE.md`'s gap
+  list now reflects this precisely.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

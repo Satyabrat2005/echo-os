@@ -500,3 +500,141 @@ jobs:
           # Piper's bundled .so files + (if whisper built shared) its install libs.
           export LD_LIBRARY_PATH="$ASSETS_DIR/piper:$WHISPER_INSTALL/lib:${LD_LIBRARY_PATH:-}"
           ctest --test-dir build-real --output-on-failure -R "real"
+
+  # ---------------------------------------------------------------------------
+  # 9. real-llm (Phase 12) — verify the REAL reasoning LLM path, not the stub.
+  #    Phase 11 left this out, judging a full 3B–4B model impractical per-commit.
+  #    Phase 12 narrows the ambition: turn ECHO_WITH_LLAMA ON, build llama.cpp from
+  #    a pinned tag, download + SHA-256-verify a genuinely TINY instruct model
+  #    (Qwen2.5-0.5B-Instruct Q5_K_M, ~498 MiB — see MANIFEST.md), and run
+  #    tests/real_llm_test.cpp against a real model's REAL output: route-tag parsing
+  #    (Phase 6), the safe-mode gate (principle #5), and a sanity generation.
+  #
+  #    Its own job so it runs IN PARALLEL with real-engines and the fast jobs, never
+  #    gating their feedback. It is heavier (a llama.cpp source build + a ~498 MB
+  #    model), so BOTH the llama build and the model are cached; a warm run skips the
+  #    download and rebuild and finishes in a couple of minutes. A short greedy CPU
+  #    inference (a handful of ~96-token generations) is a few seconds — the build,
+  #    not the inference, dominates.
+  #
+  #    HONEST SCOPE (docs/STATE.md): this validates the real llama.cpp *integration*
+  #    + parser + gate against a small model. It does NOT validate production
+  #    reasoning quality — that depends on the larger deployment model, untested here.
+  # ---------------------------------------------------------------------------
+  real-llm:
+    name: Real LLM (llama.cpp tiny model) route-tag + safe-mode gate
+    runs-on: ubuntu-latest
+    env:
+      # Pin the llama.cpp build. ECHO's adapter (cognitive-core/src/llm.cpp) targets
+      # the current memory/sampler API; this tag has it (KV-clear=current).
+      LLAMA_TAG: b10184
+      ASSETS_DIR: ${{ github.workspace }}/.real-llm-assets
+      LLAMA_INSTALL: ${{ github.workspace }}/.llama-install
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ccache build-essential git
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-real-llm-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-real-llm-${{ runner.os }}-
+
+      # Cache ONLY the LLM model. Keyed on the fetch script (which holds the pinned
+      # URL + checksum), so the key changes exactly when the model changes ("cache by
+      # checksum", constraint #1). Distinct key from the real-engines asset cache
+      # because this dir holds only llm.gguf (the filtered fetch below).
+      - name: Cache LLM model
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ASSETS_DIR }}
+          key: real-llm-model-${{ hashFiles('scripts/fetch_real_engine_assets.sh') }}
+
+      # Cache the llama.cpp build+install so the source build only happens when the
+      # pinned tag changes.
+      - name: Cache llama.cpp install
+        id: llama-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LLAMA_INSTALL }}
+          key: llama-${{ runner.os }}-${{ env.LLAMA_TAG }}
+
+      # Fetch ONLY the LLM (the substring filter), re-verifying its SHA-256 on both a
+      # cold and a cache-restored run.
+      - name: Fetch + verify the tiny LLM model
+        run: bash scripts/fetch_real_engine_assets.sh "$ASSETS_DIR" llm.gguf
+
+      # llama.cpp has no apt package; build the pinned tag from source and install it
+      # so ECHO's find_package(llama CONFIG) resolves it. We build ONLY the library:
+      #   - LLAMA_BUILD_APP/COMMON OFF: the unified "app" + common pull in a vendored
+      #     cpp-httplib submodule ECHO never needs (and which isn't in a shallow clone).
+      #   - TESTS/EXAMPLES/TOOLS/SERVER OFF, CURL OFF: none are needed to link ECHO.
+      #   - GGML_NATIVE OFF: portable baseline so a cached binary built on one runner's
+      #     CPU never SIGILLs on another runner with an older microarchitecture.
+      #   - GGML_CPU_ALL_VARIANTS OFF: pinned defensively to its default so we never
+      #     accidentally trigger the multi-variant CPU compile (one backend per
+      #     microarchitecture) — one portable baseline build is all this job needs.
+      #
+      # HONEST NOTE ON RUNTIME + MEMORY: this cold build is llama.cpp's full library
+      # (ggml + every model architecture). It is a ONE-TIME cost, paid only on a cache
+      # miss — the install below is cached keyed on LLAMA_TAG, so every subsequent run
+      # skips this step and the job finishes in a couple of minutes (the same trade-off
+      # Phase 11 accepted for its from-source whisper.cpp build). ccache softens the
+      # rare case where the install cache is evicted but the ccache cache survives.
+      #
+      #   CXX at -O1: the single giant `src/llama.cpp` C++ TU compiled at the default
+      #   Release -O3 needs several GB of compiler RAM and OOM-kills the hosted runner
+      #   (observed: a deterministic exit-143 shutdown on exactly that file). -O1 slashes
+      #   GCC's peak memory; these TUs are orchestration, not hot compute, so runtime is
+      #   unaffected — ggml's C kernels keep the default -O3 and carry the actual math.
+      #   `--parallel 2` bounds peak memory while the model-arch TUs compile together.
+      - name: Build + install llama.cpp (${{ env.LLAMA_TAG }})
+        if: steps.llama-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$LLAMA_TAG" https://github.com/ggml-org/llama.cpp
+          cmake -S llama.cpp -B llama.cpp/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O1 -DNDEBUG" \
+            -DLLAMA_BUILD_APP=OFF \
+            -DLLAMA_BUILD_COMMON=OFF \
+            -DLLAMA_BUILD_TESTS=OFF \
+            -DLLAMA_BUILD_EXAMPLES=OFF \
+            -DLLAMA_BUILD_TOOLS=OFF \
+            -DLLAMA_BUILD_SERVER=OFF \
+            -DLLAMA_CURL=OFF \
+            -DGGML_NATIVE=OFF \
+            -DGGML_CPU_ALL_VARIANTS=OFF \
+            -DBUILD_SHARED_LIBS=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_INSTALL_PREFIX="$LLAMA_INSTALL"
+          cmake --build llama.cpp/build --parallel 2
+          cmake --install llama.cpp/build
+
+      - name: Configure (ECHO_WITH_LLAMA=ON)
+        run: >
+          cmake -S . -B build-real-llm
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DECHO_WITH_LLAMA=ON
+          -DCMAKE_PREFIX_PATH="$LLAMA_INSTALL"
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      # Only the real-llm test needs building (and its lib deps); no need to build the
+      # whole tree for this focused job.
+      - name: Build the real-llm test
+        run: cmake --build build-real-llm --target echo-real-llm-tests --parallel
+
+      # ECHO_LLAMA_MODEL points the adapter at the verified model; LD_LIBRARY_PATH
+      # lets the shared libllama / libggml* resolve at runtime (install lib dir).
+      - name: "Test (real LLM: route-tag parsing + safe-mode gate)"
+        env:
+          ECHO_LLAMA_MODEL: ${{ env.ASSETS_DIR }}/llm.gguf
+        run: |
+          export LD_LIBRARY_PATH="$LLAMA_INSTALL/lib:${LD_LIBRARY_PATH:-}"
+          ctest --test-dir build-real-llm --output-on-failure -R "real-llm"
