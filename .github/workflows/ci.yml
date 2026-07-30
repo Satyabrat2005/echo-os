@@ -367,3 +367,128 @@ jobs:
           files: coverage/coverage.xml
           fail_ci_if_error: false
           verbose: true
+
+  # ---------------------------------------------------------------------------
+  # 8. real-engines (Phase 11) — verify the REAL local-AI engines, not the stubs.
+  #    This is the deliberately-heavier job the other jobs are the fast proxy for:
+  #    it turns ECHO_WITH_WHISPER/OPENCV/PIPER ON, downloads the three free models
+  #    (whisper tiny.en, OpenCV YuNet+SFace, a Piper voice) + two public-domain
+  #    face photos, VERIFIES every one against a pinned SHA-256, and runs the
+  #    tests/real_*_test.cpp suite against real weights on the Phase 10 fixtures.
+  #
+  #    Kept as its own job so it runs IN PARALLEL with the fast stub/network/
+  #    analysis jobs above and never gates their feedback (constraint #1). It is
+  #    heavier (a whisper.cpp source build + ~230 MB of models), so both the models
+  #    and the whisper build are cached; a warm run skips the downloads and rebuild.
+  #
+  #    STILL out of scope here (documented in docs/STATE.md): Porcupine wake-word
+  #    (account-gated access key) and any llama.cpp/full-LLM path (model size / CI
+  #    runtime), plus all live mic/webcam/human behaviour — this validates the
+  #    engines RUN correctly on clean fixtures, not field robustness.
+  # ---------------------------------------------------------------------------
+  real-engines:
+    name: Real engines (whisper/OpenCV/Piper) vs. fixtures
+    runs-on: ubuntu-latest
+    env:
+      WHISPER_TAG: v1.7.4
+      ASSETS_DIR: ${{ github.workspace }}/.real-engine-assets
+      WHISPER_INSTALL: ${{ github.workspace }}/.whisper-install
+    steps:
+      - uses: actions/checkout@v4
+
+      # OpenCV (>=4.6 on Ubuntu 24.04) ships YuNet (FaceDetectorYN) + SFace
+      # (FaceRecognizerSF) in libopencv-dev; SDL2 is only needed so the Piper
+      # voice lib links (playback is never exercised here); the rest is toolchain.
+      - name: Install build tools + OpenCV + SDL2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ccache build-essential git \
+            libopencv-dev libsdl2-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-real-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-real-${{ runner.os }}-
+
+      # Cache the verified model/asset set. Keyed on the fetch script, which
+      # contains the pinned URLs + checksums — so the key changes exactly when the
+      # asset set does ("cache by checksum", constraint #5). A hit skips ~230 MB of
+      # downloads; the fetch step below still re-verifies checksums either way.
+      - name: Cache real-engine assets
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ASSETS_DIR }}
+          key: real-assets-${{ hashFiles('scripts/fetch_real_engine_assets.sh') }}
+
+      # Cache the whisper.cpp build+install so the source build only happens when
+      # the pinned tag changes.
+      - name: Cache whisper.cpp install
+        id: whisper-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.WHISPER_INSTALL }}
+          key: whisper-${{ runner.os }}-${{ env.WHISPER_TAG }}
+
+      - name: Fetch + verify models and face fixtures
+        run: bash scripts/fetch_real_engine_assets.sh "$ASSETS_DIR"
+
+      # whisper.cpp has no apt package; build the pinned tag from source and
+      # `cmake --install` it so ECHO's find_package(whisper CONFIG) resolves it.
+      - name: Build + install whisper.cpp (${{ env.WHISPER_TAG }})
+        if: steps.whisper-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$WHISPER_TAG" https://github.com/ggerganov/whisper.cpp
+          cmake -S whisper.cpp -B whisper.cpp/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWHISPER_BUILD_TESTS=OFF \
+            -DWHISPER_BUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$WHISPER_INSTALL"
+          cmake --build whisper.cpp/build --parallel
+          cmake --install whisper.cpp/build
+
+      # Synthesize the ASR "clear speech" clip with the real Piper voice we just
+      # fetched (no committed audio; license-clean). The phrase matches the
+      # keywords real_asr_test.cpp asserts on.
+      - name: Synthesize the ASR speech clip with Piper
+        run: |
+          export LD_LIBRARY_PATH="$ASSETS_DIR/piper:${LD_LIBRARY_PATH:-}"
+          echo "the quick brown fox jumps over the lazy dog" | \
+            "$ASSETS_DIR/piper/piper" \
+              --model "$ASSETS_DIR/voices/en_US-amy-medium.onnx" \
+              --output_file "$ASSETS_DIR/speech.wav"
+          ls -l "$ASSETS_DIR/speech.wav"
+
+      - name: Configure (ECHO_WITH_WHISPER + OPENCV + PIPER ON)
+        run: >
+          cmake -S . -B build-real
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DECHO_WITH_WHISPER=ON
+          -DECHO_WITH_OPENCV=ON
+          -DECHO_WITH_PIPER=ON
+          -DCMAKE_PREFIX_PATH="$WHISPER_INSTALL"
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build
+        run: cmake --build build-real --parallel
+
+      # Run only the real-engine suite (echo-real-asr / -vision / -tts). The env
+      # points every adapter at the verified assets; LD_LIBRARY_PATH lets the
+      # Piper binary find its bundled .so files.
+      - name: Test (real engines against fixtures)
+        env:
+          ECHO_WHISPER_MODEL: ${{ env.ASSETS_DIR }}/ggml-tiny.en.bin
+          ECHO_FACE_DETECT_MODEL: ${{ env.ASSETS_DIR }}/face_detection_yunet.onnx
+          ECHO_FACE_RECOG_MODEL: ${{ env.ASSETS_DIR }}/face_recognition_sface.onnx
+          ECHO_FACES_DIR: ${{ env.ASSETS_DIR }}/faces/enrolled
+          ECHO_FACE_ENROLLED_IMG: ${{ env.ASSETS_DIR }}/faces/enrolled/grace_hopper.jpg
+          ECHO_FACE_UNKNOWN_IMG: ${{ env.ASSETS_DIR }}/faces/astronaut.png
+          ECHO_PIPER_BIN: ${{ env.ASSETS_DIR }}/piper/piper
+          ECHO_PIPER_VOICE: ${{ env.ASSETS_DIR }}/voices/en_US-amy-medium.onnx
+          ECHO_ASR_SPEECH_WAV: ${{ env.ASSETS_DIR }}/speech.wav
+        run: |
+          # Piper's bundled .so files + (if whisper built shared) its install libs.
+          export LD_LIBRARY_PATH="$ASSETS_DIR/piper:$WHISPER_INSTALL/lib:${LD_LIBRARY_PATH:-}"
+          ctest --test-dir build-real --output-on-failure -R "real"

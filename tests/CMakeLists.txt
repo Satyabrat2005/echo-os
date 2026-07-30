@@ -46,3 +46,38 @@ add_test(NAME echo-companion COMMAND echo-companion-tests)
 echo_add_core_test(echo-e2e-tests e2e_pipeline_test.cpp
     echo::common echo::sensor echo::perception echo::cognitive echo::voice)
 add_test(NAME echo-e2e-fixture COMMAND echo-e2e-tests)
+
+# --- Phase 11: REAL engine verification (only when the engine is compiled in) --
+# These targets drive the REAL whisper.cpp / OpenCV / Piper engines (not the
+# stubs) against real model weights, so each is built ONLY when its ECHO_WITH_*
+# flag is ON. With every flag OFF (the default + the stub CI job) none of these
+# exist, so the dependency-free build is completely unaffected. See the dedicated
+# "real-engines" CI job, which turns the flags on and downloads the models. Each
+# test self-skips (exit 0 with a loud message) when its flag is on but the model
+# file isn't present, so a local flag-on build without downloads doesn't go red.
+
+# Real ASR: whisper.cpp against the speech/silence/garble clips. Needs the private
+# asr.hpp from perception/src.
+if(ECHO_WITH_WHISPER)
+    echo_add_core_test(echo-real-asr-tests real_asr_test.cpp echo::common echo::perception)
+    target_include_directories(echo-real-asr-tests PRIVATE ${CMAKE_SOURCE_DIR}/perception/src)
+    add_test(NAME echo-real-asr COMMAND echo-real-asr-tests)
+endif()
+
+# Real vision: YuNet/SFace against real face images. Needs the private vision.hpp
+# and links OpenCV directly (the test uses cv::imread to load frames to BGR).
+if(ECHO_WITH_OPENCV)
+    echo_add_core_test(echo-real-vision-tests real_vision_test.cpp
+        echo::common echo::perception echo::dep-opencv)
+    target_include_directories(echo-real-vision-tests PRIVATE ${CMAKE_SOURCE_DIR}/perception/src)
+    add_test(NAME echo-real-vision COMMAND echo-real-vision-tests)
+endif()
+
+# Real TTS: Piper synthesis for the neutral + reassuring tones. Needs the private
+# tts_synth.hpp from voice-ui/src.
+if(ECHO_WITH_PIPER)
+    echo_add_core_test(echo-real-tts-tests real_tts_test.cpp
+        echo::common echo::voice echo::cognitive)
+    target_include_directories(echo-real-tts-tests PRIVATE ${CMAKE_SOURCE_DIR}/voice-ui/src)
+    add_test(NAME echo-real-tts COMMAND echo-real-tts-tests)
+endif()

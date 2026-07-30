@@ -3,3 +3,8 @@
 # line-ending conversion to them (CI checks out on Linux).
 *.wav binary
 *.ppm binary
+
+# Shell scripts must stay LF: CI (and the fetch/setup scripts) run on Linux, where
+# a CRLF shebang line breaks the interpreter. Normalize regardless of a
+# contributor's core.autocrlf.
+*.sh text eol=lf

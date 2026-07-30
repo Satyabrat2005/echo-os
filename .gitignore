@@ -12,6 +12,13 @@ cmake-build-*/
 # prefix, fetched by scripts/setup_deps. Large; rebuilt from source, never committed.
 third_party/
 
+# Phase 11: real-engine test assets + whisper.cpp source build, produced locally by
+# scripts/fetch_real_engine_assets.sh and the README's local instructions. Large,
+# checksum-verified on fetch; never committed (the models are downloaded, not stored).
+.real-engine-assets/
+.whisper-install/
+whisper.cpp/
+
 # Phase 3: downloaded local model files (multi-GB; never committed) and run logs.
 # Keep the models/ directory structure and its README, but not the weights.
 models/**
