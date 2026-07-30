@@ -461,6 +461,14 @@ jobs:
               --output_file "$ASSETS_DIR/speech.wav"
           ls -l "$ASSETS_DIR/speech.wav"
 
+      # whisper.cpp's installed whisper-config.cmake unconditionally set_and_check's
+      # WHISPER_BIN_DIR (${prefix}/bin), but with examples/tools OFF nothing is
+      # installed there, so the dir is absent and find_package() hard-errors. An
+      # empty bin/ satisfies the existence check. Runs on both a fresh build and a
+      # restored cache (which was populated before this fix), so no cache bust.
+      - name: Work around whisper-config bin-dir check
+        run: mkdir -p "$WHISPER_INSTALL/bin"
+
       - name: Configure (ECHO_WITH_WHISPER + OPENCV + PIPER ON)
         run: >
           cmake -S . -B build-real
