@@ -48,9 +48,17 @@ class FakePerception final : public perception::IPerceptionEngine {
 public:
     std::atomic<Fault> fault{Fault::None};
     std::atomic<int>   process_calls{0};
+    // How many more Fault::Hang calls should actually hang before the engine behaves
+    // healthily again. -1 (default) = hang persistently, preserving the Phase 17
+    // escalation-to-reboot behaviour. A positive value models a TRANSIENT hang the
+    // watchdog can genuinely recover in-process: the guarded call is abandoned once,
+    // then the very next call (the watchdog's re-init) succeeds — which is exactly the
+    // repeatable recovery the Phase 20 soak exercises thousands of times. Decremented
+    // atomically so the process-call worker and the re-init worker can't both hang.
+    std::atomic<int> hang_budget{-1};
 
     Status initialize() override {
-        maybe_hang(fault.load());
+        if (take_hang()) std::this_thread::sleep_for(kHang);
         if (fault.load() == Fault::Throw) throw std::runtime_error("perception init boom");
         if (fault.load() == Fault::Error) return Status::NotReady;
         return Status::Ok;
@@ -59,11 +67,22 @@ public:
         ++process_calls;
         const Fault f = fault.load();
         if (f == Fault::Throw) throw std::runtime_error("perception boom");
-        maybe_hang(f);
+        if (take_hang()) std::this_thread::sleep_for(kHang);
         if (f == Fault::Error) return Result<perception::Perception>::fail(Status::HardwareError);
         return Result<perception::Perception>::ok(perception::Perception{});
     }
     void shutdown() override {}
+
+private:
+    // True iff this Fault::Hang call should sleep. Consumes one unit of a finite
+    // hang_budget; an unset budget (-1) hangs every time (persistent).
+    bool take_hang() noexcept {
+        if (fault.load() != Fault::Hang) return false;
+        int b = hang_budget.load();
+        if (b < 0) return true;  // persistent hang
+        while (b > 0 && !hang_budget.compare_exchange_weak(b, b - 1)) { /* retry */ }
+        return b > 0;
+    }
 };
 
 // --- fake cognitive core -----------------------------------------------------
@@ -109,6 +128,9 @@ public:
 class FakeVoice final : public voice::IVoiceUi {
 public:
     std::atomic<Fault> fault{Fault::None};
+    // Cumulative count of spoken utterances, independent of forget() (see below). Lets a
+    // long soak track total output without unbounded recording.
+    std::atomic<std::uint64_t> total_spoken{0};
 
     Status initialize() override {
         maybe_hang(fault.load());
@@ -120,6 +142,7 @@ public:
         if (f == Fault::Throw) throw std::runtime_error("tts boom");
         maybe_hang(f);
         if (f == Fault::Error) return Status::HardwareError;
+        ++total_spoken;
         {
             const std::lock_guard<std::mutex> lock(mu_);
             spoken_.push_back(u);
@@ -143,6 +166,15 @@ public:
         return earcons_;
     }
 
+    // Drop the recorded history (NOT the cumulative counters). A long soak calls this
+    // periodically so the harness's own recording can't be mistaken for a runtime leak
+    // when sampling RSS — the point is to measure the runtime, not this vector.
+    void forget() {
+        const std::lock_guard<std::mutex> lock(mu_);
+        spoken_.clear();
+        earcons_.clear();
+    }
+
 private:
     mutable std::mutex            mu_;
     std::vector<voice::Utterance> spoken_;
@@ -152,8 +184,13 @@ private:
 // --- fake companion sync -----------------------------------------------------
 class FakeCompanion final : public companion::ICompanionSync {
 public:
+    // Cumulative alert count, independent of forget() — a long soak tracks total alerts
+    // without unbounded recording.
+    std::atomic<std::uint64_t> total_alerts{0};
+
     Status connect(companion::Transport) override { connected_ = true; return Status::Ok; }
     Status send_alert(const companion::Alert& a) override {
+        ++total_alerts;
         const std::lock_guard<std::mutex> lock(mu_);
         alerts_.push_back(a);
         return Status::Ok;
@@ -181,6 +218,12 @@ public:
         for (const auto& a : alerts_)
             if (a.kind == k && a.note.find(needle) != std::string::npos) ++n;
         return n;
+    }
+
+    // Drop recorded alert history (NOT the cumulative counter) — see FakeVoice::forget().
+    void forget() {
+        const std::lock_guard<std::mutex> lock(mu_);
+        alerts_.clear();
     }
 
 private:

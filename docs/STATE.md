@@ -5,11 +5,12 @@ validation, how well it's tested, and what quality gates are in place. This is
 the document to read first — a YC partner or a new engineer should be able to
 trust every line of it. It is an internal reference, not marketing copy.*
 
-Last updated: Phase 19 (audio robustness under noise — a measured accuracy-vs-SNR table for
-the real ASR/wake-word engines against synthetic noise beds, a basic single-mic pre-processing
-stage, and a noise-driven confidence signal wired into the existing safe-mode gate; see the
-dedicated section below). Source of truth for every claim is the repo at this commit; nothing
-here is aspirational unless explicitly labelled.
+Last updated: Phase 20 (longevity & resource-leak soak — a simulated-time soak that drives the
+real runtime + real memory engine through 7 compressed days and puts real numbers on
+reminder-scheduler drift, event-log retention, RSS, fd count, and repeated watchdog recovery;
+it found and fixed two genuine longevity bugs along the way. See the dedicated section below).
+Source of truth for every claim is the repo at this commit; nothing here is aspirational unless
+explicitly labelled.
 
 ## In one paragraph
 
@@ -71,6 +72,7 @@ below.
 | **Fault containment + graceful degradation** (per-engine guard, defined degraded modes, hung-call watchdog) | **Built & tested** (Phase 17) | [`engine_guard.hpp`](../boot/include/echo/boot/engine_guard.hpp) + `boot/src/runtime.cpp`; `echo-fault-injection` injects throw/error/hang at every boundary and asserts no crash, the defined degradation, recovery, and reboot escalation — see the Phase 17 ledger below for the precise scope |
 | **Audio robustness under noise** (measured ASR/wake-word degradation vs SNR, single-mic pre-processing, noise-driven safe-mode confidence) | **Measured against synthetic noise in CI; real room unvalidated** (Phase 19) | [`audio_dsp.hpp`](../common/include/echo/audio_dsp.hpp) + `tests/audio_robustness_test.cpp` (`real-engines` job): three checksummed noise beds mixed into the clean clips at clean/+10/0/−5 dB, real whisper + openWakeWord measured at each; a high-pass+gate+AGC pre-processor evaluated; low SNR folded into the transcript confidence so noisy audio rides the **existing** 0.72 safe-mode gate. **Synthetic noise on clean clips — not a real mic in a real room (see the Phase 19 section + gap #13)** |
 | **Power/thermal POLICY** (battery vision duty-cycling, thermal inference throttle, low-battery reminder priority) | **Policy built & tested; hardware unvalidated** (Phase 18) | [`power_source.hpp`](../power-mgmt/include/echo/power/power_source.hpp) + [`power_policy.hpp`](../power-mgmt/include/echo/power/power_policy.hpp) wired through `boot/src/runtime.cpp`; `echo-power-mgmt` drives fake power/thermal sources across the threshold bands and asserts the duty-cycle/throttle decisions, the EngineDegraded alert reuse, a reminder still delivered at critical battery, and that a dropped frame is never fabricated. **The real battery/thermal SENSOR is a documented stub — see the Phase 18 section and gap #12** |
+| **Orchestration longevity** (no leak/drift over a compressed multi-day run) | **Simulated-time soak green in CI; engine-library longevity still unproven** (Phase 20) | `tests/soak_test.cpp` drives the REAL runtime + REAL memory engine through **10,080 ticks = 7 simulated days** (injected virtual clock, no real sleep): reminder-scheduler drift, event-log retention boundedness, RSS plateau, fd stability, and repeated watchdog recovery — see the Phase 20 section for the measured numbers. It also **found and fixed two real longevity bugs** (recurring-reminder suppression; every-tick flash rewrite). **Proves the orchestration doesn't leak/drift; does NOT prove whisper/llama/OpenCV/ONNX are leak-free over real days — see gap #14** |
 
 ## What's pending real-world validation ⏳
 
@@ -94,6 +96,7 @@ evidence exists.
 | 11 | **A real wearer uses recall in daily life** | 15 | no person with memory loss has named someone to ECHO and been reminded of them later; like every other engine, "works on clean fixtures" ≠ "helps a real user" |
 | 12 | **Real battery/thermal sensor + real device power/thermal behaviour** | 18 | the power/thermal POLICY (duty-cycle, throttle, reminder priority) is CI-tested against simulated readings, but there is no real fuel gauge or skin-adjacent thermal sensor to read — the backend is a documented stub. Whether these throttle levels keep a temple-worn device comfortable, and whether the low-battery reminder pass fires with enough power left to matter, needs the real hardware. **This is a permanent-until-hardware gap, not a temporary one closeable by more code** (see the Phase 18 section) |
 | 13 | **A real mic in a real room** | 19 | Phase 19 measures ASR/wake-word degradation against *synthetic* noise beds mixed into *clean* clips at defined SNRs — real, honest, and CI-provable, but still not a real microphone's frequency response, echo off real walls, or a real human speaking while moving. This **narrows** the live-hardware risk (gap #4) with measured evidence; it does not eliminate it. **Permanent-until-hardware**, like gap #12 (see the Phase 19 section) |
+| 14 | **Real third-party engine-library uptime over real days** | 20 | Phase 20's soak proves the ORCHESTRATION layer (runtime loop, scheduler, retention, watchdog, memory store) doesn't leak or drift over 7 *simulated* days with *fake* engines. It does **not** instrument the real engine libraries — whisper.cpp, llama.cpp, OpenCV, ONNX Runtime — so a slow leak *inside* one of those over genuine multi-day wall-clock uptime would not be caught here. Needs the real engines running on real hardware for real days (a superset of gaps #1/#4). **Permanent-until-hardware**, like gaps #12/#13 (see the Phase 20 section) |
 
 The README's Phase 4/5 tables are the canonical place these numbers get filled in
 **during** the real bring-up, and are deliberately left as `_—_` placeholders
@@ -588,13 +591,92 @@ a real human speaking naturally while moving. It **narrows** the live-human risk
 measured evidence; it does not remove the need for the live run. The true test is still
 a real wearer in a real room.
 
+## Phase 20 — longevity & resource-leak soak (does it hold up over days, not seconds?)
+
+Every test before this one exercised a single turn, a single fault, or a bounded
+scenario. None of them proved the thing a device *worn all day, every day* needs most:
+that it runs **continuously, for a long time, without degrading**. Phase 20 builds the
+harness that actually looks for that class of bug — a memory creep, a scheduler that
+drifts after enough ticks, a watchdog recovery that leaks a worker each time, a
+retention pass that never really runs at scale — and puts **real measured numbers** on
+each.
+
+**How it's done honestly.** `tests/soak_test.cpp` drives the **real** runtime
+(`boot/runtime.cpp`) with the **real** memory engine (SQLite + encryption at rest) and
+the shared Phase-17/18 deterministic fakes for the other five engines, through a large
+number of ticks — but in **simulated time**, not real sleeping. The runtime gained a
+one-line clock seam (`Runtime::set_clock`) so the reminder scheduler reads an injected
+**virtual clock**; the soak advances it 60 simulated seconds per tick. That compresses
+**10,080 ticks into 7 simulated days** and runs in **~80 s** on the MinGW dev box (the
+dedicated Linux CI job, build + run, finishes in ~1.5 min) — the only honest way to reach
+a multi-day duration inside a CI budget. Run length is `ECHO_SOAK_TICKS`-overridable for a
+longer local run.
+
+**Measured numbers (default 10,080-tick / 7-simulated-day run, this commit):**
+
+| Metric | Bar | Measured | Verdict |
+|--------|-----|----------|---------|
+| Reminder-scheduler drift (Phase 15, 600 one-shots across the week) | each fires once, within one tick, no cumulative drift | 600/600 delivered, **0 early**, **worst drift 59 s** (< the 60 s tick) | ✅ no drift |
+| Recurring reminder re-arm across days | fires on **every** acknowledged occurrence | 4/4 daily occurrences fired | ✅ (bug fixed — see below) |
+| Event-log retention at scale (Phase 16) | log stays ≤ cap despite thousands of firings | **200 rows** at cap=200 after 600 firings | ✅ bounded |
+| Process RSS plateau | post-warmup growth < 15 % and < 16 MiB | **+~0.1 MiB (~1–2 %)** over the run | ✅ plateau |
+| Open fd / handle count | no growth with save-to-disk churn | span **≤ 5** across the run | ✅ flat |
+| Memory re-init (watchdog close+open) fd stability | no fd leak per recovery cycle | **300 cycles, fd unchanged** | ✅ no leak |
+| Watchdog recovery (Phase 17), transient hang every 900 ticks | recovers every time, never reboots, no worker accumulation | **11 hang episodes, 0 reboots, peak 1 abandoned worker, drains to 0** | ✅ contained |
+
+The scheduler, retention, and watchdog rows are **deterministic** (identical on every
+platform). The RSS/fd rows are the **MinGW dev-box** measurement (exact bytes vary by
+allocator/OS); the Linux CI `soak` job re-runs them against `/proc` and clears the same
+bars — that pass is the portable proof, the byte figures above are the illustrative
+sample.
+
+**Two genuine longevity bugs found — and root-cause fixed (not papered over):**
+
+1. **Recurring reminders went silent after day one.** The runtime de-duplicated
+   in-session reminder delivery by reminder *id*, permanently. A recurring reminder that
+   the wearer acknowledges *re-arms* to a new due time (`memory_engine` advances it), but
+   the id-only record suppressed every occurrence after the first — so a **daily
+   medication reminder would fire once and never again until reboot**. On an all-day
+   device that is a safety-relevant silent failure. Fixed by keying the in-session record
+   by *occurrence* (reminder id → the delivered `due` time): a re-armed occurrence has a
+   new `due` and is delivered, while the original backstop (a reminder whose `mark_fired`
+   write failed, so it stays "pending" on the *same* occurrence) is preserved. Regression
+   test: the recurring-reminder sub-test asserts 4/4 daily occurrences fire.
+   (`boot/include/echo/boot/runtime.hpp` `delivered_occurrence_`.)
+
+2. **The store rewrote its entire encrypted image to flash on every tick.** Retention
+   runs on the core tick; `prune_events` called `touch()` (marking the store dirty) every
+   time the DELETE *executed*, even when it evicted **nothing** — which is the common case
+   once the log is at its cap. A dirty store triggers a full `sqlite3_serialize` +
+   AES-256 + file rewrite in `enforce_retention`. So a device sitting idle re-encrypted and
+   rewrote the whole database **every tick, forever** — constant flash wear and CPU
+   proportional to store size, for no state change. (This is also what made the soak
+   infeasibly slow before the fix — ~170 ms/tick.) Fixed by gating the dirty flag on
+   `sqlite3_changes(db_) > 0` so an idle retention pass is a couple of cheap SELECTs and
+   **no disk write**; a real eviction still persists exactly as before. Verified by the
+   existing `echo-memory` suite (retention behaviour unchanged) and by the soak's own
+   throughput. (`memory/src/memory_engine.cpp` `prune_events`.)
+
+**What this phase proves — and what it explicitly does NOT (gap #14, permanent-until-hardware).**
+It proves the **orchestration layer** — the runtime loop, the reminder scheduler, the
+retention/eviction path, the fault-tolerance watchdog, and the memory store's own
+serialize/encrypt/persist cycle — does not leak or drift over a compressed multi-day run.
+It does **not** prove the real third-party engine libraries (whisper.cpp, llama.cpp,
+OpenCV, ONNX Runtime) are leak-free over real multi-day *wall-clock* uptime: this harness
+drives *fakes* in their place and does not instrument those libraries, so a slow leak
+*inside* one of them would not be caught here. That remains gap #14, provable only by real
+engines on real hardware for real days. Simulated-time soak with fakes is a real,
+valuable longevity proof of everything ECHO actually wrote — and honest about the boundary
+where third-party code and real time take over.
+
 ## Quality gates in place (CI)
 
 Every push and PR to `master` runs [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 | Gate | What it enforces |
 |------|------------------|
-| **Stub build + full ctest** | dependency-free build, all 12 suites (incl. Phase 15 `echo-memory`, the memory-enriched `echo-e2e-fixture`, Phase 17 `echo-fault-injection`, and Phase 18 `echo-power-mgmt`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps |
+| **Stub build + full ctest** | dependency-free build, all fast suites (incl. Phase 15 `echo-memory`, the memory-enriched `echo-e2e-fixture`, Phase 17 `echo-fault-injection`, and Phase 18 `echo-power-mgmt`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps. The longer Phase 20 `echo-soak` is excluded here and runs in its own job (below) so per-PR feedback stays fast |
+| **Longevity soak** (Phase 20) | its own dependency-free job builds & runs `echo-soak` — the real runtime + real memory engine through **7 simulated days** (10,080 ticks, virtual clock) — asserting reminder drift, retention boundedness, RSS plateau, fd stability, and watchdog-recovery worker-leak stability. Scoped like the real-LLM job (separate, time-bounded) so it never slows the fast suites |
 | **clang-tidy / cppcheck scope** | both now cover the first-party `memory/` code; the vendored `memory/vendor/sqlite3/` amalgamation is **excluded** from both (upstream C we compile but do not lint) |
 | **Network build** | `-DECHO_WITH_NETWORK=ON` compiles & links libcurl; appkit/apps tests pass on a clean machine (no live API calls) |
 | **Secret scan** | `check_secrets.sh` blocks a committed API key, OAuth secret, private key, token cache, or `.env` |

@@ -64,6 +64,22 @@ add_test(NAME echo-e2e-fixture COMMAND echo-e2e-tests)
 echo_add_core_test(echo-fault-injection-tests fault_injection_test.cpp echo::runtime)
 add_test(NAME echo-fault-injection COMMAND echo-fault-injection-tests)
 
+# --- Phase 20: longevity & resource-leak soak --------------------------------
+# Drives the REAL runtime (echo::runtime) with the REAL memory engine + the shared
+# fakes through thousands of SIMULATED-time ticks (an injected virtual clock, never
+# real sleep), with periodic transient fault injection. Asserts reminder-scheduler
+# drift, event-log retention boundedness, RSS plateau, fd/handle stability, and
+# watchdog-recovery worker-leak stability — the failure modes that only appear over a
+# long run. Fully in the dependency-free stub build. Its own CI job (scoped for
+# runtime), like the real-LLM job. Run length is ECHO_SOAK_TICKS-overridable.
+echo_add_core_test(echo-soak-tests soak_test.cpp echo::runtime echo::memory)
+if(WIN32)
+    # Windows RSS/handle sampling (resource_probe.hpp) uses GetProcessMemoryInfo (psapi);
+    # GetProcessHandleCount is in kernel32. On Linux the probe reads /proc, no extra libs.
+    target_link_libraries(echo-soak-tests PRIVATE psapi)
+endif()
+add_test(NAME echo-soak COMMAND echo-soak-tests)
+
 # --- Phase 18: power & thermal management ------------------------------------
 # Drives the REAL runtime (echo::runtime) with the shared fault-injection fakes PLUS
 # deterministic fake power/thermal sources, exercising the battery duty-cycle, the thermal
