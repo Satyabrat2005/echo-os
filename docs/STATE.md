@@ -607,9 +607,10 @@ the shared Phase-17/18 deterministic fakes for the other five engines, through a
 number of ticks — but in **simulated time**, not real sleeping. The runtime gained a
 one-line clock seam (`Runtime::set_clock`) so the reminder scheduler reads an injected
 **virtual clock**; the soak advances it 60 simulated seconds per tick. That compresses
-**10,080 ticks into 7 simulated days** and runs in **~21 s** on the MinGW dev box (faster
-on the Linux CI runner) — the only honest way to reach a multi-day duration inside a CI
-budget. Run length is `ECHO_SOAK_TICKS`-overridable for a longer local run.
+**10,080 ticks into 7 simulated days** and runs in **~80 s** on the MinGW dev box (the
+dedicated Linux CI job, build + run, finishes in ~1.5 min) — the only honest way to reach
+a multi-day duration inside a CI budget. Run length is `ECHO_SOAK_TICKS`-overridable for a
+longer local run.
 
 **Measured numbers (default 10,080-tick / 7-simulated-day run, this commit):**
 
@@ -618,10 +619,16 @@ budget. Run length is `ECHO_SOAK_TICKS`-overridable for a longer local run.
 | Reminder-scheduler drift (Phase 15, 600 one-shots across the week) | each fires once, within one tick, no cumulative drift | 600/600 delivered, **0 early**, **worst drift 59 s** (< the 60 s tick) | ✅ no drift |
 | Recurring reminder re-arm across days | fires on **every** acknowledged occurrence | 4/4 daily occurrences fired | ✅ (bug fixed — see below) |
 | Event-log retention at scale (Phase 16) | log stays ≤ cap despite thousands of firings | **200 rows** at cap=200 after 600 firings | ✅ bounded |
-| Process RSS plateau | post-warmup growth < 15 % and < 16 MiB | **+164 KiB (+2.06 %)** over the run | ✅ plateau |
-| Open fd / handle count | no growth with save-to-disk churn | span **5** (min 109 / max 114) | ✅ flat |
-| Memory re-init (watchdog close+open) fd stability | no fd leak per recovery cycle | **300 cycles, fd 109 → 109** | ✅ no leak |
+| Process RSS plateau | post-warmup growth < 15 % and < 16 MiB | **+~0.1 MiB (~1–2 %)** over the run | ✅ plateau |
+| Open fd / handle count | no growth with save-to-disk churn | span **≤ 5** across the run | ✅ flat |
+| Memory re-init (watchdog close+open) fd stability | no fd leak per recovery cycle | **300 cycles, fd unchanged** | ✅ no leak |
 | Watchdog recovery (Phase 17), transient hang every 900 ticks | recovers every time, never reboots, no worker accumulation | **11 hang episodes, 0 reboots, peak 1 abandoned worker, drains to 0** | ✅ contained |
+
+The scheduler, retention, and watchdog rows are **deterministic** (identical on every
+platform). The RSS/fd rows are the **MinGW dev-box** measurement (exact bytes vary by
+allocator/OS); the Linux CI `soak` job re-runs them against `/proc` and clears the same
+bars — that pass is the portable proof, the byte figures above are the illustrative
+sample.
 
 **Two genuine longevity bugs found — and root-cause fixed (not papered over):**
 
