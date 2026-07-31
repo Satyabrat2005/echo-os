@@ -5,10 +5,10 @@ validation, how well it's tested, and what quality gates are in place. This is
 the document to read first — a YC partner or a new engineer should be able to
 trust every line of it. It is an internal reference, not marketing copy.*
 
-Last updated: Phase 17 (fault tolerance & graceful degradation — containment and a
-hung-call watchdog around every engine boundary; see the dedicated section below).
-Source of truth for every claim is the repo at this commit; nothing here is
-aspirational unless explicitly labelled.
+Last updated: Phase 18 (power & thermal management — battery-driven vision duty-cycling,
+a thermal-aware inference throttle wired into the Phase-17 watchdog, and a low-battery
+reminder-priority pass; see the dedicated section below). Source of truth for every claim
+is the repo at this commit; nothing here is aspirational unless explicitly labelled.
 
 ## In one paragraph
 
@@ -68,6 +68,7 @@ below.
 | **Face-based recall wired into the loop** (perception→cognitive→voice) | **Built & tested** (Phase 15) | a fixture embedding + a prior naming utterance → an enriched "That's Priya…" turn, end to end in `echo-e2e-fixture` |
 | **Memory store cannot reach `companion-sync`** (compile-time) | **Built & tested** (Phase 15) | `static_assert`s in `echo-memory` extend the Phase-10 `SensorFrame` proof to embeddings, person records, and events |
 | **Fault containment + graceful degradation** (per-engine guard, defined degraded modes, hung-call watchdog) | **Built & tested** (Phase 17) | [`engine_guard.hpp`](../boot/include/echo/boot/engine_guard.hpp) + `boot/src/runtime.cpp`; `echo-fault-injection` injects throw/error/hang at every boundary and asserts no crash, the defined degradation, recovery, and reboot escalation — see the Phase 17 ledger below for the precise scope |
+| **Power/thermal POLICY** (battery vision duty-cycling, thermal inference throttle, low-battery reminder priority) | **Policy built & tested; hardware unvalidated** (Phase 18) | [`power_source.hpp`](../power-mgmt/include/echo/power/power_source.hpp) + [`power_policy.hpp`](../power-mgmt/include/echo/power/power_policy.hpp) wired through `boot/src/runtime.cpp`; `echo-power-mgmt` drives fake power/thermal sources across the threshold bands and asserts the duty-cycle/throttle decisions, the EngineDegraded alert reuse, a reminder still delivered at critical battery, and that a dropped frame is never fabricated. **The real battery/thermal SENSOR is a documented stub — see the Phase 18 section and gap #12** |
 
 ## What's pending real-world validation ⏳
 
@@ -89,6 +90,7 @@ evidence exists.
 | 9 | **Multi-day, real-world memory accuracy** | 15 | recall is verified against *fixture* embeddings on clean input; whether SFace re-identifies the same person across days, lighting, and aging — and how often it false-matches a stranger — needs the real vision engine + a real wearer over time |
 | ~~10~~ | ~~**Note summarization / pruning (bounded growth)**~~ | ~~15~~ | **Closed in Phase 16.** The event log is now bounded by count **and** age, enforced on the existing scheduler tick; per-person notes are bounded by a count cap with oldest-first eviction (not aged out — notes are the long-term value). LLM summarization was considered and **deferred** (Phase 15's documented tiny-model fragility); cap-and-evict shipped instead. Tested in `echo-memory`. |
 | 11 | **A real wearer uses recall in daily life** | 15 | no person with memory loss has named someone to ECHO and been reminded of them later; like every other engine, "works on clean fixtures" ≠ "helps a real user" |
+| 12 | **Real battery/thermal sensor + real device power/thermal behaviour** | 18 | the power/thermal POLICY (duty-cycle, throttle, reminder priority) is CI-tested against simulated readings, but there is no real fuel gauge or skin-adjacent thermal sensor to read — the backend is a documented stub. Whether these throttle levels keep a temple-worn device comfortable, and whether the low-battery reminder pass fires with enough power left to matter, needs the real hardware. **This is a permanent-until-hardware gap, not a temporary one closeable by more code** (see the Phase 18 section) |
 
 The README's Phase 4/5 tables are the canonical place these numbers get filled in
 **during** the real bring-up, and are deliberately left as `_—_` placeholders
@@ -116,7 +118,7 @@ concentrated exactly where Phase 9 flagged the weakness: the core loop.
 | `apps/app-framework` | **74 %** | 71 % | supervisor / router / IPC / NLU — still the best-tested app-layer code |
 | `apps/*` (8 apps) | ~22 % | ~30 % | mock app logic covered; the **real** network backends (spotify/gmail/youtube/search) near 0 % |
 | `common` | 20 % | 20 % | latency + log partly covered; config/types/result thin |
-| `power-mgmt` | **0 %** | 0 % | not on the tested path |
+| `power-mgmt` | **↑ (Phase 18)** | 0 % | the pure duty-cycle/throttle policy + the source boundary are now driven directly by `echo-power-mgmt` and exercised through the real runtime; the legacy DVFS `power_manager.cpp` actor and the documented real-backend stub stay uncovered (the stub has no behaviour to assert) |
 | `hud-compositor` | **0 %** | 0 % | the sole visual surface (lives under `apps/hud`) |
 | `boot` (runtime wiring) | **0 %** | 0 % | integration wiring, exercised only by running the binary |
 
@@ -408,13 +410,83 @@ it is stated per class, not summarized optimistically:
   faults in the stub build" ≠ "keeps a real device usable through a real subsystem failure
   in the field."
 
+## Phase 18 — power & thermal management
+
+`power-mgmt` had been a top-level module directory since the very first scaffold, named
+alongside boot, perception, cognitive-core, and the rest — but across seventeen phases it
+was never given real logic (a placeholder DVFS actor and a hardcoded `evaluate()` call were
+all it had). That matters more here than in most devices: this is worn all day by someone who
+may not notice a dead battery, an uncomfortably hot temple, or a device silently throttling
+itself into uselessness by mid-afternoon. Phase 17 made ECHO OS resilient to *software*
+failures; Phase 18 makes it resilient to the *physical* reality of limited power and real heat
+— and, per this file's discipline, is precise about what is policy-verified versus still
+hardware-unvalidated.
+
+**What shipped, and CI-verified in the dependency-free stub build:**
+
+- **A real sensing boundary + a deterministic fake.** `IPowerSource` (battery percent +
+  charging) and `IThermalSource` (a coarse `ThermalState` nominal/warm/hot, plus an optional
+  numeric SoC temp as telemetry) mirror the `IHttpClient`/engine-interface discipline: a real
+  backend hook and a fully deterministic fake (`fake_power_source.hpp`). The thermal signal is
+  a discrete STATE by choice ([ADR-17](DECISIONS.md)): a temple-worn device's realistic input is
+  a few thermal-zone trip points, not a calibrated skin temperature, and the policy needs a
+  throttle *level*, not a setpoint.
+- **Battery-driven vision duty-cycling.** Continuous camera face-detection is the expensive,
+  always-on cost, so the vision sampling cadence drops as charge falls: **full-rate above 40 %,
+  reduced (1-in-4) 15–40 %, vision-off / voice-only below 15 %**. A dropped frame is exactly
+  that — DROPPED. Recognition simply happens less often; nothing is ever fabricated to hide the
+  lower rate (the same non-negotiable "never guess" rule as Phase 15's naming-gate and Phase
+  17's degraded modes). Microphone frames are never duty-cycled, so a vision-off device stays
+  fully responsive to speech.
+- **A thermal-aware inference throttle, wired INTO the Phase-17 watchdog (not beside it).** A
+  warm/hot temple relaxes the cognitive hang budget (×1.5 / ×2.0) so a legitimately-slower
+  throttled turn is not abandoned as if it were hung — the throttle scales the *existing* guard
+  budget up rather than adding a parallel timer. Thermal pressure also forces at-least-reduced
+  vision even on a full battery.
+- **Low-battery / high-thermal ride the SAME caregiver channel.** Both surface through the
+  existing `AlertKind::EngineDegraded` alert path (edge-triggered, so a standing condition alerts
+  once), NOT a second device-health mechanism — the brief's constraint, honoured. The specific
+  condition is in the alert note.
+- **A low-battery critical-reminder pass.** When the battery crosses a critical floor, a
+  best-effort final delivery of due reminders fires before a possible shutdown, and reminder
+  delivery is never duty-cycled or throttled away — a low battery must not be what silences a
+  medication reminder. (Honest scope below.)
+- **A source read-fault is contained and never fabricates.** A throwing gauge read neither
+  crashes the loop nor invents a charge level: the runtime holds the last-known-good decision
+  (default: healthy, so a transient glitch doesn't needlessly cripple vision) and raises one
+  sensing heads-up.
+- **Tests** (`tests/power_mgmt_test.cpp`, suite `echo-power-mgmt`) assert all of the above in two
+  layers: the pure policy against scripted readings, and the same behaviour through the REAL
+  runtime driven by fake sources over the defined threshold transitions. The Phase-17
+  fault-injection fakes were extracted into a shared `tests/fake_engines.hpp` and reused rather
+  than duplicated. **12 stub-build suites now green** (was 11); fault-injection stays green on
+  the shared fakes.
+
+**What this phase honestly does NOT achieve — a NEW, permanent-until-hardware gap (#12):** This
+closes a **design and policy** gap, *not* a hardware-validation one, and the two must not be
+conflated (the mistake avoided since Phase 9).
+
+- **No real sensor exists to read.** There is no fuel gauge or skin-adjacent thermal sensor on a
+  dev laptop or on the not-yet-existing glasses, so the real backend is a **documented stub**:
+  the *shape* of the sysfs / fuel-gauge read is captured (this is exactly where a
+  `/sys/class/power_supply/*/capacity` or a `/sys/class/thermal/thermal_zone*/temp` read goes),
+  the *values* are simulated. The policy is real and tested; the sensor behind it is not.
+- **The critical-reminder pass is doubly speculative.** It fires on a low-charge THRESHOLD, not
+  a real "about to die" signal (predicting imminent shutdown needs hardware), and there is no
+  guaranteed post-alert power budget. The policy — deliver-before-loss, never silence a reminder
+  for power — is testable; the shutdown prediction it rests on is not, the same way the live-mic
+  gap has stood open since Phase 9.
+- **Real thermal behaviour is unproven.** Whether these throttle levels actually keep a
+  temple-worn device comfortable, and how fast real skin-adjacent hardware heats, is not
+  something a stub build can claim. Only the policy LOGIC is verified.
+
 ## Quality gates in place (CI)
 
 Every push and PR to `master` runs [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 | Gate | What it enforces |
 |------|------------------|
-| **Stub build + full ctest** | dependency-free build, all 11 suites (incl. Phase 15 `echo-memory`, the memory-enriched `echo-e2e-fixture`, and Phase 17 `echo-fault-injection`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps |
+| **Stub build + full ctest** | dependency-free build, all 12 suites (incl. Phase 15 `echo-memory`, the memory-enriched `echo-e2e-fixture`, Phase 17 `echo-fault-injection`, and Phase 18 `echo-power-mgmt`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps |
 | **clang-tidy / cppcheck scope** | both now cover the first-party `memory/` code; the vendored `memory/vendor/sqlite3/` amalgamation is **excluded** from both (upstream C we compile but do not lint) |
 | **Network build** | `-DECHO_WITH_NETWORK=ON` compiles & links libcurl; appkit/apps tests pass on a clean machine (no live API calls) |
 | **Secret scan** | `check_secrets.sh` blocks a committed API key, OAuth secret, private key, token cache, or `.env` |

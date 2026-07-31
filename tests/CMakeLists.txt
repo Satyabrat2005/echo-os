@@ -64,6 +64,16 @@ add_test(NAME echo-e2e-fixture COMMAND echo-e2e-tests)
 echo_add_core_test(echo-fault-injection-tests fault_injection_test.cpp echo::runtime)
 add_test(NAME echo-fault-injection COMMAND echo-fault-injection-tests)
 
+# --- Phase 18: power & thermal management ------------------------------------
+# Drives the REAL runtime (echo::runtime) with the shared fault-injection fakes PLUS
+# deterministic fake power/thermal sources, exercising the battery duty-cycle, the thermal
+# throttle (relaxing the Phase 17 hang budget), the shared EngineDegraded alert path, the
+# critical-battery reminder pass, and source-fault containment — alongside the pure policy
+# functions. Fully in the dependency-free stub build (no real sensor). See docs/STATE.md
+# for the policy-verified vs. hardware-unvalidated split.
+echo_add_core_test(echo-power-mgmt-tests power_mgmt_test.cpp echo::runtime)
+add_test(NAME echo-power-mgmt COMMAND echo-power-mgmt-tests)
+
 # --- Phase 11: REAL engine verification (only when the engine is compiled in) --
 # These targets drive the REAL whisper.cpp / OpenCV / Piper engines (not the
 # stubs) against real model weights, so each is built ONLY when its ECHO_WITH_*

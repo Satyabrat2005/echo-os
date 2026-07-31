@@ -94,8 +94,10 @@ asserted by a unit test — a build-enforced contract, not a comment.
    shell (reassuring vs. neutral), and drives the HUD subtitle. *(18 ms)*
 
 `power-mgmt` observes the whole loop and trades duty cycle for thermal headroom
-without stuttering an in-flight response; `companion-sync` receives caregiver
-alerts and status but **never** sensor data.
+without stuttering an in-flight response — as of Phase 18 it duty-cycles vision on
+battery and throttles inference on temperature, wired into the Phase-17 watchdog (see
+the power & thermal section below); `companion-sync` receives caregiver alerts and
+status but **never** sensor data.
 
 ### The safe-mode gate — the heart of the product
 
@@ -232,6 +234,37 @@ What it **cannot** do, stated plainly because this is a safety claim:
 
 The `docs/STATE.md` "fault tolerance" table is the precise, per-class ledger of what
 is now contained, what degrades, and what still requires a physical restart.
+
+### Power & thermal management (Phase 18)
+
+Phase 17 hardened the core loop against *software* failure; Phase 18 hardens it against
+the *physical* reality of running on a battery and generating heat on someone's temple.
+`power-mgmt` — a top-level module since the first scaffold, but logic-free until now —
+becomes three things:
+
+1. **A read-only sensing boundary.** `IPowerSource` (battery percent + charging) and
+   `IThermalSource` (a coarse nominal/warm/hot state, plus an optional numeric SoC temp
+   as telemetry) — the same interface + real-hook + deterministic-fake discipline as every
+   engine. The thermal signal is a discrete STATE, not a temperature, because a temple-worn
+   device's realistic input is a few thermal-zone trip points and the policy needs a throttle
+   *level* ([ADR-17](DECISIONS.md)).
+2. **A pure, deterministic policy** (`power_policy.hpp`): BATTERY drives vision **duty-cycling**
+   (full > 40 %, reduced 15–40 %, voice-only off < 15 %); THERMAL drives an inference
+   **throttle** (warm/hot relax the latency budget ×1.5 / ×2.0). Two independent levers,
+   combined into one `PowerDecision`.
+3. **Application on the existing tick** by the `Runtime`. Un-sampled camera frames are dropped
+   (slower recognition, **never a fabricated result** — the Phase-15/17 "never guess" rule); the
+   thermal throttle scales the Phase-17 **cognitive hang budget up**, so a throttled-but-slower
+   turn is not mistaken for a hang (the throttle integrates WITH the watchdog, it doesn't fight
+   it); and low-battery / high-thermal conditions surface through the SAME
+   `AlertKind::EngineDegraded` caregiver path — not a parallel device-health channel.
+
+**Honest recovery scope, as everywhere else.** This closes a policy gap, not a hardware one.
+There is no real fuel gauge or skin sensor to read, so the real backend is a documented stub and
+the low-battery reminder pass fires on a threshold, not a true shutdown prediction. The policy
+LOGIC is CI-verified against simulated readings (`echo-power-mgmt`); real device power/thermal
+behaviour is a permanent-until-hardware gap (STATE.md gap #12), logged with the same honesty as
+the live-mic gap since Phase 9.
 
 ## The isolation boundary (green box)
 

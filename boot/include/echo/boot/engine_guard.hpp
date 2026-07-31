@@ -81,6 +81,13 @@ public:
     [[nodiscard]] const std::string&  name()   const noexcept { return name_; }
     [[nodiscard]] std::chrono::milliseconds budget() const noexcept { return budget_; }
 
+    // Adjust the hang-detection budget (Phase 18). Used only by the runtime, on the tick
+    // thread, to RELAX the bound when the thermal throttle expects a legitimately-slower
+    // inference — so a throttled turn is not abandoned as if it were hung. It is read
+    // synchronously by the next call() on the same thread; there is no concurrent guarded
+    // call in flight when the runtime sets it, so no additional synchronization is needed.
+    void set_budget(std::chrono::milliseconds budget) noexcept { budget_ = budget; }
+
     // Number of abandoned (still-running) hung workers currently parked. Exposed so
     // tests and telemetry can see the honest leak the watchdog cannot avoid.
     [[nodiscard]] std::size_t leaked_workers() const noexcept { return graveyard_.size(); }
