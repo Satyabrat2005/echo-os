@@ -769,17 +769,27 @@ private:
     // Bound the append-only event log by age then by count. Pruning only touches the
     // events table; a reminder's acknowledged/fired state lives in the reminders
     // table and is untouched, so retained records keep their exact status.
+    //
+    // LONGEVITY (Phase 20): mark the store dirty only when a DELETE actually evicts a
+    // row. `step_done()` succeeds even when the DELETE changes NOTHING (the common case:
+    // the log is already within its cap), so touching unconditionally here dirtied the
+    // store on EVERY retention tick and forced a full serialize + AES-encrypt + rewrite
+    // of the entire on-disk image every tick — constant flash wear and CPU proportional
+    // to store size on an all-day wearable, for no state change. sqlite3_changes() gates
+    // the touch on real work, so an idle retention pass is now a couple of cheap SELECTs
+    // and no disk write. (Found by tests/soak_test.cpp.)
     void prune_events(UnixTime now) {
         if (retention_.max_event_age_days > 0) {
             const UnixTime cutoff = now - static_cast<UnixTime>(retention_.max_event_age_days) * 86400;
             Stmt del(db_, "DELETE FROM events WHERE at < ?;");
-            if (del) { del.bind_int(1, cutoff); if (del.step_done()) touch(); }
+            if (del) { del.bind_int(1, cutoff); if (del.step_done() && sqlite3_changes(db_) > 0) touch(); }
         }
         if (retention_.max_events > 0) {
             // Keep the newest N by id; delete the rest.
             Stmt del(db_, "DELETE FROM events WHERE id NOT IN "
                           "(SELECT id FROM events ORDER BY id DESC LIMIT ?);");
-            if (del) { del.bind_int(1, retention_.max_events); if (del.step_done()) touch(); }
+            if (del) { del.bind_int(1, retention_.max_events);
+                       if (del.step_done() && sqlite3_changes(db_) > 0) touch(); }
         }
     }
 

@@ -218,7 +218,7 @@ void Runtime::process_frame(const SensorFrame& frame) {
 
 void Runtime::deliver_due_reminders() {
     if (!memory_ || !memory_->is_open()) return;
-    const memory::UnixTime now = memory::unix_now();
+    const memory::UnixTime now = clock_();  // real Unix clock by default; virtual under soak
 
     // Read due reminders through the guard: even though the store claims non-throwing,
     // a real disk/corruption fault could surface here, and it must not crash the loop.
@@ -230,11 +230,14 @@ void Runtime::deliver_due_reminders() {
     } else {
         for (const auto& r : pending.value()) {
             // Deliver for THIS session even if persistence later fails (degraded != drop).
-            // The in-session set stops a reminder repeating every tick when its mark_fired
-            // write failed and it therefore stays "pending" in the store.
-            if (delivered_this_session_.count(r.id) != 0) continue;
+            // The in-session record stops a reminder repeating every tick when its
+            // mark_fired write failed and it therefore stays "pending" in the store — but
+            // keyed by OCCURRENCE (its due time), so a recurring reminder that re-armed to
+            // a new occurrence is NOT suppressed (see delivered_occurrence_ in the header).
+            const auto seen = delivered_occurrence_.find(r.id);
+            if (seen != delivered_occurrence_.end() && seen->second == r.due) continue;
             speak_guarded(voice::Utterance{"Reminder: " + r.text + ".", voice::Tone::Alert});
-            delivered_this_session_.insert(r.id);
+            delivered_occurrence_[r.id] = r.due;
 
             const Status s = memory_guard_.call_status(
                 [this, id = r.id, now]() { return memory_->mark_fired(id, now); });

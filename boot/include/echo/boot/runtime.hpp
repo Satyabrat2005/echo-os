@@ -36,10 +36,11 @@
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
-#include <unordered_set>
+#include <unordered_map>
 
 namespace echo::boot {
 
@@ -120,6 +121,17 @@ public:
     // would call; the fault-injection suite uses it to feed specific modalities.
     // Returns false if the capture queue was full (frame dropped).
     bool offer_frame(const SensorFrame& frame) noexcept;
+
+    // Override the wall clock the reminder scheduler reads (defaults to memory::unix_now).
+    // The store's methods already take `now` as a parameter so recurrence is deterministic
+    // under test; this closes the last gap — the runtime itself used to read the real clock
+    // in deliver_due_reminders(), which made simulated-time testing of the scheduler
+    // impossible. The longevity-soak harness injects a virtual clock here to compress a
+    // multi-day run into thousands of fast ticks; production never calls this. Set before
+    // ticking; read on the tick thread, so no synchronization is needed.
+    void set_clock(std::function<memory::UnixTime()> clock) noexcept {
+        if (clock) clock_ = std::move(clock);
+    }
 
     // True once the watchdog has exhausted in-process recovery of a hung engine and a
     // physical restart is the only remaining option (see docs/ARCHITECTURE.md).
@@ -246,10 +258,25 @@ private:
 
     std::string  memory_db_path_;  // remembered so the watchdog can reopen the store
 
-    // Reminders already spoken this process session. Backstop so a reminder the wearer
-    // has already heard does not repeat every tick when its mark_fired write FAILED
-    // (disk full/corruption) and it therefore stays "pending" in the store.
-    std::unordered_set<memory::ReminderId> delivered_this_session_;
+    // The wall clock the reminder scheduler reads. Defaults to the real Unix clock;
+    // overridable via set_clock() so a soak harness can drive simulated time.
+    std::function<memory::UnixTime()> clock_{memory::unix_now};
+
+    // The occurrence of each reminder already spoken this process session, keyed by
+    // reminder id -> the `due` time of the delivered occurrence. Backstop so a reminder
+    // the wearer has already heard does not repeat every tick when its mark_fired write
+    // FAILED (disk full/corruption) and it therefore stays "pending" in the store.
+    //
+    // Keying by OCCURRENCE (the due time), not just the id, is deliberate and fixes a
+    // longevity bug found by the Phase 20 soak: a recurring reminder that is acknowledged
+    // re-arms to a NEW due time (memory_engine acknowledge_reminder), and an id-only set
+    // would suppress that legitimately-new occurrence forever — so after its first
+    // delivery a daily reminder would go silent until reboot. Comparing the stored due to
+    // the pending occurrence's due lets a re-armed occurrence through while still
+    // squelching the SAME occurrence repeating because its write failed. A single entry
+    // per id (overwritten each occurrence) keeps this bounded by the reminder count, not
+    // by uptime.
+    std::unordered_map<memory::ReminderId, memory::UnixTime> delivered_occurrence_;
 };
 
 }  // namespace echo::boot

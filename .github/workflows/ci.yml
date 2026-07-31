@@ -99,8 +99,11 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
-      - name: Test (full suite)
-        run: ctest --test-dir build --output-on-failure
+      # The longevity soak (echo-soak) runs in its own time-bounded job below, so the
+      # always-green baseline stays fast — exclude it here (same scoping the real-LLM job
+      # uses for its heavier work).
+      - name: Test (full suite, minus the long soak)
+        run: ctest --test-dir build --output-on-failure -E soak
 
   # ---------------------------------------------------------------------------
   # 2. Network build — validates the Phase 5/6 real-integration branch compiles and
@@ -341,8 +344,11 @@ jobs:
       - name: Build
         run: cmake --build build-coverage --parallel
 
+      # Exclude the longevity soak: it is a duration/leak test, not a coverage-bearing
+      # one, and under gcov Debug instrumentation it would only slow this job. It has its
+      # own dedicated job.
       - name: Test (full suite — generates the coverage counters)
-        run: ctest --test-dir build-coverage --output-on-failure
+        run: ctest --test-dir build-coverage --output-on-failure -E soak
 
       - name: Generate coverage report (gcovr)
         run: |
@@ -710,3 +716,55 @@ jobs:
         run: |
           export LD_LIBRARY_PATH="$LLAMA_INSTALL/lib:${LD_LIBRARY_PATH:-}"
           ctest --test-dir build-real-llm --output-on-failure -R "real-llm"
+
+  # ---------------------------------------------------------------------------
+  # 10. soak (Phase 20) — the longevity & resource-leak soak. Drives the REAL runtime +
+  #     REAL memory engine through thousands of SIMULATED-time ticks (an injected virtual
+  #     clock, never real sleep) with periodic transient fault injection, and asserts
+  #     reminder-scheduler drift, event-log retention boundedness, RSS plateau, fd/handle
+  #     stability, and repeated watchdog recovery without worker leaks.
+  #
+  #     Its OWN job, scoped exactly like the real-LLM one: it runs longer than the fast
+  #     stub suites (a compressed 7 simulated days is thousands of ticks + real SQLite
+  #     encrypt/persist churn + a handful of real watchdog hang episodes), so keeping it
+  #     off the always-green stub baseline preserves fast per-PR feedback. It is still a
+  #     dependency-free STUB build — no models, no secrets — so it runs in parallel with
+  #     everything else. `timeout-minutes` is a hard ceiling; the run itself is ~seconds.
+  #     On Linux the resource probe reads /proc, so the RSS/fd assertions run for real
+  #     here (they self-skip only on platforms without that accounting).
+  # ---------------------------------------------------------------------------
+  soak:
+    name: Longevity soak (simulated multi-day, leak/drift)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools (cmake, ccache)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ccache
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-soak-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-soak-${{ runner.os }}-
+
+      - name: Configure (dependency-free stub build)
+        run: >
+          cmake -S . -B build-soak
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      # Only the soak test (and its lib deps) need building for this focused job.
+      - name: Build the soak test
+        run: cmake --build build-soak --target echo-soak-tests --parallel
+
+      # ECHO_SOAK_TICKS defaults to 10,080 (= 7 simulated days at 60 s/tick); left at the
+      # default here. Bump it locally for a longer run. The per-test --timeout is a
+      # belt-and-braces bound under the job-level timeout-minutes above.
+      - name: "Test (longevity soak: drift / retention / RSS / fd / watchdog)"
+        run: ctest --test-dir build-soak --output-on-failure -R "soak" --timeout 600
