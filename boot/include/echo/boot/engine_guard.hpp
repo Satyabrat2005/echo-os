@@ -130,6 +130,10 @@ auto EngineGuard::call(Fn&& fn) -> decltype(fn()) {
         record_failure(Status::HardwareError);
         return R::fail(Status::HardwareError);
     }
+    // Access is guarded by the has_value() check directly above; clang-tidy can't prove
+    // engagement through a shared_ptr<optional>, so this is the same reviewed, intentional
+    // NOLINT the project uses in result.hpp for exactly this pattern.
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     R result = std::move(**slot);
     if (result.status() == Status::Ok) record_success();
     else                               record_failure(result.status());
@@ -143,7 +147,10 @@ Status EngineGuard::call_status(Fn&& fn) {
         [slot, f = std::forward<Fn>(fn)]() mutable { *slot = f(); });
 
     if (transport != Status::Ok) { record_failure(transport); return transport; }
-    const Status engine_status = slot->has_value() ? **slot : Status::HardwareError;
+    if (!slot->has_value()) { record_failure(Status::HardwareError); return Status::HardwareError; }
+    // Guarded by has_value() above; see the note in call() on the shared_ptr<optional> NOLINT.
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+    const Status engine_status = **slot;
     if (engine_status == Status::Ok) record_success();
     else                             record_failure(engine_status);
     return engine_status;
