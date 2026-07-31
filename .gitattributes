@@ -3,6 +3,9 @@
 # line-ending conversion to them (CI checks out on Linux).
 *.wav binary
 *.ppm binary
+# Phase 16: the migration fixture is a real plaintext SQLite database; its bytes must
+# survive checkout untouched so the migration test reads a genuine Phase-15 file.
+*.db binary
 
 # Shell scripts must stay LF: CI (and the fetch/setup scripts) run on Linux, where
 # a CRLF shebang line breaks the interpreter. Normalize regardless of a

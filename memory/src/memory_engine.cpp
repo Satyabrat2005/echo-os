@@ -1,15 +1,23 @@
-// ECHO OS — memory & recall engine implementation (SQLite-backed).
+// ECHO OS — memory & recall engine implementation (SQLite-backed, encrypted at rest).
 //
-// The store is a single on-device SQLite database file. SQLite is the honest
-// choice for an embedded record store (ADR-13): real ACID persistence across
-// restarts, safe concurrent access from the perception/cognitive/reminder paths,
-// and — as the whole product turns on this data never leaking — a self-contained,
-// dependency-free single-file build that keeps the stub build green.
+// The store is SQLite (ADR-13): real ACID logic, a decades-hardened core, and a
+// self-contained vendored amalgamation that keeps the dependency-free stub build
+// green. Phase 16 changes ONE thing about how it lives on disk: the working database
+// is held in an in-memory SQLite connection (loaded via sqlite3_deserialize on open),
+// and its serialized image is written to disk as AES-256-CTR ciphertext (ADR-14).
+// The plaintext SQLite image therefore never touches storage — it exists only in
+// process RAM — while all the SQL logic below is byte-for-byte the Phase-15 logic,
+// unchanged, because it runs against an ordinary SQLite connection either way.
 //
-// What this file achieves for privacy is file-PERMISSION restriction (owner-only,
-// best-effort), NOT encryption-at-rest. That honest distinction is documented in
-// docs/ARCHITECTURE.md and docs/DECISIONS.md; SQLCipher would be the follow-up.
+// The honest trade-offs of this "encrypt the serialized image" approach vs. a
+// page-level SQLCipher codec (durability is at checkpoint, not per-transaction; the
+// whole DB is resident in RAM) are documented in docs/DECISIONS.md (ADR-14). They are
+// acceptable for a wearable's small people/reminders/events store and are the reason
+// Part 2 bounds that store's growth.
 #include "echo/memory/memory_engine.hpp"
+
+#include "echo/memory/aes256.hpp"
+#include "echo/memory/device_key.hpp"
 
 #include "echo/log.hpp"
 
@@ -19,11 +27,16 @@
 #include <cctype>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
+#include <random>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace echo::memory {
@@ -176,37 +189,133 @@ const char* pronoun_for(const std::string& relation) {
     return "them";
 }
 
+// --- On-disk encrypted image format ------------------------------------------
+// Layout:  [8-byte magic "ECHOAES1"][16-byte random IV][AES-256-CTR ciphertext].
+// The ciphertext is the raw SQLite serialized image, so a plaintext SQLite file
+// (which begins "SQLite format 3\0") is trivially distinguishable from ours, and a
+// plain unkeyed sqlite3_open of our file sees ciphertext -> "not a database".
+constexpr char             kEncMagic[8]  = {'E','C','H','O','A','E','S','1'};
+constexpr std::string_view kSqliteMagic  = "SQLite format 3";  // first 15 bytes of any SQLite db
+
+std::vector<std::uint8_t> read_file_bytes(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return {};
+    return std::vector<std::uint8_t>((std::istreambuf_iterator<char>(in)),
+                                     std::istreambuf_iterator<char>());
+}
+
+bool starts_with(const std::vector<std::uint8_t>& b, const char* magic, std::size_t n) {
+    if (b.size() < n) return false;
+    return std::memcmp(b.data(), magic, n) == 0;
+}
+
+// Encrypt a serialized SQLite image into our on-disk container (magic|IV|ciphertext).
+std::vector<std::uint8_t> encrypt_image(const std::uint8_t* image, std::size_t len,
+                                        const crypto::Key256& key) {
+    crypto::Block iv{};
+    std::random_device rd;
+    std::uniform_int_distribution<int> byte(0, 255);
+    for (auto& b : iv) b = static_cast<std::uint8_t>(byte(rd));
+
+    std::vector<std::uint8_t> out;
+    out.reserve(sizeof(kEncMagic) + iv.size() + len);
+    out.insert(out.end(), kEncMagic, kEncMagic + sizeof(kEncMagic));
+    out.insert(out.end(), iv.begin(), iv.end());
+    out.insert(out.end(), image, image + len);
+    crypto::ctr_xcrypt(key, iv, out.data() + sizeof(kEncMagic) + iv.size(), len);
+    return out;
+}
+
+// Decrypt our container back to a plaintext SQLite image. Returns empty on a wrong
+// key / corruption: the decrypted bytes must begin with the SQLite magic, which is
+// our (non-cryptographic, honestly-scoped) integrity sanity check (ADR-14).
+std::vector<std::uint8_t> decrypt_image(const std::vector<std::uint8_t>& file,
+                                        const crypto::Key256& key) {
+    const std::size_t header = sizeof(kEncMagic) + 16;
+    if (file.size() < header || !starts_with(file, kEncMagic, sizeof(kEncMagic))) return {};
+    crypto::Block iv{};
+    std::memcpy(iv.data(), file.data() + sizeof(kEncMagic), iv.size());
+    std::vector<std::uint8_t> image(file.begin() + static_cast<std::ptrdiff_t>(header), file.end());
+    crypto::ctr_xcrypt(key, iv, image.data(), image.size());
+    if (image.size() < kSqliteMagic.size() ||
+        std::memcmp(image.data(), kSqliteMagic.data(), kSqliteMagic.size()) != 0) {
+        return {};  // wrong key or corrupt -> fail closed, never deserialize garbage
+    }
+    return image;
+}
+
 class SqliteMemory final : public IMemoryEngine {
 public:
     Status open(const std::string& db_path) override {
         close();
-        if (sqlite3_open(db_path.c_str(), &db_) != SQLITE_OK) {
-            log_error("memory", "could not open store; memory disabled");
+        db_path_ = db_path;
+        const bool on_disk = (db_path != ":memory:" && !db_path.empty());
+
+        // The working connection is ALWAYS an in-memory SQLite db. On disk we keep
+        // only the encrypted serialized image; plaintext never lands on storage.
+        if (sqlite3_open(":memory:", &db_) != SQLITE_OK) {
+            log_error("memory", "could not open in-memory store; memory disabled");
             if (db_) { sqlite3_close(db_); db_ = nullptr; }
             return Status::HardwareError;
         }
-        // Durable + concurrency-friendly. WAL lets a reader (a future companion-
-        // sync export) not block the perception writer.
-        exec("PRAGMA journal_mode=WAL;");
-        exec("PRAGMA synchronous=NORMAL;");
         exec("PRAGMA foreign_keys=ON;");
+
+        load_retention_env();
+
+        if (on_disk) {
+            key_path_ = key_path_for(db_path);
+            auto key = load_or_create_device_key(key_path_);
+            if (!key) {
+                log_error("memory", "no encryption key; refusing to open store");
+                close();
+                return Status::HardwareError;
+            }
+            key_ = *key;
+            have_key_ = true;
+            if (!load_from_disk(db_path)) {  // wrong key / unreadable ciphertext
+                log_error("memory", "store present but undecryptable; memory disabled");
+                close();
+                return Status::HardwareError;
+            }
+        }
+
+        // Ensure the schema exists whether the image was empty, migrated, or fresh.
         if (!create_schema()) {
             log_error("memory", "schema init failed; memory disabled");
             close();
             return Status::HardwareError;
         }
-        restrict_permissions(db_path);
-        log_info("memory", "store ready");
+
+        if (on_disk) save_to_disk();  // materialize the encrypted file on first boot / after migration
+        log_info("memory", "store ready (encrypted at rest)");
         return Status::Ok;
     }
 
     bool is_open() const noexcept override { return db_ != nullptr; }
 
     void close() override {
-        if (db_) { sqlite3_close(db_); db_ = nullptr; }
+        if (db_) {
+            if (!db_path_.empty() && db_path_ != ":memory:" && have_key_ && dirty_) save_to_disk();
+            sqlite3_close(db_);
+            db_ = nullptr;
+        }
+        have_key_ = false;
+        dirty_ = false;
+        db_path_.clear();
     }
 
     ~SqliteMemory() override { close(); }
+
+    // --- Retention ----------------------------------------------------------
+
+    void set_retention(const RetentionPolicy& policy) override { retention_ = policy; }
+
+    void enforce_retention(UnixTime now) override {
+        if (!db_) return;
+        prune_events(now);
+        prune_all_notes();
+        if (have_key_ && dirty_) save_to_disk();
+    }
 
     // --- People -------------------------------------------------------------
 
@@ -272,11 +381,15 @@ public:
 
     Status add_note(PersonId id, const std::string& note) override {
         if (!db_) return Status::NotReady;
+        touch();
         auto p = get_person(id);
         if (!p) return Status::Unavailable;
         std::string merged = p->notes;
         if (!merged.empty() && !note.empty()) merged += "; ";
         merged += note;
+        // Bound growth immediately, not only on the retention tick (Phase 16, Part 2):
+        // keep the newest N segments so one person's notes can't grow without limit.
+        merged = cap_notes(merged, retention_.max_notes_per_person);
         Stmt up(db_, "UPDATE people SET notes=? WHERE id=?;");
         if (!up) return Status::HardwareError;
         up.bind_text(1, merged); up.bind_int(2, id);
@@ -306,6 +419,7 @@ public:
     Result<ReminderId> add_reminder(const std::string& text, UnixTime due,
                                     Recurrence recurrence) override {
         if (!db_) return Result<ReminderId>::fail(Status::NotReady);
+        touch();
         Stmt ins(db_, "INSERT INTO reminders(text,due,recurrence,acknowledged,fired) "
                       "VALUES(?,?,?,0,0);");
         if (!ins) return Result<ReminderId>::fail(Status::HardwareError);
@@ -412,6 +526,7 @@ public:
 
     Status log_event(const EventRecord& ev) override {
         if (!db_) return Status::NotReady;
+        touch();
         Stmt ins(db_, "INSERT INTO events(kind,at,summary,person_id,reminder_id) "
                       "VALUES(?,?,?,?,?);");
         if (!ins) return Status::HardwareError;
@@ -545,21 +660,173 @@ private:
             "  reminder_id INTEGER NOT NULL DEFAULT 0);");
     }
 
-    // Best-effort owner-only permissions on the DB file. This is file-PERMISSION
-    // restriction, not encryption (see ADR-13). On POSIX this is chmod 0600; on
-    // Windows std::filesystem maps this loosely (ACL inheritance still applies), so
-    // we do not overstate the guarantee. A ":memory:" store has no file to chmod.
-    static void restrict_permissions(const std::string& db_path) {
-        if (db_path == ":memory:" || db_path.empty()) return;
+    // Owner-only permissions on the *encrypted* file. Defense-in-depth on top of
+    // encryption (not a substitute for it). Best-effort; Windows ACLs still apply.
+    static void restrict_permissions(const std::string& path) {
+        if (path == ":memory:" || path.empty()) return;
         std::error_code ec;
         std::filesystem::permissions(
-            db_path,
+            path,
             std::filesystem::perms::owner_read | std::filesystem::perms::owner_write,
             std::filesystem::perm_options::replace, ec);
         if (ec) log_warn("memory", "could not restrict store file permissions");
     }
 
-    sqlite3* db_ = nullptr;
+    void touch() noexcept { dirty_ = true; }
+
+    // Load the on-disk store into the in-memory connection. Handles three cases:
+    //   * our encrypted container -> decrypt + deserialize;
+    //   * a plaintext Phase-15 SQLite file -> MIGRATE (deserialize as-is, then the
+    //     caller's save_to_disk rewrites it encrypted);
+    //   * missing/empty -> fresh store.
+    // Returns false only when an encrypted file cannot be decrypted (wrong key).
+    bool load_from_disk(const std::string& path) {
+        auto bytes = read_file_bytes(path);
+        if (bytes.empty()) return true;  // first boot: nothing to load
+
+        std::vector<std::uint8_t> image;
+        if (starts_with(bytes, kEncMagic, sizeof(kEncMagic))) {
+            image = decrypt_image(bytes, key_);
+            if (image.empty()) return false;  // wrong key / corrupt
+        } else if (bytes.size() >= kSqliteMagic.size() &&
+                   std::memcmp(bytes.data(), kSqliteMagic.data(), kSqliteMagic.size()) == 0) {
+            // One-time migration of an unencrypted Phase-15 database.
+            log_warn("memory", "found UNENCRYPTED Phase-15 store; migrating to encrypted format");
+            image = std::move(bytes);
+            migrated_ = true;
+            dirty_ = true;  // force an encrypted rewrite
+        } else {
+            log_error("memory", "store file unrecognized (neither encrypted nor SQLite); ignoring");
+            return true;  // treat as empty rather than clobber-refuse to boot
+        }
+
+        return deserialize_image(image);
+    }
+
+    // Copy an image into a sqlite-owned buffer and deserialize it into db_.
+    bool deserialize_image(const std::vector<std::uint8_t>& image) {
+        void* buf = sqlite3_malloc64(static_cast<sqlite3_uint64>(image.size()));
+        if (!buf) return false;
+        std::memcpy(buf, image.data(), image.size());
+        const int rc = sqlite3_deserialize(
+            db_, "main", static_cast<unsigned char*>(buf),
+            static_cast<sqlite3_int64>(image.size()), static_cast<sqlite3_int64>(image.size()),
+            SQLITE_DESERIALIZE_RESIZEABLE | SQLITE_DESERIALIZE_FREEONCLOSE);
+        if (rc != SQLITE_OK) {
+            log_error("memory", "could not deserialize store image");
+            return false;
+        }
+        return true;
+    }
+
+    // Serialize the in-memory db, encrypt it, and atomically replace the on-disk file.
+    void save_to_disk() {
+        if (!db_ || db_path_.empty() || db_path_ == ":memory:" || !have_key_) return;
+        sqlite3_int64 n = 0;
+        unsigned char* image = sqlite3_serialize(db_, "main", &n, 0);
+        if (!image || n <= 0) {
+            if (image) sqlite3_free(image);
+            log_error("memory", "could not serialize store; on-disk copy not updated");
+            return;
+        }
+        auto enc = encrypt_image(image, static_cast<std::size_t>(n), key_);
+        sqlite3_free(image);
+
+        // Atomic-ish replace: write a temp then rename over the target.
+        const std::string tmp = db_path_ + ".tmp";
+        {
+            std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+            if (!out) { log_error("memory", "could not write encrypted store temp"); return; }
+            out.write(reinterpret_cast<const char*>(enc.data()),
+                      static_cast<std::streamsize>(enc.size()));
+            if (!out) { log_error("memory", "short write on encrypted store temp"); return; }
+        }
+        std::error_code ec;
+        std::filesystem::rename(tmp, db_path_, ec);
+        if (ec) {  // some filesystems refuse cross-handle rename onto an existing file
+            std::filesystem::remove(db_path_, ec);
+            std::filesystem::rename(tmp, db_path_, ec);
+        }
+        if (ec) { log_error("memory", "could not replace encrypted store file"); return; }
+        restrict_permissions(db_path_);
+        dirty_ = false;
+    }
+
+    // ECHO_MEMORY_MAX_EVENTS / _EVENT_AGE_DAYS / _NOTES override the defaults.
+    void load_retention_env() {
+        auto envi = [](const char* k, int fallback) {
+            const char* v = std::getenv(k);
+            if (!v || !*v) return fallback;
+            char* end = nullptr;
+            const long parsed = std::strtol(v, &end, 10);
+            return (end && *end == '\0' && parsed >= 0) ? static_cast<int>(parsed) : fallback;
+        };
+        retention_.max_events           = envi("ECHO_MEMORY_MAX_EVENTS", retention_.max_events);
+        retention_.max_event_age_days   = envi("ECHO_MEMORY_MAX_EVENT_AGE_DAYS", retention_.max_event_age_days);
+        retention_.max_notes_per_person = envi("ECHO_MEMORY_MAX_NOTES", retention_.max_notes_per_person);
+    }
+
+    // Bound the append-only event log by age then by count. Pruning only touches the
+    // events table; a reminder's acknowledged/fired state lives in the reminders
+    // table and is untouched, so retained records keep their exact status.
+    void prune_events(UnixTime now) {
+        if (retention_.max_event_age_days > 0) {
+            const UnixTime cutoff = now - static_cast<UnixTime>(retention_.max_event_age_days) * 86400;
+            Stmt del(db_, "DELETE FROM events WHERE at < ?;");
+            if (del) { del.bind_int(1, cutoff); if (del.step_done()) touch(); }
+        }
+        if (retention_.max_events > 0) {
+            // Keep the newest N by id; delete the rest.
+            Stmt del(db_, "DELETE FROM events WHERE id NOT IN "
+                          "(SELECT id FROM events ORDER BY id DESC LIMIT ?);");
+            if (del) { del.bind_int(1, retention_.max_events); if (del.step_done()) touch(); }
+        }
+    }
+
+    // Bound each person's notes to the newest N "; "-separated segments (oldest-first
+    // eviction). Notes are NOT pruned by age — they are the long-term value of the
+    // store — only capped so a single person's notes can't grow without bound.
+    void prune_all_notes() {
+        const int cap = retention_.max_notes_per_person;
+        if (cap <= 0) return;
+        for (const auto& p : all_people()) {
+            const std::string capped = cap_notes(p.notes, cap);
+            if (capped != p.notes) {
+                Stmt up(db_, "UPDATE people SET notes=? WHERE id=?;");
+                if (up) { up.bind_text(1, capped); up.bind_int(2, p.id);
+                          if (up.step_done()) touch(); }
+            }
+        }
+    }
+
+    // Keep the last `cap` "; "-separated segments of `notes`.
+    static std::string cap_notes(const std::string& notes, int cap) {
+        if (cap <= 0 || notes.empty()) return notes;
+        std::vector<std::string> segs;
+        std::size_t pos = 0;
+        while (pos <= notes.size()) {
+            const std::size_t next = notes.find("; ", pos);
+            if (next == std::string::npos) { segs.push_back(notes.substr(pos)); break; }
+            segs.push_back(notes.substr(pos, next - pos));
+            pos = next + 2;
+        }
+        if (static_cast<int>(segs.size()) <= cap) return notes;
+        std::string out;
+        for (std::size_t i = segs.size() - static_cast<std::size_t>(cap); i < segs.size(); ++i) {
+            if (!out.empty()) out += "; ";
+            out += segs[i];
+        }
+        return out;
+    }
+
+    sqlite3*        db_ = nullptr;
+    std::string     db_path_;
+    std::string     key_path_;
+    crypto::Key256  key_{};
+    bool            have_key_ = false;
+    bool            dirty_ = false;
+    bool            migrated_ = false;
+    RetentionPolicy retention_{};
 };
 
 }  // namespace

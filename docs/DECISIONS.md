@@ -268,6 +268,76 @@ index is future work if the enrolled set ever grows large.
 
 ---
 
+## ADR-14 — Encryption at rest: AES-256-CTR over the serialized image, not SQLCipher
+*Decided: Phase 16 · 2026-07-31*
+
+**Decision.** The memory store is encrypted at rest by holding the working database
+in an **in-memory** SQLite connection (loaded with `sqlite3_deserialize`) and writing
+its serialized image to disk as **AES-256-CTR ciphertext** (container:
+`ECHOAES1` magic · 16-byte random IV · ciphertext). The AES-256 is a small,
+dependency-free, in-tree implementation (`memory/src/aes256.cpp`), and its correctness
+is pinned to the **FIPS-197** and **NIST SP 800-38A** known-answer vectors in
+`tests/memory_engine_test.cpp`. The SQL logic in `memory_engine.cpp` is unchanged — it
+runs against an ordinary SQLite connection either way; only the open/close paths differ.
+
+**Why not SQLCipher (tested for real first).** SQLCipher is the textbook answer, and we
+smoke-tested the assumption before committing to it — exactly as Phase 15 smoke-compiled
+the SQLite amalgamation and Phase 14b smoke-tested ORT. The finding is concrete:
+SQLCipher is **not** a self-contained amalgamation like SQLite — it must be generated
+from a source tree **and** linked against a crypto backend (OpenSSL `libcrypto`), and
+this project's MinGW-w64 ucrt toolchain has **no OpenSSL** (verified: no `openssl/*`
+headers, no `libcrypto`; a bare `-lcrypto` link fails). Adding OpenSSL would break the
+**dependency-free, vendorable stub build** (ADR-8 / constraint #3) — the exact native-dep
+friction Phase 14b documented, the opposite of SQLite's clean in-tree vendoring. So, per
+Phase 16 constraint #4, we shipped the **documented fallback** rather than force a heavy
+dep or silently drop the requirement.
+
+**Trade-off — honest scope.** This provides **confidentiality at rest**: a copied /
+backed-up / offline-imaged `.db` is unreadable without the per-device key, a plain
+`sqlite3_open` of the raw file reads garbage, and stored names do not appear as plaintext
+in it (all asserted). It is **NOT**: (a) authenticated — there is no MAC; a wrong key or
+corruption is caught only by a post-decrypt "must begin with `SQLite format 3`" sanity
+check, and the engine then fails **closed**; (b) hardware-backed — the key is a random
+per-device key in a local owner-only key file (same posture as appkit's `.echo-tokens/`),
+so an attacker with live read access to **both** the `.db` and the key file can decrypt;
+(c) per-transaction durable — the encrypted image is rewritten on close and on the
+retention tick (checkpoint durability), and the whole DB is resident in RAM. All three
+are acceptable for a wearable's small people/reminders/events store and are stated
+plainly rather than oversold. TPM/secure-enclave or paired-phone key binding, and an
+authenticated cipher (AES-GCM), are the honest follow-ups. Migration of an existing
+unencrypted Phase-15 database is handled on open (detected by the SQLite magic, rewritten
+encrypted, logged) so a wearer's records are never discarded.
+
+## ADR-15 — Bounded growth: event log capped by count+age; notes cap-and-evict, not summarized
+*Decided: Phase 16 · 2026-07-31*
+
+**Decision.** The append-only **event log** is bounded by **both** a row-count cap and
+an age cap (defaults 2000 / 90 days, `ECHO_MEMORY_MAX_*`-overridable), enforced on the
+**same scheduler tick** that already delivers reminders (no third timer — Phase 15's
+"reuse the loop" rule holds). Person **notes** are bounded differently: they are **not**
+aged out — remembering people over time is the point — but a per-person segment cap
+evicts oldest-first (default 20), applied both on the tick and immediately on each
+`add_note`.
+
+**Why cap-and-evict, not LLM summarization.** Summarizing old notes into a running
+summary with the local LLM was the tempting richer option, and the phase brief allowed
+it *if it genuinely proved out*. It doesn't clear the bar: Phase 15 already documented
+how fragile the tiny CI model's prompt-following is (the route-tag prompt had to be
+iterated against the real model). Making note retention depend on that fragile behavior
+would trade a **guaranteed** bound for a probabilistic one, on a data-loss-sensitive
+path. So we shipped the simple, robust cap-and-evict and deferred summarization — the
+same "don't force a fragile feature" judgment the brief asked for.
+
+**Trade-off — honest scope.** Pruning the event log means old sightings/reminders age
+out of the on-device history (a caregiver-view export, if one is ever built, must read
+before the cap, not after). Pruning touches **only** the events table, so a retained
+acknowledgment's reminder state is untouched (asserted). Notes eviction is by segment
+count, not semantic importance — a blunt but predictable rule; summarization would
+preserve more meaning per byte and is the follow-up if the tiny-model fragility is ever
+resolved.
+
+---
+
 *To add an entry: append with the next ADR number, a date, the decision, the why,
 and the honest trade-off. Keep it short — this is a log of real choices, not a
 design spec.*

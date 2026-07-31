@@ -45,6 +45,14 @@ echo_memory.db-shm
 *.db-wal
 *.db-shm
 
+# Phase 16: the per-device memory-encryption key and the atomic-write temp. The key
+# file MUST NEVER be committed — it decrypts the store. The tracked plaintext MIGRATION
+# fixture (tests/fixtures/*.db) is intentionally NOT ignored; only these runtime
+# sidecars are. (tests/fixtures/ is force-un-ignored below if needed.)
+*.db.key
+echo_memory.db.tmp
+*.db.tmp
+
 # Phase 5: real third-party credentials and cached OAuth tokens. NEVER commit
 # these. `.env` holds API keys/secrets; `.echo-tokens/` holds access/refresh
 # tokens written by the token store. Only `.env.example` (no real values) is tracked.
