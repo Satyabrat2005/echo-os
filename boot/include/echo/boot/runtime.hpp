@@ -29,6 +29,8 @@
 #include "echo/voice/voice_ui.hpp"
 #include "echo/companion/companion_sync.hpp"
 #include "echo/power/power_manager.hpp"
+#include "echo/power/power_source.hpp"
+#include "echo/power/power_policy.hpp"
 
 #include "echo/boot/engine_guard.hpp"
 
@@ -70,6 +72,12 @@ public:
         std::unique_ptr<voice::IVoiceUi>               voice;
         std::unique_ptr<companion::ICompanionSync>     companion;
         std::unique_ptr<power::IPowerManager>          power;
+        // Phase 18 power/thermal SENSING boundary. Left null by a caller that doesn't care
+        // about power (e.g. the Phase 17 fault-injection suite) — the runtime then fills them
+        // with the real documented stubs, so an unset field means "no injected power scenario",
+        // not "power management disabled". The power-mgmt suite injects deterministic fakes here.
+        std::unique_ptr<power::IPowerSource>           power_source;
+        std::unique_ptr<power::IThermalSource>         thermal_source;
     };
 
     // Production: build the real/stub engines via their factories.
@@ -142,6 +150,31 @@ private:
     // core tick as everything else — no second timer loop (constraint #4).
     void deliver_due_reminders();
 
+    // --- Power & thermal management (Phase 18), on the SAME tick (constraint #3/#4) ---
+
+    // Read the power/thermal sources and derive the decision. Contained: a source that
+    // throws must not take the loop down, and must NEVER yield a fabricated charge — on a
+    // read fault we return the last-known-good decision and raise one caregiver heads-up.
+    power::PowerDecision poll_power() noexcept;
+
+    // Apply a decision: relax the cognitive hang budget for the thermal throttle, and raise
+    // (edge-triggered) low-battery / critical-battery / thermal caregiver alerts through the
+    // SAME Phase-17 EngineDegraded path — never a second device-health channel (constraint #2).
+    void apply_power_decision(const power::PowerDecision& decision);
+
+    // Vision duty-cycle gate: true if this camera frame should be processed under the current
+    // cadence. When it returns false the frame is simply DROPPED (slower recognition), never
+    // run through a fabricated result (constraint #1). Audio frames are never duty-cycled.
+    bool should_process_camera_frame() noexcept;
+
+    // Edge-triggered when the battery first crosses the critical floor: a best-effort final
+    // reminder-delivery pass before a possible shutdown. Honestly speculative without real
+    // battery hardware to predict imminent shutdown — see docs/STATE.md.
+    void on_battery_critical();
+
+    // A power/thermal caregiver heads-up, reusing the Phase-17 EngineDegraded alert path.
+    void flag_power_condition(const std::string& note);
+
     // --- Watchdog (Phase 17), run on the SAME tick (constraint #4) -----------
     struct RecoveryState { int attempts = 0; bool alerted = false; };
 
@@ -182,6 +215,8 @@ private:
     std::unique_ptr<voice::IVoiceUi>               voice_;
     std::unique_ptr<companion::ICompanionSync>     companion_;
     std::unique_ptr<power::IPowerManager>          power_;
+    std::unique_ptr<power::IPowerSource>           power_source_;    // Phase 18
+    std::unique_ptr<power::IThermalSource>         thermal_source_;  // Phase 18
 
     EngineGuard perception_guard_;
     EngineGuard cognitive_guard_;
@@ -196,6 +231,18 @@ private:
     RuntimeState state_ = RuntimeState::Booting;
     bool         stop_requested_ = false;
     bool         reboot_required_ = false;
+
+    // --- Power & thermal state (Phase 18) -----------------------------------
+    power::BatteryReading last_battery_;                         // last good read (defaults 100%/discharging)
+    power::ThermalReading last_thermal_;                         // last good read (defaults nominal)
+    power::PowerDecision  last_power_decision_;                  // last-known-good decision (fail to this, never fabricate)
+    std::chrono::milliseconds base_cognitive_budget_{};          // un-throttled cognitive hang budget (thermal scales from this)
+    unsigned vision_tick_counter_ = 0;                           // camera-frame counter for the reduced-cadence gate
+    // Edge-trigger latches so a standing condition alerts the caregiver ONCE, not every tick.
+    bool power_sense_alerted_      = false;
+    bool battery_low_alerted_      = false;
+    bool battery_critical_alerted_ = false;
+    bool thermal_alerted_          = false;
 
     std::string  memory_db_path_;  // remembered so the watchdog can reopen the store
 

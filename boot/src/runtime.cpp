@@ -5,6 +5,7 @@
 
 #include <cstdlib>
 #include <exception>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -44,6 +45,10 @@ Runtime::Engines Runtime::default_engines() {
     e.voice      = voice::make_voice_ui();
     e.companion  = companion::make_companion_sync();
     e.power      = power::make_power_manager();
+    // Phase 18: the real power/thermal sources (documented stubs on this target — see
+    // power_source.cpp). Tests inject deterministic fakes here instead.
+    e.power_source   = power::make_power_source();
+    e.thermal_source = power::make_thermal_source();
     return e;
 }
 
@@ -57,10 +62,21 @@ Runtime::Runtime(Engines engines, WatchdogConfig watchdog)
       voice_(std::move(engines.voice)),
       companion_(std::move(engines.companion)),
       power_(std::move(engines.power)),
+      power_source_(std::move(engines.power_source)),
+      thermal_source_(std::move(engines.thermal_source)),
       perception_guard_("perception", watchdog_.perception_budget),
       cognitive_guard_("cognitive",   watchdog_.cognitive_budget),
       voice_guard_("voice",           watchdog_.voice_budget),
-      memory_guard_("memory",         watchdog_.memory_budget) {}
+      memory_guard_("memory",         watchdog_.memory_budget) {
+    // A caller that supplied no power/thermal sources (the Phase 17 fault-injection suite
+    // constructs Engines without them) gets the real documented stubs, so power sensing is
+    // always present — an unset field means "no injected power scenario", not "disabled".
+    if (!power_source_)   power_source_   = power::make_power_source();
+    if (!thermal_source_) thermal_source_ = power::make_thermal_source();
+    // The thermal throttle scales the cognitive hang budget UP from this base; capture it
+    // once so repeated scaling never compounds.
+    base_cognitive_budget_ = cognitive_guard_.budget();
+}
 
 Runtime::~Runtime() { shutdown(); }
 
@@ -83,8 +99,14 @@ Status Runtime::boot() {
         log_warn("boot", "memory store unavailable; running without recall");
 
     // Initialize in dependency order. Power first so throttling is available during
-    // the (heavier) model warm-ups.
+    // the (heavier) model warm-ups. Power/thermal SENSING is best-effort: a source that
+    // fails to init leaves the device running full-rate (the policy fails safe to healthy)
+    // rather than refusing to boot — losing power management must not brick the glasses.
     if (power_->initialize()      != Status::Ok) return Status::HardwareError;
+    if (power_source_->initialize()   != Status::Ok)
+        log_warn("boot", "battery source unavailable; running without battery-aware duty-cycling");
+    if (thermal_source_->initialize() != Status::Ok)
+        log_warn("boot", "thermal source unavailable; running without thermal-aware throttling");
     if (perception_->initialize() != Status::Ok) return Status::HardwareError;
     if (cognitive_->initialize()  != Status::Ok) return Status::HardwareError;
     if (voice_->initialize()      != Status::Ok) return Status::HardwareError;
@@ -229,6 +251,121 @@ void Runtime::deliver_due_reminders() {
         log_warn("runtime", "memory retention pass failed; store not pruned this tick");
 }
 
+// --- power & thermal management (Phase 18) ----------------------------------
+
+power::PowerDecision Runtime::poll_power() noexcept {
+    // Read both sources inside a local backstop. A source read is a cheap register/sysfs
+    // read, not something that hangs, so a light try/catch (like the companion channel) is
+    // enough — no worker-thread hang bound needed. On a fault we do NOT fabricate a reading:
+    // we keep the last-known-good battery/thermal values and the decision derived from them,
+    // and raise one caregiver heads-up. Failing to the last-known-good (default: healthy) is
+    // deliberate — a transient gauge glitch must not cripple vision, but a persistent one is
+    // surfaced, not hidden.
+    try {
+        auto battery = power_source_->read();
+        auto thermal = thermal_source_->read();
+        if (battery && thermal) {
+            last_battery_  = battery.value();
+            last_thermal_  = thermal.value();
+            last_power_decision_ = power::decide(last_battery_, last_thermal_);
+            if (power_sense_alerted_) {  // recovered
+                log_info("power", "power/thermal sensing recovered");
+                power_sense_alerted_ = false;
+            }
+            return last_power_decision_;
+        }
+        // A source returned a non-Ok Result (not a throw). Treat like a sensing fault below.
+        throw std::runtime_error("power/thermal source returned a non-Ok read");
+    } catch (const std::exception& e) {
+        if (!power_sense_alerted_) {
+            log_warn("power", std::string("power/thermal sensing unavailable (") + e.what() +
+                                  "); holding last-known-good, not fabricating a reading");
+            flag_power_condition("Power/thermal sensing unavailable");
+            power_sense_alerted_ = true;
+        }
+        return last_power_decision_;  // last-known-good; never a guessed charge
+    }
+}
+
+void Runtime::apply_power_decision(const power::PowerDecision& decision) {
+    last_power_decision_ = decision;
+
+    // Thermal throttle: relax the cognitive (LLM/inference) hang budget so a legitimately
+    // slower throttled turn is not abandoned as if it were hung (integrates with the Phase 17
+    // watchdog rather than fighting it). Scaling always starts from the captured base budget,
+    // so it never compounds tick-over-tick.
+    cognitive_guard_.set_budget(power::scaled_budget(base_cognitive_budget_, decision.inference));
+
+    // Caregiver heads-ups through the SAME Phase-17 EngineDegraded alert path (constraint #2 —
+    // no second device-health channel). Each is EDGE-TRIGGERED so a standing condition alerts
+    // once, and the latch clears when the condition lifts.
+    if (decision.thermal_elevated) {
+        if (!thermal_alerted_) {
+            flag_power_condition(std::string("Thermal ") + power::to_string(last_thermal_.state) +
+                                 " — throttling inference (" + power::to_string(decision.inference) + ")");
+            thermal_alerted_ = true;
+        }
+    } else {
+        thermal_alerted_ = false;
+    }
+
+    if (decision.battery_low) {
+        if (!battery_low_alerted_) {
+            flag_power_condition("Low battery: " + std::to_string(last_battery_.percent) +
+                                 "% — reducing vision sampling (" +
+                                 power::to_string(decision.vision) + ")");
+            battery_low_alerted_ = true;
+        }
+    } else {
+        battery_low_alerted_ = false;
+    }
+
+    if (decision.battery_critical) {
+        if (!battery_critical_alerted_) {
+            on_battery_critical();
+            battery_critical_alerted_ = true;
+        }
+    } else {
+        battery_critical_alerted_ = false;
+    }
+}
+
+bool Runtime::should_process_camera_frame() noexcept {
+    const int interval = power::vision_sample_interval(last_power_decision_.vision);
+    if (interval <= 0) return false;   // Off: voice-only, camera never processed
+    if (interval == 1) return true;    // Full: every frame
+    // Reduced: process 1 in `interval`. Counting frames (not fabricating skipped ones) is the
+    // whole point — recognition just happens less often.
+    const bool process = (vision_tick_counter_ % static_cast<unsigned>(interval)) == 0;
+    ++vision_tick_counter_;
+    return process;
+}
+
+void Runtime::on_battery_critical() {
+    // A best-effort FINAL reminder-delivery pass before a possible shutdown: a critical
+    // medication reminder should get one last chance to be spoken while there is still power.
+    // deliver_due_reminders() is idempotent within a session (its in-session dedup), so this
+    // never double-speaks a reminder already delivered this tick.
+    //
+    // HONEST SCOPE: without real battery hardware we cannot actually predict imminent
+    // shutdown — this fires on a low-charge THRESHOLD, not a real "about to die" signal, and
+    // there is no guaranteed post-alert power budget. The policy (deliver-before-loss, never
+    // silence a reminder for power) is real and tested; the shutdown PREDICTION it rests on is
+    // speculative until hardware exists (see docs/STATE.md).
+    log_warn("power", "battery critical (" + std::to_string(last_battery_.percent) +
+                          "%): best-effort final reminder delivery before possible shutdown");
+    flag_power_condition("Critical battery: " + std::to_string(last_battery_.percent) +
+                         "% — device may shut down soon");
+    deliver_due_reminders();
+}
+
+void Runtime::flag_power_condition(const std::string& note) {
+    // Reuse the Phase-17 caregiver alert path and its EngineDegraded kind — a low battery or
+    // a hot temple is a device-health condition the caregiver should see, and the brief is
+    // explicit that it must ride the EXISTING alert vocabulary, not a parallel mechanism.
+    send_alert_guarded(companion::Alert{companion::AlertKind::EngineDegraded, now(), note});
+}
+
 // --- watchdog ---------------------------------------------------------------
 
 Status Runtime::reinit_perception() {
@@ -348,15 +485,39 @@ RuntimeState Runtime::tick() {
 }
 
 RuntimeState Runtime::tick_impl() {
-    // Let power-mgmt veto toward Throttled based on current constraints.
-    power_->evaluate(power::PowerState{/*battery*/ 90, /*temp*/ 32.0F, /*charging*/ false});
+    // Phase 18: read the real (sensed) battery/thermal constraints and apply the
+    // duty-cycle / throttle policy — relax the cognitive hang budget under thermal
+    // pressure, raise low-battery/thermal caregiver heads-ups, and run the critical-battery
+    // reminder pass. Done before anything else so the decision governs this whole tick.
+    const power::PowerDecision decision = poll_power();
+    apply_power_decision(decision);
+
+    // Let the legacy DVFS actor veto toward Throttled — now fed the REAL sensed values
+    // (was a hardcoded placeholder). Thermal state maps to a representative °C when the
+    // backend exposes no numeric sensor (the realistic state-only glasses case).
+    const float temp_c = last_thermal_.soc_temp_c.value_or(
+        last_thermal_.state == power::ThermalState::Hot  ? 75.0F :
+        last_thermal_.state == power::ThermalState::Warm ? 60.0F : 35.0F);
+    power_->evaluate(power::PowerState{last_battery_.percent, temp_c, last_battery_.charging});
 
     // Reminders on this same core tick (constraint #4). Runs every tick, before the
-    // frame drain, so a due reminder fires even when no sensor frame arrived.
+    // frame drain, so a due reminder fires even when no sensor frame arrived. Reminder
+    // delivery is NEVER duty-cycled or throttled away — it is the one thing a low battery
+    // must not silence.
     deliver_due_reminders();
 
-    if (auto frame = sensors_.next_frame())
-        process_frame(*frame);
+    if (auto frame = sensors_.next_frame()) {
+        // Battery/thermal vision duty-cycling: under a reduced/off cadence some camera
+        // frames are DROPPED (slower, less-frequent recognition) — never run through a
+        // fabricated result (constraint #1). Audio frames are never duty-cycled, so a
+        // voice-only (vision-off) device stays fully responsive to speech.
+        if (frame->modality == Modality::Camera && !should_process_camera_frame()) {
+            log_info("power", std::string("vision duty-cycle: camera frame dropped (") +
+                                  power::to_string(last_power_decision_.vision) + " cadence)");
+        } else {
+            process_frame(*frame);
+        }
+    }
 
     // Watchdog runs on this SAME loop (constraint #4): detect hung/degraded engines,
     // attempt in-process recovery, escalate to a reboot request if unrecoverable.
@@ -395,6 +556,8 @@ void Runtime::shutdown() {
     if (voice_)     voice_->shutdown();
     if (cognitive_) cognitive_->shutdown();
     if (perception_) perception_->shutdown();
+    if (thermal_source_) thermal_source_->shutdown();
+    if (power_source_)   power_source_->shutdown();
     if (power_)     power_->shutdown();
     if (memory_)    memory_->close();  // flush + release the store after the core stops using it
     log_info("runtime", "shutdown complete");

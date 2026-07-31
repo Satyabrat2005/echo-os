@@ -1,74 +1,94 @@
-## Phase 17 — Fault tolerance & graceful degradation
+## Phase 18 — Power & thermal management
 
-Sixteen phases built the perception → cognitive → voice pipeline; **none had ever
-asked what happens when a piece of it breaks mid-turn.** That gap matters more here
-than in most software: the wearer is, by design, someone who may not notice or be
-able to reset a malfunctioning device on their own face. This phase makes every
-engine boundary containable, gives each failure a **deliberate** degraded behaviour,
-adds a watchdog for genuinely hung engines, and — per this repo's discipline —
-documents precisely which failure classes are now handled and which still bring the
-process down.
+`power-mgmt` has been a top-level module directory since the very first scaffold — named
+alongside boot, perception, cognitive-core, voice-ui, and the rest — but across seventeen
+phases it was **never given real logic**: a placeholder DVFS actor and a hardcoded
+`evaluate()` call were all it had. Every other module on that original list has since been
+made real, tested, and hardened. Power and thermal behaviour was the last dormant item —
+and it matters more here than in almost any other device: this is worn all day by someone
+who may not notice a dead battery, an uncomfortably hot temple, or a device silently
+throttling itself into uselessness by mid-afternoon. Phase 17 made ECHO OS resilient to
+*software* failures; Phase 18 makes it resilient to the *physical* reality of limited power
+and real heat — and, per this repo's discipline, is precise about what is policy-verified
+versus still hardware-unvalidated.
 
 ### What's in it
 
-- **Containment at every engine boundary.** A new
-  [`EngineGuard`](boot/include/echo/boot/engine_guard.hpp) wraps each call into
-  wake-word/ASR/vision, the LLM, TTS, and memory. It (1) turns a thrown exception into
-  a `fail(HardwareError)` `Result` (built on the existing `common/result.hpp`
-  `Status`, not a second error channel), (2) bounds a **hung** call by running it on a
-  worker and abandoning it past a per-engine budget (`fail(Timeout)`), and (3) records
-  health for the watchdog. A `try/catch` backstop wraps the whole tick.
+- **A real sensing boundary + a deterministic fake.**
+  [`IPowerSource`](power-mgmt/include/echo/power/power_source.hpp) (battery percent +
+  charging) and `IThermalSource` (a coarse `ThermalState` nominal/warm/hot, plus an optional
+  numeric SoC temp as telemetry) mirror the `IHttpClient`/engine-interface discipline: a real
+  backend hook and a fully deterministic fake (`fake_power_source.hpp`). The thermal signal is
+  a discrete STATE by choice — a temple-worn device's realistic input is a few thermal-zone
+  trip points, not a calibrated skin temperature, and the policy needs a throttle *level*
+  ([ADR-17](docs/DECISIONS.md)).
 
-- **A defined degraded mode per engine** (in `boot/src/runtime.cpp`), decided not
-  accidental:
-  - **Vision** fails → **voice-only**, and **never a fabricated face match**
-    (constraint #2 — the same "don't guess" rule as the safe-mode gate).
-  - **ASR/wake** fails → a calm spoken retry, not silence, not a crash.
-  - **LLM** doesn't respond (throw/**timeout**) → a known-good engine-fault line +
-    an `EngineDegraded` caregiver alert. This is **kept distinct from the low-confidence
-    safe-mode gate** (constraint #1): the gate is an `Ok` `SafeMode` response decided
-    inside `respond()`; a non-responding engine is a failed *call* handled by the runtime.
-  - **Memory** write fails (disk full/corruption) → the reminder is **still delivered
-    this session** and not dropped; logged; an in-session set stops it repeating.
+- **Battery-driven vision duty-cycling** ([`power_policy.hpp`](power-mgmt/include/echo/power/power_policy.hpp)).
+  Continuous camera face-detection is the expensive, always-on cost, so the sampling cadence
+  drops as charge falls: **full-rate above 40 %, reduced (1-in-4) 15–40 %, vision-off /
+  voice-only below 15 %**. A dropped frame is DROPPED — recognition just happens less often;
+  **nothing is fabricated** to hide the lower rate (the same "never guess" rule as Phase 15's
+  naming-gate and Phase 17's degraded modes). Microphone frames are never duty-cycled, so a
+  vision-off device stays fully responsive to speech.
 
-- **A watchdog on the existing core tick** (no fourth timer — constraint #4). It
-  recovers transient throws by construction, attempts in-process re-init of a hung
-  engine, and escalates to a `reboot_required()` request when in-process recovery is
-  exhausted (the honest fallback for a wedged thread C++ cannot kill).
+- **A thermal-aware inference throttle, wired INTO the Phase-17 watchdog.** A warm/hot temple
+  relaxes the cognitive hang budget (×1.5 / ×2.0) so a legitimately-slower throttled turn is
+  not abandoned as if it were hung — the throttle scales the *existing* guard budget up rather
+  than adding a parallel timer. Thermal pressure also forces at-least-reduced vision even on a
+  full battery.
 
-- **Fault-injection tests** (`tests/fault_injection_test.cpp`, suite
-  `echo-fault-injection`) drive the **real runtime** with fault-injecting fake engines
-  and assert, at every boundary for throw/error/hang: no crash, the defined degraded
-  behaviour, recovery on the next turn, and reboot escalation on a persistent hang.
-  Runs entirely in the dependency-free stub build (constraint #3).
+- **Low-battery / high-thermal ride the SAME caregiver channel.** Both surface through the
+  existing `AlertKind::EngineDegraded` alert path (edge-triggered, so a standing condition
+  alerts once) — **not** a second, parallel device-health mechanism (the brief's constraint,
+  honoured). The specific condition is in the alert note.
 
-### Honest scope (the safety claim, stated per class)
+- **A low-battery critical-reminder pass.** When the battery crosses a critical floor, a
+  best-effort final delivery of due reminders fires before a possible shutdown, and reminder
+  delivery is never duty-cycled or throttled away — a low battery must not be what silences a
+  medication reminder.
 
-This contains **misbehaviour**, not **undefined behaviour**. Covered: exceptions,
-non-Ok statuses, and hangs at the guarded boundaries — none crash the process, and a
-persistent unrecoverable hang escalates to a supervised restart. **Not** covered: a
-segfault, memory corruption/UB, a `noexcept`-violation `std::terminate`, or OOM still
-take the process down (a supervising init system or hardware watchdog is the only
-recovery). A truly wedged thread leaks until restart and can block process exit — which
-is exactly why the reboot path exists rather than a pretence of always-recover. The
-full per-class ledger is in [`docs/STATE.md`](docs/STATE.md); the design rationale and
-trade-offs are in [ADR-16](docs/DECISIONS.md); the recovery-scope narrative is in
+- **Tests** (`tests/power_mgmt_test.cpp`, suite `echo-power-mgmt`) assert all of the above in
+  two layers: the pure policy against scripted readings, and the same behaviour through the
+  **real runtime** driven by fake sources over the defined threshold transitions (including
+  that a dropped frame is never fabricated and a source read-fault neither crashes the loop nor
+  invents a charge). The Phase-17 fault-injection fakes were extracted into a shared
+  `tests/fake_engines.hpp` and reused, not duplicated.
+
+### Honest scope (a NEW, permanent-until-hardware gap)
+
+This closes a **design and policy** gap, *not* a hardware-validation one — conflating the two
+would overstate what's proven, the mistake avoided since Phase 9.
+
+- **No real sensor exists to read.** There is no fuel gauge or skin-adjacent thermal sensor on
+  a dev laptop or the not-yet-existing glasses, so the real backend is a **documented stub**:
+  the *shape* of the sysfs / fuel-gauge read is captured, the *values* are simulated.
+- **The critical-reminder pass is doubly speculative** — it fires on a low-charge THRESHOLD,
+  not a real "about to die" signal, and there's no guaranteed post-alert power budget.
+- **Real thermal behaviour is unproven** — whether these throttle levels keep a temple-worn
+  device comfortable needs the real hardware.
+
+Only the policy LOGIC is verified. This is logged as gap #12 in
+[`docs/STATE.md`](docs/STATE.md), with the same honesty as the live-mic gap; the design
+rationale and trade-offs are in [ADR-17](docs/DECISIONS.md); the integration narrative is in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ### Verification
 
-- **11 stub-build CTest suites green** (was 10), including the new `echo-fault-injection`.
-- **clang-tidy and cppcheck clean** on the new/changed first-party sources (findings are
-  hard errors in CI).
-- The reference `echo-os` binary boots, ticks, and shuts down cleanly on the new
-  guarded path.
+- **12 stub-build CTest suites green** (was 11), including the new `echo-power-mgmt`;
+  `echo-fault-injection` stays green on the shared fakes.
+- **clang-tidy and cppcheck clean** on the new/changed first-party sources (findings are hard
+  errors in CI).
+- The reference `echo-os` binary boots, initializes the power/thermal sources, ticks, and
+  shuts down cleanly on the new path.
 
 ### Constraints honored
 
-1. Safe-mode confidence gate **not** weakened or bypassed — engine-not-responding is a
-   separate path from responded-but-unsure, asserted to speak different lines.
-2. Degraded fallbacks **never fabricate** (vision failure reports no face).
-3. Stub build stays dependency-free and fast; fault injection needs no real engines.
-4. The watchdog reuses the existing boot/scheduler tick — no fourth timer.
+1. Reduced sampling **never fabricates** a recognition result — a dropped frame is dropped,
+   not guessed (same non-negotiable as Phase 15's naming-gate and Phase 17's degraded modes).
+2. Low-battery/thermal reuse the Phase-17 `EngineDegraded` alert vocabulary — no parallel
+   device-health channel.
+3. The stub build stays **dependency-free** — the whole module is testable with fake
+   power/thermal sources, no real sensor required.
+4. `docs/STATE.md` states plainly this closes a **policy** gap, not a hardware one.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

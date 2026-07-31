@@ -379,6 +379,56 @@ fault-tolerant, what still crashes, and what needs a physical restart is enumera
 precisely in `docs/STATE.md` — as with ADR-14's encryption scope, the claim is bounded on
 purpose.
 
+## ADR-17 — Power/thermal as a read-only source boundary + a pure policy, riding the Phase-17 alert path
+*Decided: Phase 18 · 2026-07-31*
+
+**Decision.** Power and thermal management is split into three parts. (1) A read-only
+SENSING boundary — `IPowerSource` (battery percent + charging) and `IThermalSource` (a
+coarse `ThermalState` of nominal/warm/hot, plus an OPTIONAL numeric SoC temp as telemetry
+only) — mirroring `IHttpClient` and the engine interfaces: a real backend hook plus a fully
+deterministic fake (`fake_power_source.hpp`), so the whole thing is testable with no sensor.
+(2) A pure, deterministic POLICY (`power_policy.hpp`) mapping a battery+thermal reading to a
+`PowerDecision`: BATTERY drives vision DUTY-CYCLING (full > 40%, reduced 15–40%, voice-only
+off < 15%), THERMAL drives an inference THROTTLE (nominal/warm/hot → a latency-budget scale
+of 1.0/1.5/2.0). (3) The runtime applies it on the EXISTING core tick — relaxing the Phase-17
+cognitive hang budget under thermal load, dropping un-sampled camera frames, and surfacing
+low-battery/thermal conditions through the SAME `AlertKind::EngineDegraded` caregiver path.
+
+**Why a discrete thermal STATE, not a temperature.** On the realistic target — glasses worn
+against the temple — the meaningful thermal input is a few thermal-zone trip points ("must
+shed heat now"), not a calibrated skin temperature, and the policy needs a throttle *level*,
+not a PID setpoint. The optional numeric temp is carried when a laptop-class backend exposes
+one, but no decision depends on it, so a state-only backend (the realistic case) loses nothing.
+
+**Why reuse EngineDegraded, not a new alert kind.** The brief was explicit: a low battery or a
+hot temple is a device-health condition the caregiver should see, and it must ride the existing
+alert vocabulary rather than a second, parallel "device health" channel. The specific condition
+lives in the alert's note text; the kind stays `EngineDegraded`. Same reasoning as ADR-16's
+choice to reuse `Result`/`Status` instead of a second error channel.
+
+**Why relax the watchdog budget instead of a separate throttle mechanism.** The thermal throttle
+and the Phase-17 hang watchdog both concern how long inference is allowed to take. Rather than
+invent a parallel timer, the throttle simply SCALES the cognitive guard's existing hang budget up
+(via a small `EngineGuard::set_budget`), so a legitimately-slower throttled turn is not mistaken
+for a hang. The scale is always ≥ 1.0 — a throttle may only ever relax the bound, never tighten it.
+
+**Trade-off — honest scope, the crux of this phase.** This closes a **design and policy** gap,
+NOT a hardware-validation one — and conflating the two would overstate what's proven, the mistake
+the project has avoided since Phase 9. (a) There is **no real battery gauge or skin-adjacent thermal
+sensor** on a dev laptop or the not-yet-existing glasses, so the real backend is a DOCUMENTED STUB:
+the shape of the sysfs/fuel-gauge read is captured, the values are simulated. The policy is real and
+CI-tested against scripted readings; the sensor behind it is not. (b) The low-battery critical-reminder
+pass is **doubly speculative**: it fires on a low-charge THRESHOLD, not a real "about to die" signal
+(which needs hardware to predict), and there is no guaranteed post-alert power budget — the policy
+(deliver-before-loss, never silence a reminder for power) is testable, the shutdown prediction it rests
+on is not. (c) Real thermal behaviour on real skin-adjacent hardware — how fast the temple actually
+heats, whether these throttle levels keep it comfortable — is **not** something this phase can claim to
+have proven. STATE.md logs all three as a permanent-until-hardware gap, the same honesty the live-mic
+gap has carried since Phase 9. What IS proven, in the dependency-free stub build: the threshold bands,
+the duty-cycle cadence, the throttle/budget relaxation, the reuse of the EngineDegraded channel, the
+reminder-still-delivered guarantee, that a dropped frame is never a fabricated result, and that a source
+read-fault neither crashes the loop nor invents a charge — all in `tests/power_mgmt_test.cpp`.
+
 ---
 
 *To add an entry: append with the next ADR number, a date, the decision, the why,
