@@ -22,10 +22,11 @@ namespace echo::companion {
 enum class Transport : std::uint8_t { Ble, Wifi };
 
 enum class AlertKind : std::uint8_t {
-    SafeModeEngaged,   // system deferred; caregiver may want to check in
-    Distress,          // vocal stress / distress detected
-    Wandering,         // location/behavior anomaly
-    LowConfidenceTrend // repeated low-confidence responses
+    SafeModeEngaged,    // system deferred; caregiver may want to check in
+    Distress,           // vocal stress / distress detected
+    Wandering,          // location/behavior anomaly
+    LowConfidenceTrend, // repeated low-confidence responses
+    EngineDegraded      // a subsystem (vision/ASR/LLM/TTS/memory) failed or needs a restart (Phase 17)
 };
 
 const char* to_string(AlertKind k) noexcept;

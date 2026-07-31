@@ -1,90 +1,74 @@
-## Phase 16 — Hardening the memory store (encryption at rest + retention)
+## Phase 17 — Fault tolerance & graceful degradation
 
-Phase 15 shipped the memory engine and, in its own `STATE.md`, flagged two gaps it
-left open on purpose rather than glossing over: the on-device store was protected by
-**file permissions, not encryption at rest**, and there was **no retention policy**, so
-notes and the event log grew unbounded forever. Both sit on a module that stores a
-wearer's face-linked identity data. This phase closes them — and, in the same
-honest-framing style, says exactly what the new protection does and does **not** buy.
+Sixteen phases built the perception → cognitive → voice pipeline; **none had ever
+asked what happens when a piece of it breaks mid-turn.** That gap matters more here
+than in most software: the wearer is, by design, someone who may not notice or be
+able to reset a malfunctioning device on their own face. This phase makes every
+engine boundary containable, gives each failure a **deliberate** degraded behaviour,
+adds a watchdog for genuinely hung engines, and — per this repo's discipline —
+documents precisely which failure classes are now handled and which still bring the
+process down.
 
-### Part 1 — Encryption at rest
+### What's in it
 
-**SQLCipher was tested for real first, then ruled out — with a concrete reason.**
-SQLCipher is the textbook answer, so it was smoke-tested before committing hours to it
-(the same discipline Phase 15 used on the SQLite amalgamation and Phase 14b on ORT). The
-finding: SQLCipher is **not** a self-contained amalgamation like SQLite — it must be
-generated from a source tree **and** linked against a crypto backend (OpenSSL
-`libcrypto`), and this MinGW toolchain has **no OpenSSL** (verified: no `openssl/*`
-headers, no `libcrypto`; a bare `-lcrypto` link fails). Pulling OpenSSL in would break
-the dependency-free, vendorable stub build (constraint #3) — the exact native-dep
-friction Phase 14b documented. So, per constraint #4, this ships the **documented
-fallback**, not a forced heavy dependency and not a silently-dropped requirement.
+- **Containment at every engine boundary.** A new
+  [`EngineGuard`](boot/include/echo/boot/engine_guard.hpp) wraps each call into
+  wake-word/ASR/vision, the LLM, TTS, and memory. It (1) turns a thrown exception into
+  a `fail(HardwareError)` `Result` (built on the existing `common/result.hpp`
+  `Status`, not a second error channel), (2) bounds a **hung** call by running it on a
+  worker and abandoning it past a per-engine budget (`fail(Timeout)`), and (3) records
+  health for the watchdog. A `try/catch` backstop wraps the whole tick.
 
-**What shipped:** the working database is held in an **in-memory** SQLite connection
-(loaded via `sqlite3_deserialize`), and its serialized image is written to disk as
-**AES-256-CTR ciphertext** (`ECHOAES1` magic · random IV · ciphertext). The AES-256 is a
-small, dependency-free, in-tree implementation
-([`memory/src/aes256.cpp`](memory/src/aes256.cpp)) **proven against the published
-FIPS-197 and NIST SP 800-38A known-answer vectors** in the tests — nothing trusted on
-faith. All the Phase-15 SQL logic is unchanged; only the open/close paths differ.
-Plaintext **never touches disk** — it exists only in process RAM.
+- **A defined degraded mode per engine** (in `boot/src/runtime.cpp`), decided not
+  accidental:
+  - **Vision** fails → **voice-only**, and **never a fabricated face match**
+    (constraint #2 — the same "don't guess" rule as the safe-mode gate).
+  - **ASR/wake** fails → a calm spoken retry, not silence, not a crash.
+  - **LLM** doesn't respond (throw/**timeout**) → a known-good engine-fault line +
+    an `EngineDegraded` caregiver alert. This is **kept distinct from the low-confidence
+    safe-mode gate** (constraint #1): the gate is an `Ok` `SafeMode` response decided
+    inside `respond()`; a non-responding engine is a failed *call* handled by the runtime.
+  - **Memory** write fails (disk full/corruption) → the reminder is **still delivered
+    this session** and not dropped; logged; an in-session set stops it repeating.
 
-**Key management, stated accurately.** A random **per-device key**, generated once at
-first boot into a local owner-only key file — the same "least-bad local option" already
-used for OAuth secrets in appkit's `.echo-tokens/`. Honestly a protected local key file,
-**not** a secure-enclave key.
+- **A watchdog on the existing core tick** (no fourth timer — constraint #4). It
+  recovers transient throws by construction, attempts in-process re-init of a hung
+  engine, and escalates to a `reboot_required()` request when in-process recovery is
+  exhausted (the honest fallback for a wedged thread C++ cannot kill).
 
-**Migration.** An existing **unencrypted** Phase-15 `memory.db` (detected by the
-`SQLite format 3` magic) is migrated in place to the encrypted format on open, logged
-loudly — a wearer's person/reminder records are never silently discarded. Proven with a
-real plaintext fixture DB checked into [`tests/fixtures/`](tests/fixtures/).
+- **Fault-injection tests** (`tests/fault_injection_test.cpp`, suite
+  `echo-fault-injection`) drive the **real runtime** with fault-injecting fake engines
+  and assert, at every boundary for throw/error/hang: no crash, the defined degraded
+  behaviour, recovery on the next turn, and reboot escalation on a persistent hang.
+  Runs entirely in the dependency-free stub build (constraint #3).
 
-**Honest scope (see ADR-14).** This provides **confidentiality** at rest — a copied /
-backed-up / offline-imaged `.db` is unreadable without the key, a plain `sqlite3_open` of
-the raw file reads garbage, and stored names do not appear in it (all asserted). It is
-**not** authenticated (no MAC; wrong key / corruption is caught by a post-decrypt
-SQLite-magic sanity check and the engine fails **closed**), **not** hardware-backed (an
-attacker with live read access to both files can decrypt), and durable at **checkpoint**,
-not per-transaction. All acceptable for a wearable's small store; all said plainly.
+### Honest scope (the safety claim, stated per class)
 
-### Part 2 — Retention and pruning
+This contains **misbehaviour**, not **undefined behaviour**. Covered: exceptions,
+non-Ok statuses, and hangs at the guarded boundaries — none crash the process, and a
+persistent unrecoverable hang escalates to a supervised restart. **Not** covered: a
+segfault, memory corruption/UB, a `noexcept`-violation `std::terminate`, or OOM still
+take the process down (a supervising init system or hardware watchdog is the only
+recovery). A truly wedged thread leaks until restart and can block process exit — which
+is exactly why the reboot path exists rather than a pretence of always-recover. The
+full per-class ledger is in [`docs/STATE.md`](docs/STATE.md); the design rationale and
+trade-offs are in [ADR-16](docs/DECISIONS.md); the recovery-scope narrative is in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-- **Event log — bounded by count + age** (defaults 2000 rows / 90 days,
-  `ECHO_MEMORY_MAX_*`-overridable), enforced on the **same scheduler tick** that delivers
-  reminders (no third timer — constraint held). Pruning touches only the events table, so
-  a retained acknowledgment's reminder state is intact (asserted: oldest evicted, newest
-  kept, the acknowledged reminder still closed).
-- **Notes — cap-and-evict, not aged out.** Notes are the long-term value, so they are
-  **not** pruned by age; instead a per-person segment cap evicts oldest-first (default
-  20), applied both on the tick and immediately on each `add_note`.
-- **LLM summarization considered and deferred (ADR-15).** Given Phase 15's documented
-  tiny-model prompt fragility, making note retention depend on the local LLM would trade
-  a guaranteed bound for a probabilistic one on a data-loss-sensitive path. Cap-and-evict
-  is the honest, robust first pass — exactly the "don't force a fragile feature" call the
-  brief asked for.
+### Verification
 
-### Tests (green in the dependency-free stub build)
+- **11 stub-build CTest suites green** (was 10), including the new `echo-fault-injection`.
+- **clang-tidy and cppcheck clean** on the new/changed first-party sources (findings are
+  hard errors in CI).
+- The reference `echo-os` binary boots, ticks, and shuts down cleanly on the new
+  guarded path.
 
-Extends [`tests/memory_engine_test.cpp`](tests/memory_engine_test.cpp):
-- **AES known-answer vectors** (FIPS-197 + NIST SP 800-38A) pin the cipher.
-- **Encryption at rest** — the raw file is not a plaintext SQLite db, the stored name is
-  absent from it, the right key recovers everything, and a **wrong key fails closed**.
-- **Migration** from the checked-in plaintext fixture — records survive, file becomes
-  ciphertext.
-- **Bounded event log** and **bounded notes** — eviction proven, ack state preserved.
+### Constraints honored
 
-### Constraints held
-
-- The Phase-15 **compile-time privacy proof still bites** (re-verified: inverting a
-  `static_assert` to claim a leak *exists* fails to compile).
-- The **person-record-only-on-naming** rule and the **reminder-delivery** path are
-  unchanged.
-- The **stub build stays dependency-free** — AES + key management are plain in-tree C++,
-  no new external package (SQLCipher/OpenSSL avoided by design). 10/10 CTest suites green
-  locally on MinGW; clang-tidy/cppcheck clean on the new first-party code (the vendored
-  `sqlite3.c` stays excluded as upstream C).
-
-`docs/STATE.md`, `docs/ARCHITECTURE.md`, and `docs/DECISIONS.md` (new **ADR-14**,
-**ADR-15**) are updated with the real outcome of both parts.
+1. Safe-mode confidence gate **not** weakened or bypassed — engine-not-responding is a
+   separate path from responded-but-unsure, asserted to speak different lines.
+2. Degraded fallbacks **never fabricate** (vision failure reports no face).
+3. Stub build stays dependency-free and fast; fault injection needs no real engines.
+4. The watchdog reuses the existing boot/scheduler tick — no fourth timer.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

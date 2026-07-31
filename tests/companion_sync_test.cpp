@@ -86,7 +86,8 @@ void test_connected_sends_all_alert_kinds() {
     CHECK(sync->connected());
 
     for (auto kind : {AlertKind::SafeModeEngaged, AlertKind::Distress,
-                      AlertKind::Wandering, AlertKind::LowConfidenceTrend}) {
+                      AlertKind::Wandering, AlertKind::LowConfidenceTrend,
+                      AlertKind::EngineDegraded}) {
         Alert a{kind, now(), to_string(kind)};
         CHECK(sync->send_alert(a) == Status::Ok);
         CHECK(std::string(to_string(kind)) != "unknown");  // every kind maps

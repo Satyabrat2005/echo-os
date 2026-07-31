@@ -336,6 +336,49 @@ count, not semantic importance — a blunt but predictable rule; summarization w
 preserve more meaning per byte and is the follow-up if the tiny-model fragility is ever
 resolved.
 
+## ADR-16 — Fault containment via a per-engine guard with a worker-thread hang bound
+*Decided: Phase 17 · 2026-07-31*
+
+**Decision.** Every engine call site (wake-word/ASR/vision, LLM, TTS, memory) runs
+through an `EngineGuard` (`boot/`) that (a) contains exceptions into a `fail(...)`
+`Result` on the existing `common/result.hpp` `Status`, and (b) bounds a **hung** call
+by running it on a `std::async` worker and abandoning it if it outruns a per-engine
+budget (`Status::Timeout`). A watchdog on the **existing** core tick (constraint #4 —
+no fourth timer) reacts to guard health: it recovers transient throws by construction,
+attempts in-process re-init of a hung engine, and escalates to a `reboot_required()`
+request when in-process recovery is exhausted. Degraded-mode behaviour is defined
+per engine in the runtime (vision→voice-only, ASR→spoken retry, LLM-no-response→calm
+engine-fault line, memory-write-fail→deliver-this-session-anyway).
+
+**Why a worker-thread timeout, and not something lighter.** Detecting a call that
+*never returns* is impossible from the same thread that is blocked inside it — the
+only portable way to bound it is to run it elsewhere and wait with a timeout. We reused
+the existing `Result`/`Status` vocabulary rather than invent a second error channel
+(the brief's constraint #1 preference), and reused the boot/scheduler tick for the
+watchdog rather than add a timer (constraint #4). The engine-not-responding path is
+kept **separate** from the low-confidence safe-mode gate (constraint #1): the gate is an
+`Ok` `SafeMode` response decided inside `respond()`; a non-responding engine is a failed
+*call* handled by the runtime. Both are asserted to take different paths in
+`tests/fault_injection_test.cpp`, which injects throw/error/hang at every boundary in
+the dependency-free stub build (constraint #3 — no real engines needed).
+
+**Trade-off — honest scope.** This is containment of *misbehaviour*, not of *undefined
+behaviour*. (a) A `try/catch` cannot catch a segfault, memory corruption/UB, a
+`noexcept`-violation `std::terminate`, or OOM — those still crash the process and need a
+supervising init system or hardware watchdog. (b) C++ cannot safely kill a wedged
+thread and a `std::async` future's destructor joins, so a call that *truly* never returns
+leaks one worker thread until restart and can block process exit at shutdown; if the hang
+is in a driver or holds a lock the re-init needs, in-process recovery fails and we escalate
+to a real reboot — the honest fallback, not a pretence of magic recovery. (c) The hang
+bound costs a per-call worker dispatch + a copy of the call's argument on the hot path,
+acceptable for the scaffold's small per-tick call count but heavier than the "zero jank"
+ideal; a production build would likely use a persistent per-engine worker or a hardware
+watchdog timer. A new `AlertKind::EngineDegraded` distinguishes a subsystem fault from the
+existing low-confidence `SafeModeEngaged` alert at the caregiver layer. What is now
+fault-tolerant, what still crashes, and what needs a physical restart is enumerated
+precisely in `docs/STATE.md` — as with ADR-14's encryption scope, the claim is bounded on
+purpose.
+
 ---
 
 *To add an entry: append with the next ADR number, a date, the decision, the why,

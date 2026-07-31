@@ -160,6 +160,79 @@ bounded on the existing scheduler tick (event log by count+age; notes cap-and-ev
 See [ADR-14](DECISIONS.md) and [ADR-15](DECISIONS.md); the earlier permission-only
 baseline was [ADR-13](DECISIONS.md).
 
+### Fault tolerance & graceful degradation (Phase 17)
+
+The safe-mode gate above answers *"the engine responded, but I'm not confident."*
+Phase 17 answers the different question the wearer's safety actually depends on:
+*"what if an engine doesn't respond at all — it throws, or it hangs and never
+returns?"* The wearer may not notice or be able to reset a device on their own
+face, so **no single engine is allowed to take the runtime down or leave the wearer
+stuck in silence.**
+
+**Containment at every engine boundary.** Each call into wake-word / ASR / vision
+(`perception`), the LLM (`cognitive-core`), TTS (`voice-ui`), and the store
+(`memory`) now runs through an
+[`EngineGuard`](../boot/include/echo/boot/engine_guard.hpp). The guard (1) contains
+exceptions — a throw becomes a `fail(HardwareError)` `Result`, never an unwind
+through the loop; (2) bounds hangs — the call runs on a worker and is **abandoned**
+if it outruns a per-engine budget, returning `fail(Timeout)`; and (3) records health
+for the watchdog. A final `try/catch` backstop around the whole tick contains
+anything unanticipated (e.g. from `power-mgmt`) as defense in depth.
+
+**Defined degraded behaviour — decided, not accidental** (in
+[`boot/src/runtime.cpp`](../boot/src/runtime.cpp)):
+
+| Engine fault | Degraded behaviour | Never does |
+|---|---|---|
+| **Vision** fails (throw/hang/error on a camera frame) | Falls back to **voice-only**: skips visual recall for that frame, keeps running | **Never fabricates a face match** (constraint #2 — the same "don't guess" rule as the safe-mode gate) |
+| **ASR / wake** fails on an audio frame | Speaks a calm retry — *"Sorry, I didn't catch that. Could you say it again?"* | Leaves the wearer in silence, or crashes the turn |
+| **LLM** doesn't respond (throw/**timeout**) | Speaks a known-good engine-fault line and raises an `EngineDegraded` caregiver alert | Conflate with the low-confidence gate — that path is an *Ok* response and is untouched (constraint #1) |
+| **Memory** write fails (disk full/corruption) | The reminder/recall is **still delivered this session**; the failure is logged; an in-session set stops it repeating | Drop the reminder silently, or crash on a failed write |
+
+The LLM case is deliberately **kept separate** from the safe-mode confidence gate:
+low confidence is a normal `Ok` `SafeMode` response decided *inside* `respond()`;
+a non-responding engine is a *failed call* handled by the runtime. Both coexist —
+the fault-injection suite asserts they take different paths and speak different lines.
+
+**The watchdog — and an honest account of what it can recover.** A watchdog runs on
+the **same core tick** as reminders and retention (constraint #4 — no fourth timer).
+It reads each guard's health and:
+
+- **Fully recovers** transient throws and error-status returns *by construction*:
+  containment poisons no state, so the very next call succeeds once the fault clears
+  (asserted: a perception throw, then a normal turn flows end-to-end).
+- **Detects a hang** (a call that never returns) via the per-engine timeout, keeps
+  the pipeline ticking by abandoning the wedged worker, and **attempts in-process
+  recovery** by re-initializing that engine (itself guarded). This recovers a hang
+  whose engine re-initializes cleanly.
+- **Escalates to a physical reboot** when in-process recovery is exhausted
+  (`max_recoveries`): it sets `reboot_required()` and `run()` exits so a supervising
+  init system can restart the process/device. This is the honest fallback for the
+  class the watchdog *cannot* fix in process — a real restart, not a pretence of
+  in-process magic.
+
+What it **cannot** do, stated plainly because this is a safety claim:
+
+- **It cannot kill a wedged thread.** C++ has no safe thread-cancellation, and a
+  `std::async` future's destructor joins. So a call that *truly never returns* leaks
+  one worker thread (parked in the guard) until the process restarts; if that thread
+  holds a resource the re-initialized engine also needs, or the hang is inside a
+  driver/kernel call, re-init hangs too and the watchdog escalates to reboot. A
+  genuinely wedged engine can also block process exit at shutdown.
+- **It only catches C++ exceptions and timeouts.** A segfault, a memory-corruption /
+  UB, a `std::terminate` from a `noexcept` violation, or OOM is **not** containable
+  by a `try/catch` — those still take the process down, and a supervising init system
+  (or a hardware watchdog) is the only recovery. The guard bounds *misbehaviour*, not
+  *undefined behaviour*.
+- **The hang bound has a cost.** Each guarded call is dispatched to a worker with a
+  copy of its argument, which adds thread-dispatch + copy overhead on the hot path.
+  It is acceptable for this scaffold and the small per-tick call count; a production
+  build would likely use a lighter mechanism (a persistent per-engine worker, or a
+  hardware watchdog timer) — noted in [ADR-16](DECISIONS.md), not hidden.
+
+The `docs/STATE.md` "fault tolerance" table is the precise, per-class ledger of what
+is now contained, what degrades, and what still requires a physical restart.
+
 ## The isolation boundary (green box)
 
 The apps layer — media, mail, browser, search, video, telephony, camera,

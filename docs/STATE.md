@@ -5,10 +5,10 @@ validation, how well it's tested, and what quality gates are in place. This is
 the document to read first — a YC partner or a new engineer should be able to
 trust every line of it. It is an internal reference, not marketing copy.*
 
-Last updated: Phase 15 (the on-device memory & recall engine — the first module
-whose entire purpose is the product's actual differentiator). Source of truth for
-every claim is the repo at this commit; nothing here is aspirational unless
-explicitly labelled.
+Last updated: Phase 17 (fault tolerance & graceful degradation — containment and a
+hung-call watchdog around every engine boundary; see the dedicated section below).
+Source of truth for every claim is the repo at this commit; nothing here is
+aspirational unless explicitly labelled.
 
 ## In one paragraph
 
@@ -67,6 +67,7 @@ below.
 | **Memory & recall engine** (people/reminders/events, SQLite-persisted) | **Built & tested** (Phase 15) | [`memory_engine.hpp`](../memory/include/echo/memory/memory_engine.hpp); `echo-memory` unit suite (CRUD, recurrence, no-auto-create rule, RAG medication query, persistence-across-reopen) + `echo-e2e-fixture` face-recall turn — all in the dependency-free stub build |
 | **Face-based recall wired into the loop** (perception→cognitive→voice) | **Built & tested** (Phase 15) | a fixture embedding + a prior naming utterance → an enriched "That's Priya…" turn, end to end in `echo-e2e-fixture` |
 | **Memory store cannot reach `companion-sync`** (compile-time) | **Built & tested** (Phase 15) | `static_assert`s in `echo-memory` extend the Phase-10 `SensorFrame` proof to embeddings, person records, and events |
+| **Fault containment + graceful degradation** (per-engine guard, defined degraded modes, hung-call watchdog) | **Built & tested** (Phase 17) | [`engine_guard.hpp`](../boot/include/echo/boot/engine_guard.hpp) + `boot/src/runtime.cpp`; `echo-fault-injection` injects throw/error/hang at every boundary and asserts no crash, the defined degradation, recovery, and reboot escalation — see the Phase 17 ledger below for the precise scope |
 
 ## What's pending real-world validation ⏳
 
@@ -342,13 +343,78 @@ person-record-only-on-naming rule and the reminder-delivery path are unchanged; 
 stub build stays **dependency-free** — the AES and key code are plain in-tree C++, no
 new external dependency. All 10 stub-build suites remain green.
 
+## Phase 17 — fault tolerance & graceful degradation
+
+Sixteen phases built the pipeline; none had ever asked what happens when a piece of it
+**breaks** mid-turn. That matters more here than in most software: the wearer is, by
+design, someone who may not notice or be able to reset a malfunctioning device on their
+own face. Phase 17 makes every engine boundary containable and gives each failure a
+**deliberate** degraded behaviour — and, in keeping with this file's discipline, says
+exactly which failure classes are now handled and which still bring the process down.
+
+**What shipped, and CI-verified in the dependency-free stub build:**
+
+- **Containment at every engine boundary.** wake-word/ASR/vision, LLM, TTS, and memory
+  calls run through an [`EngineGuard`](../boot/include/echo/boot/engine_guard.hpp) that
+  turns a thrown exception into a `fail(HardwareError)` `Result` and bounds a **hung**
+  call (runs it on a worker, abandons it past a per-engine budget → `fail(Timeout)`).
+  A `try/catch` backstop wraps the whole tick. Built on the existing `Result`/`Status`
+  vocabulary, not a second error channel ([ADR-16](DECISIONS.md)).
+- **A defined degraded mode per engine**, decided not accidental: vision failure →
+  **voice-only, never a fabricated face match** (constraint #2); ASR failure → a calm
+  spoken retry rather than silence; LLM not-responding (throw/**timeout**) → a known-good
+  engine-fault line **kept distinct from the low-confidence safe-mode gate**
+  (constraint #1 — the gate is an `Ok` response, this is a failed *call*); memory write
+  failure → the reminder is **still delivered this session** and not dropped, logged, and
+  not repeated every tick.
+- **A watchdog on the existing core tick** (no fourth timer — constraint #4) that recovers
+  transient faults by construction, attempts in-process re-init of a hung engine, and
+  escalates to a `reboot_required()` request when in-process recovery is exhausted.
+- **Fault-injection tests** (`tests/fault_injection_test.cpp`, suite `echo-fault-injection`)
+  drive the **real runtime** with fault-injecting fake engines and assert, at every
+  boundary and for throw/error/hang: the process doesn't crash, the defined degraded
+  behaviour happens, a transient clears on the next turn, and a persistent hang escalates
+  to reboot. **11 stub-build suites now green** (was 10).
+
+**The precise ledger — what is fault-tolerant, what is not.** This is a safety claim, so
+it is stated per class, not summarized optimistically:
+
+| Failure class | Handled how | Crashes the process? | Needs physical reboot? |
+|---|---|---|---|
+| Engine **throws** an exception (any of vision/ASR/LLM/TTS/memory) | Contained → `fail(HardwareError)`; defined degraded mode; next call recovers | **No** | No |
+| Engine returns a **non-Ok `Status`/`Result`** | Same containment/degraded path as a throw | **No** | No |
+| Engine **hangs** (never returns), recoverable by re-init | Detected via timeout; worker abandoned; pipeline continues degraded; re-init restores it | **No** | No |
+| Engine **hangs** and re-init also hangs (wedged thread / driver / held lock) | Detected; degraded fallbacks continue; after `max_recoveries` → `reboot_required()` | No (loop keeps running) | **Yes** — supervised restart is the honest fallback |
+| Unhandled failure **outside** the guarded boundaries handled as a C++ exception | Caught by the per-tick `try/catch` backstop | **No** | No |
+| **Segfault / memory corruption / UB / `noexcept`-violation `std::terminate` / OOM** | **Not containable** by `try/catch` | **Yes** | **Yes** — needs a supervising init system or hardware watchdog |
+
+**Honest limitations (not worked around, documented):**
+
+- **A wedged thread leaks and can block shutdown.** C++ can't safely kill a
+  non-returning call, and a `std::async` future's destructor joins — so a truly wedged
+  engine leaks one worker until process restart and may stall process exit. This is why
+  the reboot path exists rather than a pretence of always-recover.
+- **The hang bound costs hot-path overhead** — a worker dispatch + a copy of each call's
+  argument. Acceptable for the scaffold's small per-tick call count, heavier than the
+  "zero jank" ideal; a production build would use a persistent per-engine worker or a
+  hardware watchdog timer ([ADR-16](DECISIONS.md)).
+- **The watchdog's "recovery" is optimistic for responsive-but-broken engines.** An
+  engine that re-initializes cleanly but keeps failing on every call is served its
+  degraded fallback **indefinitely** rather than rebooting the whole device (a
+  responsive engine isn't "wedged") — correct, but it means not every persistent fault
+  ends in a reboot, only genuine hangs.
+- **Same permanent gap as every phase:** this is verified with injected faults on fakes,
+  not a real engine crashing on real hardware on a real wearer's face. "Contains injected
+  faults in the stub build" ≠ "keeps a real device usable through a real subsystem failure
+  in the field."
+
 ## Quality gates in place (CI)
 
 Every push and PR to `master` runs [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 | Gate | What it enforces |
 |------|------------------|
-| **Stub build + full ctest** | dependency-free build, all suites (incl. Phase 15 `echo-memory` + the memory-enriched `echo-e2e-fixture`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps |
+| **Stub build + full ctest** | dependency-free build, all 11 suites (incl. Phase 15 `echo-memory`, the memory-enriched `echo-e2e-fixture`, and Phase 17 `echo-fault-injection`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps |
 | **clang-tidy / cppcheck scope** | both now cover the first-party `memory/` code; the vendored `memory/vendor/sqlite3/` amalgamation is **excluded** from both (upstream C we compile but do not lint) |
 | **Network build** | `-DECHO_WITH_NETWORK=ON` compiles & links libcurl; appkit/apps tests pass on a clean machine (no live API calls) |
 | **Secret scan** | `check_secrets.sh` blocks a committed API key, OAuth secret, private key, token cache, or `.env` |
