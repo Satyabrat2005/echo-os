@@ -9,6 +9,7 @@ const char* to_string(AlertKind k) noexcept {
         case AlertKind::Distress:           return "distress";
         case AlertKind::Wandering:          return "wandering";
         case AlertKind::LowConfidenceTrend: return "low-confidence-trend";
+        case AlertKind::EngineDegraded:     return "engine-degraded";
     }
     return "unknown";
 }

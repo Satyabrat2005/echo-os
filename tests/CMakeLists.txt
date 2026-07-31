@@ -56,6 +56,14 @@ echo_add_core_test(echo-e2e-tests e2e_pipeline_test.cpp
     echo::common echo::sensor echo::perception echo::cognitive echo::memory echo::voice)
 add_test(NAME echo-e2e-fixture COMMAND echo-e2e-tests)
 
+# --- Phase 17: fault injection ------------------------------------------------
+# Drives the REAL runtime (echo::runtime) with fault-injecting fake engines, making
+# each engine boundary throw / return an error / hang, and asserts containment,
+# defined degraded behaviour, and watchdog recovery. Links the whole runtime (which
+# transitively brings every core module + Threads). Fully in the stub build.
+echo_add_core_test(echo-fault-injection-tests fault_injection_test.cpp echo::runtime)
+add_test(NAME echo-fault-injection COMMAND echo-fault-injection-tests)
+
 # --- Phase 11: REAL engine verification (only when the engine is compiled in) --
 # These targets drive the REAL whisper.cpp / OpenCV / Piper engines (not the
 # stubs) against real model weights, so each is built ONLY when its ECHO_WITH_*
