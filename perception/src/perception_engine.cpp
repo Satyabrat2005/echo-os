@@ -1,4 +1,5 @@
 #include "echo/perception/perception_engine.hpp"
+#include "echo/audio_dsp.hpp"
 #include "echo/latency.hpp"
 #include "echo/log.hpp"
 
@@ -103,7 +104,16 @@ private:
         if (listening_ && endpointed_) {
             AsrResult ar = asr_->transcribe(utterance_.data(), utterance_.size(), sr);
             if (!ar.text.empty()) {
-                p.speech = Transcript{ar.text, Confidence{ar.confidence}, /*endpointed=*/true};
+                // Phase 19: fold a real SNR estimate of the captured utterance into the
+                // transcript confidence (weakest-link). Heavily-degraded audio drops the
+                // confidence below the cognitive core's safe-mode threshold, so noisy
+                // speech routes through the SAME "ask again calmly" fallback the Phase-17
+                // ASR-degraded path already speaks — no new notification mechanism
+                // (Phase 19 constraint #3). Clean audio yields a high SNR and no penalty.
+                const float snr   = audio::estimate_snr_db(utterance_.data(), utterance_.size(), sr);
+                const float nconf = audio::noise_confidence(snr);
+                const float conf  = std::min(ar.confidence, nconf);
+                p.speech = Transcript{ar.text, Confidence{conf}, /*endpointed=*/true, snr};
             }
             stop_listening();
         }

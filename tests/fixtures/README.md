@@ -95,6 +95,34 @@ by Piper in CI**, not committed:
 The other two negatives reuse the committed synthetic fixtures `silence.wav` and
 `noisy_garble.wav` (a wake detector must not fire on silence or garble either).
 
+## Noise beds (Phase 19) — generated + checksum-verified, not committed
+
+The audio-robustness test (`tests/audio_robustness_test.cpp`) needs *noise* to mix
+into the clean clips above, so it can measure how the real ASR/wake-word engines
+degrade under it. Those noise sources are three synthetic **beds** produced by
+[`make_noise_fixtures.py`](make_noise_fixtures.py):
+
+| Bed | Stands in for | Character |
+|-----|---------------|-----------|
+| `hum.wav` | a fan / AC / the device itself | steady 100 Hz hum + faint hiss — mostly low-frequency, so the pre-processor's high-pass measurably helps here |
+| `transient.wav` | a door, a dropped dish | near-silence punctuated by short loud bursts — non-stationary |
+| `babble.wav` | a second person / a TV | a buzzy competing talker overlapping the wearer's speech — the hard case a single mic cannot clean up |
+
+Unlike the clips above, `make_noise_fixtures.py` uses **integer-only** arithmetic,
+so the bytes are identical on every platform and can be **checksum-verified** (the
+SHA-256s are pinned in [`MANIFEST.md`](../../MANIFEST.md); CI regenerates and
+verifies them fail-closed, exactly like a fetched model). They are **not committed**
+(128 KB each — kept out of the tree like the Piper clips) and are generated at run
+time into the CI asset dir, passed to the test via `ECHO_NOISE_BEDS_DIR`.
+
+The **mixing** (bed × clip at a target SNR) happens in-test via
+[`tests/audio_mix.hpp`](../audio_mix.hpp) — one implementation, no committed noisy
+audio to drift. SNR convention: `20·log10(rms_speech / rms_noise)` against whole-clip
+RMS; levels measured are clean / +10 dB / 0 dB / −5 dB. What synthetic beds mixed
+into a clean TTS clip still **cannot** exercise — a real mic's frequency response,
+echo off real walls, a real human moving — stays the open live-hardware gap in
+`docs/STATE.md`.
+
 **On error rates (honest).** Wake-word detection is probabilistic — a real model has
 nonzero false-accept and false-reject rates. The test asserts on the model's *actual*
 behavior against these clips (peak score on the wake clip clears the threshold; peak

@@ -46,6 +46,12 @@ struct Transcript {
     std::string text;
     Confidence  confidence;
     bool        endpointed = false;  // true once the utterance is complete
+    // Estimated speech-to-noise ratio (dB) of the utterance this was recognized from
+    // (Phase 19). Telemetry/explanation for WHY the confidence is what it is; the
+    // engine folds a low SNR into `confidence` above so the pre-existing safe-mode
+    // gate handles noisy audio (see audio_dsp.hpp / perception_engine.cpp). Defaults
+    // to "clean" for callers (tests) that set confidence directly.
+    float snr_db = 60.0f;
 };
 
 // The aggregate output of one perception pass over the current sensor window.

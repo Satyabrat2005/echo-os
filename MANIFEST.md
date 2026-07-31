@@ -25,6 +25,36 @@ invalidated exactly when a pinned asset changes ("cache by checksum").
 
 ---
 
+## Phase 19 — audio-robustness noise beds (generated, not fetched)
+
+The Phase 19 audio-robustness test (`tests/audio_robustness_test.cpp`) mixes three
+synthetic **noise beds** into the clean speech/wake clips at defined SNR levels.
+Unlike every other entry here these are **generated, not downloaded** — but they are
+held to the *same checksum discipline*: the generator
+[`tests/fixtures/make_noise_fixtures.py`](tests/fixtures/make_noise_fixtures.py) uses
+**integer-only** arithmetic (no `math.sin`/libm), so it reproduces the exact bytes
+below on every platform, and the CI `real-engines` job regenerates them and verifies
+each against these SHA-256s (**fail-closed**, exactly like a fetched asset). They are
+**not committed** (128 KB each — kept out of the tree like the Piper clips), living
+only in the ephemeral CI dir and passed to the test via `ECHO_NOISE_BEDS_DIR`.
+
+All three are single-channel **16 kHz mono int16 WAV**, 4.0 s (64000 samples,
+128,044 bytes each). License: synthetic, authored here — no third-party rights.
+
+| File | SHA-256 | Stands in for |
+|------|---------|---------------|
+| `hum.wav` | `321467e41901a251af34c8fee30b214361deeed3b347f128058a2122acba338a` | steady low-frequency hum + faint hiss (fan / AC / the device) |
+| `transient.wav` | `d5056b8ee3ddb8e36dc1edd695bacdc2122f29af43d40138646f85c28d462e80` | near-silence punctuated by short loud bursts (a door, a dish clatter) |
+| `babble.wav` | `1d8076c5b58cb1635d3500e12b561338cfe2fb54654e6ebee23cab99bd824e6b` | a buzzy, syllable-enveloped competing talker (someone else / a TV) |
+
+**Regenerate locally:** `python tests/fixtures/make_noise_fixtures.py <out_dir> 4.0`.
+The mixing itself (bed × clip at a target SNR) is done in-test by
+[`tests/audio_mix.hpp`](tests/audio_mix.hpp) so there is a single mixing
+implementation and no committed noisy audio to drift; the SNR convention is
+`20·log10(rms_speech / rms_noise)` against whole-clip RMS.
+
+---
+
 ## Phase 13 — wake-word (openWakeWord + ONNX Runtime)
 
 The account-free wake-word backend. openWakeWord runs a fixed **three-model ONNX
