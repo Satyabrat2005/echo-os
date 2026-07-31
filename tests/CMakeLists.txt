@@ -123,6 +123,22 @@ if(ECHO_WITH_OPENWAKEWORD)
     add_test(NAME echo-real-wakeword COMMAND echo-real-wakeword-tests)
 endif()
 
+# --- Phase 19: REAL audio-robustness verification (noise/SNR) -----------------
+# Mixes the noise beds into the clean speech/wake clips at defined SNR levels and
+# measures the real whisper.cpp + openWakeWord engines' actual degradation, plus the
+# single-mic pre-processing stage and the noise-driven safe-mode confidence gate.
+# Built when EITHER real audio engine is compiled in; each engine's section is
+# further #if-guarded inside the TU. Needs the private asr.hpp / wake_word.hpp from
+# perception/src. Self-skips (exit 0, loud) when models or clips/beds are absent.
+# Runs in the "real-engines" CI job (which provides Piper + generates the beds).
+if(ECHO_WITH_WHISPER OR ECHO_WITH_OPENWAKEWORD)
+    echo_add_core_test(echo-real-audio-robustness-tests audio_robustness_test.cpp
+        echo::common echo::perception)
+    target_include_directories(echo-real-audio-robustness-tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/perception/src)
+    add_test(NAME echo-real-audio-robustness COMMAND echo-real-audio-robustness-tests)
+endif()
+
 # --- Phase 12: REAL reasoning-LLM verification -------------------------------
 # Real LLM: the llama.cpp adapter against a tiny quantized instruct GGUF, proving
 # route-tag parsing and the safe-mode gate against a real model's real output.

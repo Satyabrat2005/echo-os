@@ -406,6 +406,12 @@ jobs:
   #    separate real-llm job, and all live mic/webcam/human behaviour — this
   #    validates the engines RUN correctly on clean fixtures, not field robustness
   #    (documented in docs/STATE.md).
+  #
+  #    Phase 19 adds an audio-ROBUSTNESS measurement to this same job: it generates +
+  #    checksum-verifies three synthetic noise beds, mixes them into the clips at
+  #    defined SNR levels, and runs tests/audio_robustness_test.cpp to record the real
+  #    engines' actual degradation (still synthetic noise on clean clips — not a real
+  #    room; that stays the open live-hardware gap in docs/STATE.md).
   # ---------------------------------------------------------------------------
   real-engines:
     name: Real engines (whisper/OpenCV/Piper/openWakeWord) vs. fixtures
@@ -501,6 +507,21 @@ jobs:
               --output_file "$ASSETS_DIR/not_wake_speech.wav"
           ls -l "$ASSETS_DIR/wake_hey_jarvis.wav" "$ASSETS_DIR/not_wake_speech.wav"
 
+      # Phase 19: generate the deterministic noise beds the audio-robustness test
+      # mixes into the clips above, and VERIFY them against the SHA-256s pinned in
+      # MANIFEST.md (fail-closed — same "checksum before use" discipline as every
+      # fetched asset). The generator is integer-only, so CI reproduces the pinned
+      # bytes exactly. See tests/fixtures/make_noise_fixtures.py.
+      - name: Generate + verify noise beds (Phase 19)
+        run: |
+          python3 tests/fixtures/make_noise_fixtures.py "$ASSETS_DIR/noise" 4.0
+          cat > "$ASSETS_DIR/noise/SHA256SUMS" <<'EOF'
+          1d8076c5b58cb1635d3500e12b561338cfe2fb54654e6ebee23cab99bd824e6b  babble.wav
+          321467e41901a251af34c8fee30b214361deeed3b347f128058a2122acba338a  hum.wav
+          d5056b8ee3ddb8e36dc1edd695bacdc2122f29af43d40138646f85c28d462e80  transient.wav
+          EOF
+          ( cd "$ASSETS_DIR/noise" && sha256sum -c SHA256SUMS )
+
       # whisper.cpp's installed whisper-config.cmake unconditionally set_and_check's
       # WHISPER_BIN_DIR (${prefix}/bin), but with examples/tools OFF nothing is
       # installed there, so the dir is absent and find_package() hard-errors. An
@@ -544,6 +565,8 @@ jobs:
           ECHO_OWW_MODEL: ${{ env.ASSETS_DIR }}/openwakeword/hey_jarvis_v0.1.onnx
           ECHO_WAKE_CLIP: ${{ env.ASSETS_DIR }}/wake_hey_jarvis.wav
           ECHO_NOTWAKE_CLIP: ${{ env.ASSETS_DIR }}/not_wake_speech.wav
+          # Phase 19 audio-robustness: the verified noise beds mixed into the clips above.
+          ECHO_NOISE_BEDS_DIR: ${{ env.ASSETS_DIR }}/noise
         run: |
           # Piper's bundled .so files + (if whisper built shared) its install libs +
           # (Phase 13) ONNX Runtime's lib dir so libonnxruntime.so resolves.

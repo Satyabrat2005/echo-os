@@ -9,11 +9,13 @@
 // When neither dep is compiled in, the factories fall back to the stub sources so
 // the demo binary still links and runs (it just won't capture real media).
 #include "echo/sensor/sensor_source.hpp"
+#include "echo/audio_dsp.hpp"
 #include "echo/log.hpp"
 
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <cstdlib>
 #include <thread>
 #include <vector>
 
@@ -104,6 +106,14 @@ public:
 
     Status start(FrameQueue& out) override {
         out_ = &out;
+        // Phase 19: a single-mic pre-processing pass (high-pass + gentle gate + AGC)
+        // sits right here in the capture path, before wake-word/ASR ever see the
+        // audio. Single-mic by design — this is one mono SDL device, so there is no
+        // array to beamform (see audio_dsp.hpp). Opt-out via ECHO_MIC_PREPROCESS=0 so
+        // its effect can be A/B'd on real hardware; the offline evaluation in
+        // tests/audio_robustness_test.cpp measures whether it actually helps.
+        if (const char* v = std::getenv("ECHO_MIC_PREPROCESS"))
+            preprocess_ = !(v[0] == '0' && v[1] == '\0');
         if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
             log_error("sensor", "SDL audio init failed");
             return Status::HardwareError;
@@ -138,7 +148,19 @@ private:
         auto* self = static_cast<SdlMicSource*>(userdata);
         if (!self->running_ || !self->out_) return;
         auto& slot = self->pool_[self->idx_ % self->pool_.size()];
-        slot.assign(stream, stream + len);
+        if (self->preprocess_ && (len % 2) == 0) {
+            // Run the single-mic pre-processor over this int16 buffer before it is
+            // queued. Note (honest): this allocates on the SDL audio callback — fine
+            // for the scaffold's small buffers, a persistent scratch buffer is the
+            // production refinement.
+            const auto* pcm = reinterpret_cast<const std::int16_t*>(stream);
+            const std::size_t nn = static_cast<std::size_t>(len) / sizeof(std::int16_t);
+            auto pp = self->preproc_.process(pcm, nn, self->sample_rate_);
+            const auto* bytes = reinterpret_cast<const std::uint8_t*>(pp.samples.data());
+            slot.assign(bytes, bytes + pp.samples.size() * sizeof(std::int16_t));
+        } else {
+            slot.assign(stream, stream + len);
+        }
         SensorFrame f;
         f.modality    = Modality::Microphone;
         f.sequence    = self->idx_++;
@@ -155,6 +177,8 @@ private:
     std::array<std::vector<std::uint8_t>, 8> pool_;
     std::uint64_t                           idx_ = 0;
     std::atomic<bool>                       running_{false};
+    bool                                    preprocess_ = true;
+    echo::audio::AudioPreprocessor          preproc_{};
 };
 
 #endif  // ECHO_WITH_SDL
