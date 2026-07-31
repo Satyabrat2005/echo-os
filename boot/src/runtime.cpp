@@ -83,6 +83,11 @@ void Runtime::deliver_due_reminders() {
         voice_->speak(voice::Utterance{"Reminder: " + r.text + ".", voice::Tone::Alert});
         memory_->mark_fired(r.id, now);
     }
+    // Retention runs on this SAME tick (Phase 16, constraint: reuse the scheduler
+    // loop, don't add a third timer). It bounds the append-only event log and each
+    // person's notes, then persists the encrypted store. Cheap on the small tables a
+    // wearable accumulates.
+    memory_->enforce_retention(now);
 }
 
 RuntimeState Runtime::tick() {

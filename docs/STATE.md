@@ -86,7 +86,7 @@ evidence exists.
 | 7 | On-glasses sensor DMA frontends + BLE/WiFi companion transport | hardware | the real embedded target; today these are stubs |
 | 8 | Custom-trained "Hey ECHO" wake word (either backend) | 13 | CI verifies wake-word with openWakeWord's **pretrained** "hey jarvis"; a bespoke "Hey ECHO" model is a *training* undertaking (openWakeWord: synthesize+train; or Porcupine: account-gated `.ppn`) — a documented follow-up, not a bug |
 | 9 | **Multi-day, real-world memory accuracy** | 15 | recall is verified against *fixture* embeddings on clean input; whether SFace re-identifies the same person across days, lighting, and aging — and how often it false-matches a stranger — needs the real vision engine + a real wearer over time |
-| 10 | **Note summarization / pruning (bounded growth)** | 15 | notes and the event log currently only *accumulate*; nothing summarizes or ages them out, so the store grows unbounded over a long deployment. A retention/summarization policy is designed-for (narrow event scope) but **not** implemented |
+| ~~10~~ | ~~**Note summarization / pruning (bounded growth)**~~ | ~~15~~ | **Closed in Phase 16.** The event log is now bounded by count **and** age, enforced on the existing scheduler tick; per-person notes are bounded by a count cap with oldest-first eviction (not aged out — notes are the long-term value). LLM summarization was considered and **deferred** (Phase 15's documented tiny-model fragility); cap-and-evict shipped instead. Tested in `echo-memory`. |
 | 11 | **A real wearer uses recall in daily life** | 15 | no person with memory loss has named someone to ECHO and been reminded of them later; like every other engine, "works on clean fixtures" ≠ "helps a real user" |
 
 The README's Phase 4/5 tables are the canonical place these numbers get filled in
@@ -258,7 +258,9 @@ see [ADR-13](DECISIONS.md)), persisted to `echo_memory.db`, surviving restarts.
 - **Encryption at rest.** At rest the store is **file-permission restricted**
   (best-effort owner-only), **not encrypted**. On POSIX that's chmod 0600; on Windows
   `std::filesystem::permissions` maps loosely (ACLs still apply). True encryption is
-  **SQLCipher**, a deliberate follow-up ([ADR-13](DECISIONS.md)).
+  **SQLCipher**, a deliberate follow-up ([ADR-13](DECISIONS.md)). **→ Closed in Phase 16**
+  (AES-256-CTR over the serialized image; SQLCipher itself was ruled out on this
+  toolchain — see the Phase 16 section and [ADR-14](DECISIONS.md)).
 - **Real-world recall accuracy.** Tests use *fixture* embeddings (orthogonal for
   strangers, identical for the same person) — the clean-input analogue of the other
   engines' fixtures. Whether SFace re-identifies a real person across days/lighting,
@@ -266,7 +268,8 @@ see [ADR-13](DECISIONS.md)), persisted to `echo_memory.db`, surviving restarts.
 - **Bounded growth.** Notes and the event log only accumulate today; summarization/
   pruning so the store doesn't grow forever is designed-for (the event scope is kept
   narrow — recognized-person and reminder events, never raw conversation transcripts)
-  but not implemented.
+  but not implemented. **→ Closed in Phase 16** (event log capped by count + age on the
+  existing tick; notes cap-and-evict; summarization deferred — [ADR-15](DECISIONS.md)).
 - **A real wearer.** Same permanent, un-simulatable gap as every engine: no person
   with memory loss has actually used this yet.
 
@@ -275,6 +278,69 @@ this MinGW-w64 ucrt g++ 15.1 laptop (~10 s, zero warnings, links and runs first
 try) — the opposite of the ORT/OpenCV native-dep friction in Phase 14b. There was no
 build gap to work around, so none was invented. (One project-level change: C was
 enabled as a language for that single vendored TU.)
+
+## Phase 16 — hardening the memory store (encryption at rest + retention)
+
+Phase 15 shipped the memory engine and, in the section above, named two gaps it left
+open on purpose: the store was **file-permission restricted, not encrypted**, and it
+had **no retention policy** (unbounded growth). Phase 16 closes both — and, per the
+same honest-framing discipline, says exactly what the encryption does and doesn't buy.
+
+**Encryption at rest — what shipped, and why not SQLCipher.** SQLCipher was tested
+for real first (the Phase-14b/15 "smoke-test before committing hours" discipline).
+The finding is concrete, not hand-waved: SQLCipher is **not** a self-contained
+amalgamation like SQLite — it must be generated from a source tree **and** linked
+against a crypto backend (OpenSSL `libcrypto`), which is **absent from this MinGW
+toolchain** (verified: no `openssl/*` headers, no `libcrypto` — a bare `-lcrypto`
+compile fails). Pulling OpenSSL in would break the dependency-free, vendorable stub
+build (constraint #3) — the very native-dep friction Phase 14b documented. So, per
+constraint #4, we shipped the **documented fallback**: the working database is held
+in an **in-memory** SQLite connection (loaded via `sqlite3_deserialize`), and its
+serialized image is written to disk as **AES-256-CTR ciphertext**. The AES-256 is a
+small, dependency-free, in-tree implementation **proven against the published FIPS-197
+and NIST SP 800-38A known-answer vectors** in `echo-memory` (nothing trusted on faith).
+Consequences, stated plainly (see [ADR-14](DECISIONS.md)):
+- **What it buys:** the on-disk file is ciphertext — a copied/backed-up/imaged `.db`
+  is unreadable without the key. A plain unkeyed `sqlite3_open` of the raw file sees
+  garbage, and the stored names do not appear in it (both **asserted** in
+  `test_encryption_at_rest`). The plaintext SQLite image **never touches disk** — it
+  lives only in process RAM.
+- **What it does NOT buy:** it is **not** authenticated (no MAC; a wrong key / corruption
+  is caught only by a post-decrypt SQLite-magic sanity check, and the engine fails
+  **closed**), and it is **not** hardware-backed — an attacker with live read access to
+  both the `.db` and the key file can decrypt. Durability is at **checkpoint** (close +
+  the retention tick), not per-transaction, and the whole DB is resident in RAM — both
+  acceptable for a wearable's small store, and the reason Part 2 bounds its growth.
+
+**Key management — said accurately.** The AES key is a random **per-device key**,
+generated once at first boot into a local key file with owner-only permissions — the
+same "least-bad local option" already used for OAuth secrets in appkit's
+`.echo-tokens/`. It is honestly a protected local key file, **not** a secure-enclave
+key; binding it to a TPM or a paired phone is the follow-up ([ADR-14](DECISIONS.md)).
+
+**Migration — a Phase-15 wearer's data is not discarded.** On open, an existing
+**unencrypted** Phase-15 `memory.db` (detected by the `SQLite format 3` magic) is
+migrated in place to the encrypted format, logged loudly. Proven with a real plaintext
+fixture DB checked into `tests/fixtures/` (`test_migration_from_plaintext`): the
+person/relation/notes and the reminder survive, and the file is ciphertext afterward.
+
+**Retention — bounded, on the existing tick.** The append-only event log is now capped
+by **count and age** (defaults 2000 rows / 90 days, env-overridable), enforced on the
+**same scheduler tick** that delivers reminders (no third timer — constraint held).
+Pruning touches only the events table, so a retained acknowledgment's reminder state is
+untouched — asserted in `test_event_log_retention_bounded` (oldest evicted, newest kept,
+the acknowledged reminder still closed). Person **notes** are deliberately **not** aged
+out; instead a per-person segment cap evicts oldest-first (asserted in
+`test_notes_growth_bounded`), applied both on the tick and immediately on each
+`add_note`. LLM summarization was considered and **deferred** to avoid forcing a fragile
+tiny-model dependency (Phase 15's documented lesson) — cap-and-evict is the honest,
+robust first pass ([ADR-15](DECISIONS.md)).
+
+**Constraints held.** The Phase-15 compile-time privacy proof still bites (re-verified:
+inverting a `static_assert` to claim a leak *exists* fails to compile); the
+person-record-only-on-naming rule and the reminder-delivery path are unchanged; and the
+stub build stays **dependency-free** — the AES and key code are plain in-tree C++, no
+new external dependency. All 10 stub-build suites remain green.
 
 ## Quality gates in place (CI)
 

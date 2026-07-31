@@ -100,6 +100,21 @@ struct EventRecord {
     ReminderId   reminder_id = 0;  // 0 when not applicable
 };
 
+// Bounds on how the store grows over time (Phase 16, Part 2). The event log is the
+// append-only part most likely to grow without limit, so it is capped by BOTH count
+// and age. Person notes are meaningfully valuable long-term, so they are NOT pruned
+// by age — only bounded by a per-person segment cap with oldest-first eviction (a
+// deliberately simple, robust first pass; LLM summarization was considered and
+// deferred, see ADR-15). A field set to 0 disables that particular limit.
+struct RetentionPolicy {
+    int max_events           = 2000;  // hard cap on event-log rows (0 = unlimited)
+    int max_event_age_days   = 90;    // drop events older than this many days (0 = none)
+    int max_notes_per_person = 20;    // cap on "; "-separated note segments (0 = unlimited)
+};
+
+// Defaults, exposed so docs and tests can reference the shipped policy directly.
+inline constexpr RetentionPolicy kDefaultRetention{};
+
 // The on-device memory store. All methods are non-throwing; a store that failed to
 // open degrades to empty results (the pipeline keeps running without memory rather
 // than crashing on a vulnerable device).
@@ -110,9 +125,29 @@ public:
     // Open (creating if needed) the store at `db_path`. Pass ":memory:" for a
     // non-persistent store (used by unit tests that don't exercise restart). The
     // live runtime passes a real file path so records survive a reboot.
+    //
+    // ENCRYPTION AT REST (Phase 16). For a real file path the on-disk image is
+    // AES-256-CTR ciphertext, keyed by a per-device key (see device_key.hpp); the
+    // plaintext SQLite image lives only in process memory. An existing *plaintext*
+    // Phase-15 database found at `db_path` is migrated in place to the encrypted
+    // format on open (logged, never silently discarded). A ":memory:" store is not
+    // encrypted (there is no file).
     virtual Status open(const std::string& db_path) = 0;
     virtual bool   is_open() const noexcept = 0;
     virtual void   close() = 0;
+
+    // --- Retention (Phase 16, Part 2) ---------------------------------------
+
+    // Override the growth-bounding policy (defaults to kDefaultRetention, further
+    // overridable by ECHO_MEMORY_MAX_* env vars at open()). Tests use this to set
+    // small, deterministic caps.
+    virtual void set_retention(const RetentionPolicy& policy) = 0;
+
+    // Enforce the retention policy now: evict old/excess event-log rows and bound
+    // per-person notes, then persist. The live runtime calls this on the SAME
+    // scheduler tick that delivers reminders (constraint: reuse the loop, don't add
+    // a third timer). Cheap on the small tables a wearable accumulates.
+    virtual void enforce_retention(UnixTime now) = 0;
 
     // --- People -------------------------------------------------------------
 

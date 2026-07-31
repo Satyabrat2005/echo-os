@@ -13,13 +13,18 @@
 // proof: companion-sync cannot accept the memory store's raw content either.
 #include "echo/memory/memory_engine.hpp"
 #include "echo/memory/utterance.hpp"
+#include "echo/memory/aes256.hpp"
 #include "echo/companion/companion_sync.hpp"
 #include "echo/types.hpp"
 
 #include "check.hpp"
+#include "fixture_io.hpp"   // fixture_path() + ECHO_FIXTURES_DIR
 
+#include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -49,7 +54,37 @@ std::string temp_db_path(const char* tag) {
     std::filesystem::remove(p, ec);           // start clean
     std::filesystem::remove(std::filesystem::path(p) += "-wal", ec);
     std::filesystem::remove(std::filesystem::path(p) += "-shm", ec);
+    std::filesystem::remove(std::filesystem::path(p) += ".key", ec);  // Phase 16 key file
+    std::filesystem::remove(std::filesystem::path(p) += ".tmp", ec);
     return p.string();
+}
+
+// Read a whole file into bytes (for inspecting the raw on-disk store).
+std::vector<std::uint8_t> read_bytes(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    return std::vector<std::uint8_t>((std::istreambuf_iterator<char>(in)),
+                                     std::istreambuf_iterator<char>());
+}
+
+// Does the raw byte buffer contain `needle` as a substring? Used to prove a stored
+// name does NOT appear in plaintext inside the encrypted file.
+bool contains_bytes(const std::vector<std::uint8_t>& hay, const std::string& needle) {
+    if (needle.empty() || hay.size() < needle.size()) return false;
+    for (std::size_t i = 0; i + needle.size() <= hay.size(); ++i)
+        if (std::memcmp(hay.data() + i, needle.data(), needle.size()) == 0) return true;
+    return false;
+}
+
+bool starts_with_str(const std::vector<std::uint8_t>& b, const std::string& s) {
+    return b.size() >= s.size() && std::memcmp(b.data(), s.data(), s.size()) == 0;
+}
+
+void hex_to(const char* h, std::uint8_t* out, int n) {
+    for (int i = 0; i < n; ++i) {
+        unsigned v = 0;
+        (void)std::sscanf(h + 2 * i, "%2x", &v);
+        out[i] = static_cast<std::uint8_t>(v);
+    }
 }
 
 constexpr memory::UnixTime kDay = 86400;
@@ -271,6 +306,240 @@ void test_recall_sentence() {
     CHECK(s.find("her") != std::string::npos);   // pronoun from "daughter"
 }
 
+// --- Phase 16: AES-256 correctness (known-answer vectors) ---------------------
+// The at-rest encryption is only as trustworthy as its cipher, and the cipher is
+// hand-rolled (see aes256.hpp for why). So we pin it to the PUBLISHED vectors:
+// FIPS-197's AES-256 example block and NIST SP 800-38A's CTR-AES256 test vector.
+void test_aes_known_answer_vectors() {
+    using namespace echo::memory::crypto;
+
+    // FIPS-197, Appendix C.3 — AES-256 single-block encryption.
+    Key256 k{};
+    hex_to("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", k.data(), 32);
+    Block in{};
+    hex_to("00112233445566778899aabbccddeeff", in.data(), 16);
+    Block out = encrypt_block(k, in);
+    Block want{};
+    hex_to("8ea2b7ca516745bfeafc49904b496089", want.data(), 16);
+    CHECK(out == want);
+
+    // NIST SP 800-38A, F.5.5 — CTR-AES256, first two blocks.
+    Key256 k2{};
+    hex_to("603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4", k2.data(), 32);
+    Block iv{};
+    hex_to("f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff", iv.data(), 16);
+    std::uint8_t buf[32];
+    hex_to("6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e51", buf, 32);
+    ctr_xcrypt(k2, iv, buf, 32);
+    std::uint8_t exp[32];
+    hex_to("601ec313775789a5b7a7f504bbf3d228f443e3ca4d62b59aca84e990cacaf5c5", exp, 32);
+    CHECK(std::memcmp(buf, exp, 32) == 0);
+
+    // CTR is symmetric: decrypting the ciphertext returns the plaintext.
+    ctr_xcrypt(k2, iv, buf, 32);
+    std::uint8_t pt[32];
+    hex_to("6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e51", pt, 32);
+    CHECK(std::memcmp(buf, pt, 32) == 0);
+}
+
+// --- Phase 16: encryption at rest ---------------------------------------------
+// Proves the on-disk store is ciphertext, not a readable SQLite file, and that the
+// data is unrecoverable without the device key.
+void test_encryption_at_rest() {
+    auto db = temp_db_path("encrest");
+    {
+        auto m = memory::make_memory_engine();
+        CHECK(m->open(db) == Status::Ok);
+        auto id = m->remember_person("Priya", "your daughter", fixture_embedding(1), kNow);
+        CHECK(id.is_ok());
+        CHECK(m->add_note(id.value(), "likes gardening in the mornings") == Status::Ok);
+        m->close();
+    }
+
+    // The raw file is our encrypted container, NOT a plaintext SQLite database, and
+    // the stored name/notes do not appear as plaintext anywhere in it.
+    auto raw = read_bytes(db);
+    CHECK(!raw.empty());
+    CHECK(!starts_with_str(raw, "SQLite format 3"));   // would be the header of a plaintext db
+    CHECK(starts_with_str(raw, "ECHOAES1"));           // our container magic
+    CHECK(!contains_bytes(raw, "Priya"));
+    CHECK(!contains_bytes(raw, "gardening"));
+    CHECK(!contains_bytes(raw, "your daughter"));
+
+    // With the (unchanged) key file beside it, a fresh engine recovers everything.
+    {
+        auto m = memory::make_memory_engine();
+        CHECK(m->open(db) == Status::Ok);
+        CHECK(m->all_people().size() == 1);
+        auto hit = m->recognize(fixture_embedding(1));
+        CHECK(hit.matched);
+        CHECK(hit.person.name == "Priya");
+        CHECK(hit.person.notes.find("gardening") != std::string::npos);
+        m->close();
+    }
+
+    // Destroy/replace the key -> the store is undecryptable and the engine refuses to
+    // open it (fails closed rather than exposing or discarding data silently).
+    {
+        std::ofstream keyout(db + ".key", std::ios::binary | std::ios::trunc);
+        for (int i = 0; i < 32; ++i) keyout.put(static_cast<char>(0xA5));  // wrong key
+    }
+    {
+        auto m = memory::make_memory_engine();
+        CHECK(m->open(db) != Status::Ok);   // wrong key -> cannot decrypt
+        CHECK(!m->is_open());
+    }
+}
+
+// --- Phase 16: one-time migration of an unencrypted Phase-15 store -------------
+// Opens the checked-in plaintext fixture DB and proves its person/reminder records
+// survive and the file is rewritten encrypted (a Phase-15 wearer's data is migrated,
+// never discarded).
+void test_migration_from_plaintext() {
+    // Work on a private copy so the checked-in fixture stays pristine.
+    auto dst = temp_db_path("migrate");
+    std::error_code ec;
+    std::filesystem::copy_file(echo::test::fixture_path("phase15_plaintext.db"), dst,
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    CHECK(!ec);
+
+    // Sanity: the copy really is a plaintext SQLite db going in.
+    CHECK(starts_with_str(read_bytes(dst), "SQLite format 3"));
+
+    {
+        auto m = memory::make_memory_engine();
+        CHECK(m->open(dst) == Status::Ok);   // triggers the one-time migration
+
+        // The Phase-15 person survived, notes and relation intact.
+        bool found_margaret = false;
+        for (const auto& p : m->all_people()) {
+            if (p.name == "Margaret") {
+                found_margaret = true;
+                CHECK(p.relation == "your mother");
+                CHECK(p.notes.find("crosswords") != std::string::npos);
+            }
+        }
+        CHECK(found_margaret);
+
+        // The Phase-15 reminder survived.
+        bool found_reminder = false;
+        for (const auto& r : m->all_reminders())
+            if (r.text.find("heart medication") != std::string::npos) found_reminder = true;
+        CHECK(found_reminder);
+        m->close();
+    }
+
+    // After migration the on-disk file is encrypted, not plaintext.
+    auto raw = read_bytes(dst);
+    CHECK(starts_with_str(raw, "ECHOAES1"));
+    CHECK(!starts_with_str(raw, "SQLite format 3"));
+    CHECK(!contains_bytes(raw, "Margaret"));
+
+    // And it reopens cleanly as an encrypted store.
+    {
+        auto m = memory::make_memory_engine();
+        CHECK(m->open(dst) == Status::Ok);
+        CHECK(!m->all_people().empty());
+        m->close();
+    }
+}
+
+// --- Phase 16: bounded event log ----------------------------------------------
+// After exceeding the cap, the oldest events are evicted and the newest retained —
+// and a retained acknowledgment's reminder state is untouched.
+void test_event_log_retention_bounded() {
+    auto db = temp_db_path("retevents");
+    auto m = memory::make_memory_engine();
+    CHECK(m->open(db) == Status::Ok);
+
+    // Oldest event first: naming Priya.
+    auto id = m->remember_person("Priya", "your daughter", fixture_embedding(1), kNow);
+    CHECK(id.is_ok());
+
+    // A pile of PersonSeen events.
+    for (int i = 0; i < 20; ++i)
+        CHECK(m->mark_seen(id.value(), kNow + i * 60) == Status::Ok);
+
+    // Newest events last: fire + acknowledge a reminder (so an ack event is retained).
+    auto rem = m->add_reminder("take blood pressure medication", kNow, Recurrence::Once);
+    CHECK(rem.is_ok());
+    CHECK(m->mark_fired(rem.value(), kNow) == Status::Ok);
+    CHECK(m->acknowledge_reminder(rem.value(), kNow) == Status::Ok);
+
+    // Way more than the cap we're about to set.
+    CHECK(m->recent_events(1000).size() > 5);
+
+    // Cap to the newest 5, no age limit, notes untouched, then enforce (the tick).
+    m->set_retention(memory::RetentionPolicy{/*events*/5, /*age*/0, /*notes*/0});
+    m->enforce_retention(kNow + 100000);
+
+    auto events = m->recent_events(1000);
+    CHECK(events.size() == 5);
+
+    // Oldest (the PersonNamed) was evicted; the newest survive.
+    bool has_named = false, has_ack = false;
+    for (const auto& e : events) {
+        if (e.kind == memory::EventKind::PersonNamed)          has_named = true;
+        if (e.kind == memory::EventKind::ReminderAcknowledged) has_ack = true;
+    }
+    CHECK(!has_named);   // evicted
+    CHECK(has_ack);      // retained (it was among the newest)
+
+    // Acknowledgment state for the retained records is intact: the Once reminder is
+    // still acknowledged (closed), untouched by event-log pruning.
+    bool reminder_acked = false;
+    for (const auto& r : m->all_reminders())
+        if (r.id == rem.value()) reminder_acked = r.acknowledged;
+    CHECK(reminder_acked);
+    CHECK(m->due_reminders(kNow).empty());   // closed, not resurfacing
+
+    // Survives a reopen (persisted encrypted, still bounded).
+    m->close();
+    auto m2 = memory::make_memory_engine();
+    CHECK(m2->open(db) == Status::Ok);
+    CHECK(m2->recent_events(1000).size() == 5);
+    m2->close();
+}
+
+// --- Phase 16: bounded person notes -------------------------------------------
+// Notes are capped by count with oldest-first eviction (never pruned by age).
+void test_notes_growth_bounded() {
+    auto db = temp_db_path("retnotes");
+    auto m = memory::make_memory_engine();
+    CHECK(m->open(db) == Status::Ok);
+
+    // Generous cap while adding, so all six notes accumulate.
+    m->set_retention(memory::RetentionPolicy{2000, 90, 100});
+    auto id = m->remember_person("Sam", "your neighbor", fixture_embedding(7), kNow);
+    CHECK(id.is_ok());
+    const char* notes[] = {"note-one", "note-two", "note-three",
+                           "note-four", "note-five", "note-six"};
+    for (const char* n : notes) CHECK(m->add_note(id.value(), n) == Status::Ok);
+    CHECK(m->get_person(id.value())->notes.find("note-one") != std::string::npos);
+
+    // Tighten to the newest 2 and enforce on the (retention) tick.
+    m->set_retention(memory::RetentionPolicy{2000, 90, 2});
+    m->enforce_retention(kNow);
+
+    auto p = m->get_person(id.value());
+    CHECK(p.has_value());
+    CHECK(p->notes.find("note-five") != std::string::npos);   // retained (newest)
+    CHECK(p->notes.find("note-six")  != std::string::npos);   // retained (newest)
+    CHECK(p->notes.find("note-one")   == std::string::npos);  // evicted (oldest)
+    CHECK(p->notes.find("note-four")  == std::string::npos);  // evicted
+
+    // The immediate per-add cap also bounds growth without waiting for a tick.
+    auto id2 = m->remember_person("Jo", "your friend", fixture_embedding(9), kNow);
+    for (int i = 0; i < 10; ++i) CHECK(m->add_note(id2.value(), "x" + std::to_string(i)) == Status::Ok);
+    auto p2 = m->get_person(id2.value());
+    // cap is 2 -> only the last two "x8; x9" remain.
+    CHECK(p2->notes.find("x9") != std::string::npos);
+    CHECK(p2->notes.find("x8") != std::string::npos);
+    CHECK(p2->notes.find("x0") == std::string::npos);
+
+    m->close();
+}
+
 // --- COMPILE-TIME PRIVACY PROOF (extends Phase 10's companion-sync proof) ------
 // Phase 10 proved companion-sync's transport cannot accept a SensorFrame. The
 // memory store adds NEW raw content — face embeddings, notes, the event log — that
@@ -333,6 +602,12 @@ int main() {
     test_naming_parse();
     test_identity_query_detection();
     test_recall_sentence();
+    // Phase 16 — encryption at rest + retention.
+    test_aes_known_answer_vectors();
+    test_encryption_at_rest();
+    test_migration_from_plaintext();
+    test_event_log_retention_bounded();
+    test_notes_growth_bounded();
     test_memory_content_cannot_reach_sync_path();
     return echo::test::report("memory-engine");
 }

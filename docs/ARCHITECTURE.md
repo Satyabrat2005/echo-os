@@ -146,8 +146,19 @@ only** (local SQLite; no new network path — constraint #2), and its raw conten
 **cannot reach `companion-sync`**: the same compile-time proof technique from
 Phase 10 (companion-sync can't accept a `SensorFrame`) is extended in
 `tests/memory_engine_test.cpp` to prove no send path can accept an embedding, a
-person record, or an event. At rest the file is **permission-restricted** (owner-only,
-best-effort), which is honestly *not* encryption — see [ADR-13](DECISIONS.md).
+person record, or an event.
+
+**Encrypted at rest (Phase 16).** At rest the on-disk file is **AES-256-CTR
+ciphertext**, keyed by a per-device key file (owner-only, same posture as appkit's
+`.echo-tokens/`); the plaintext SQLite image lives only in process RAM (the working
+DB is an in-memory connection, serialized→encrypted on checkpoint). This provides
+**confidentiality** for a copied/imaged database, honestly **not** authentication or a
+hardware-backed key — SQLCipher was ruled out because this toolchain has no OpenSSL to
+back it, so a dependency-free in-tree AES (KAT-proven) is used instead. An existing
+Phase-15 *plaintext* database is migrated to the encrypted format on open. Growth is
+bounded on the existing scheduler tick (event log by count+age; notes cap-and-evict).
+See [ADR-14](DECISIONS.md) and [ADR-15](DECISIONS.md); the earlier permission-only
+baseline was [ADR-13](DECISIONS.md).
 
 ## The isolation boundary (green box)
 
@@ -195,7 +206,10 @@ The **memory engine is the exception that proves the rule**: it is *not* behind 
 must always be present. It keeps the stub build dependency-free anyway by vendoring
 the single-file SQLite amalgamation in-tree ([ADR-13](DECISIONS.md)) — real on-disk
 persistence with zero external packages. In the stub build the memory *tests* run
-against fixture embeddings, so no OpenCV/ORT is needed to exercise the store.
+against fixture embeddings, so no OpenCV/ORT is needed to exercise the store. Its
+Phase-16 encryption stays dependency-free the same way: a small in-tree AES-256
+(no OpenSSL/SQLCipher), so the stub build gains encryption at rest with still-zero
+external packages ([ADR-14](DECISIONS.md)).
 
 ## Where to look next
 

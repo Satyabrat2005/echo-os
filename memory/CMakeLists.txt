@@ -27,6 +27,8 @@ endif()
 add_library(echo-memory STATIC
     src/memory_engine.cpp
     src/utterance.cpp
+    src/aes256.cpp       # Phase 16: dependency-free AES-256 for encryption at rest
+    src/device_key.cpp   # Phase 16: per-device key management
 )
 
 target_include_directories(echo-memory PUBLIC
