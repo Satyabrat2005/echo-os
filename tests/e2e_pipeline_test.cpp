@@ -24,6 +24,7 @@
 #include "echo/sensor/sensor_source.hpp"
 #include "echo/perception/perception_engine.hpp"
 #include "echo/cognitive/cognitive_core.hpp"
+#include "echo/memory/memory_engine.hpp"
 #include "echo/voice/voice_ui.hpp"
 #include "echo/types.hpp"
 
@@ -33,6 +34,8 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <string>
+#include <vector>
 
 using namespace echo;
 
@@ -146,10 +149,91 @@ void test_turn_confident_but_no_llm_still_safe() {
     core->shutdown();
 }
 
+// --- Phase 15: face-based recall end to end ----------------------------------
+// The single most valuable NEW test in this phase. It drives a fixture face
+// embedding + a prior naming utterance through the REAL cognitive core WITH a real
+// (on-disk) memory engine attached, and asserts that "who is this?" produces an
+// enriched recall answer — the concrete behavior change the whole product turns on.
+// No hardware, no OpenCV: the embedding is fixture data, exactly as the memory unit
+// tests use, standing in for what vision's SFace path would hand up (see the
+// perception OUTPUT CONTRACT note on Turn B above).
+
+// A deterministic stand-in for an SFace embedding (matches memory_engine_test).
+std::vector<float> fixture_embedding(int seed, std::size_t dim = 128) {
+    std::vector<float> e(dim, 0.0f);
+    e[static_cast<std::size_t>(seed) % dim] = 1.0f;
+    for (std::size_t i = 0; i < dim; ++i) e[i] += 0.01f * static_cast<float>((seed + i) % 3);
+    return e;
+}
+
+perception::Perception face_and_speech(const std::vector<float>& emb, const std::string& said) {
+    perception::Perception p;
+    perception::FaceObservation f;
+    f.identity   = "";                 // vision didn't name them; memory will
+    f.confidence = Confidence{0.90f};  // a solid face detection
+    f.embedding  = emb;
+    p.faces.push_back(std::move(f));
+    if (!said.empty())
+        p.speech = perception::Transcript{said, Confidence{0.90f}, /*endpointed=*/true};
+    return p;
+}
+
+void test_turn_face_recall_is_enriched_end_to_end() {
+    auto mem = memory::make_memory_engine();
+    CHECK(mem->open(":memory:") == Status::Ok);
+    auto core = cognitive::make_cognitive_core({}, mem.get());
+    CHECK(core->initialize() == Status::Ok);
+
+    const auto emb = fixture_embedding(1);
+
+    // TURN 1 — the wearer names the person while looking at them. This is the ONLY
+    // way a person record is created; it flows through the real respond() path.
+    auto naming = core->respond(face_and_speech(emb, "this is my daughter Priya"));
+    CHECK(naming.value().kind == cognitive::ResponseKind::Normal);
+    CHECK(naming.value().text.find("Priya") != std::string::npos);
+    CHECK(mem->all_people().size() == 1);
+
+    // Backdate the sighting so recall can say "2 days ago" (as if Priya visited two
+    // days back). Everything else is untouched.
+    const memory::PersonId id = mem->all_people().front().id;
+    const memory::UnixTime now = memory::unix_now();
+    CHECK(mem->mark_seen(id, now - 2 * 86400) == Status::Ok);
+
+    // TURN 2 — later, the wearer asks "who is this?" with the same face in view.
+    // The response is an enriched recall drawn from the real record, spoken neutrally
+    // (a known fact, not a safe-mode deferral).
+    auto recall = core->respond(face_and_speech(emb, "who is this"));
+    const auto& r = recall.value();
+    CHECK(r.kind == cognitive::ResponseKind::Normal);
+    CHECK(!r.flag_caregiver);
+    CHECK(r.text.find("Priya") != std::string::npos);
+    CHECK(r.text.find("your daughter") != std::string::npos);
+    CHECK(r.text.find("2 days ago") != std::string::npos);
+
+    // It renders to a neutral spoken turn and is speakable through the real shell.
+    auto spoken = voice::to_utterance(r);
+    CHECK(spoken.tone == voice::Tone::Neutral);
+    auto ui = voice::make_voice_ui();
+    CHECK(ui->initialize() == Status::Ok);
+    CHECK(ui->speak(spoken) == Status::Ok);
+    ui->shutdown();
+
+    // A STRANGER (different embedding, no naming) yields no recall and creates no
+    // person — the no-auto-create rule, proven end to end.
+    auto stranger = core->respond(face_and_speech(fixture_embedding(42), ""));
+    CHECK(stranger.value().kind != cognitive::ResponseKind::Normal ||
+          stranger.value().text.find("Priya") == std::string::npos);
+    CHECK(mem->all_people().size() == 1);   // still just Priya
+
+    core->shutdown();
+    mem->close();
+}
+
 }  // namespace
 
 int main() {
     test_turn_low_confidence_speaks_safe_fallback();
     test_turn_confident_but_no_llm_still_safe();
+    test_turn_face_recall_is_enriched_end_to_end();
     return echo::test::report("e2e-fixture");
 }

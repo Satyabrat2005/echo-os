@@ -14,6 +14,7 @@ target_link_libraries(echo-runtime
     PUBLIC
         echo::common
         echo::sensor
+        echo::memory
         echo::perception
         echo::cognitive
         echo::voice

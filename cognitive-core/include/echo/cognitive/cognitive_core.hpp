@@ -13,6 +13,7 @@
 #include "echo/types.hpp"
 #include "echo/result.hpp"
 #include "echo/perception/perception_engine.hpp"
+#include "echo/memory/memory_engine.hpp"
 
 #include <memory>
 #include <string>
@@ -53,12 +54,20 @@ public:
     virtual Status initialize() = 0;
 
     // Core decision: given perception, produce a response. Never throws; a model
-    // failure degrades to safe mode rather than propagating.
+    // failure degrades to safe mode rather than propagating. When a memory engine
+    // is attached (see make_cognitive_core), a confidently-recognized known person
+    // yields an enriched recall response, and a "[route:memory]" LLM reply is
+    // answered from the real record instead of a guess.
     virtual Result<Response> respond(const perception::Perception& observation) = 0;
 
     virtual void shutdown() = 0;
 };
 
-std::unique_ptr<ICognitiveCore> make_cognitive_core(SafeModeConfig config = {});
+// `memory` is a non-owning pointer to the on-device store (owned by the runtime),
+// or nullptr to run without memory (the pre-Phase-15 behavior, used by tests and
+// any core-only build). The core never takes ownership and never persists anything
+// itself — all storage goes through the engine.
+std::unique_ptr<ICognitiveCore> make_cognitive_core(SafeModeConfig config = {},
+                                                    memory::IMemoryEngine* memory = nullptr);
 
 }  // namespace echo::cognitive

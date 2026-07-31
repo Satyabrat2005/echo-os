@@ -21,6 +21,10 @@ struct FaceHit {
     std::string identity;      // "" when detected but not matched to an enrollee
     float confidence = 0.0f;   // match confidence (or detection score if unknown)
     float x = 0, y = 0, w = 0, h = 0;  // normalized [0,1] bbox
+    // The raw SFace embedding for this face (128-d), or empty in the stub build.
+    // This — never any pixels — is what the memory engine matches against to recall
+    // a named person (Phase 15). No image is copied or persisted (principle #4).
+    std::vector<float> embedding;
 };
 
 struct ObjectHit {

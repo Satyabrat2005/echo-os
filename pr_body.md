@@ -1,83 +1,91 @@
-## Phase 13 — Real wake-word verification in CI (account-free)
+## Phase 15 — The memory & recall engine (the actual dementia-care core)
 
-Phases 11–12 verified every real engine in CI **except wake-word**, left out for one
-reason: the Porcupine backend needs an account-gated Picovoice key we won't put in a
-workflow. This phase closes that gap the same account-free way the others were
-closed — by adding **openWakeWord** alongside Porcupine (not replacing it), behind
-the existing `wake_word.hpp`/`IWakeWord` interface, and running it against real
-models in CI.
+Every phase before this built real, working **generic** voice-assistant plumbing:
+wake word, transcribe, route to an app, speak a reply. None of it was actually about
+dementia. The pitch — *"glasses that remember for you"* — needs a module that
+**remembers**, and there wasn't one: nothing on-device persisted who a face belongs
+to, what was said about them, or what the wearer needs reminding of.
 
-openWakeWord is a fully local, **Apache-2.0** three-stage ONNX pipeline
-(`melspectrogram` → Google `speech_embedding` → per-keyword classifier) that runs on
-**MIT-licensed ONNX Runtime** — every file anonymously fetchable, no account, no key.
-
-**With this, every real engine — wake-word, ASR, vision, TTS, LLM — is now verified
-against real models in CI on synthetic/fixture input.** The only remaining gap is
-live-hardware behaviour with a real human in a real room with real background noise —
-which cannot be simulated and is not claimed as covered.
+This phase adds that core: a new **`memory/`** module — a local, private, on-device
+store of **people**, **reminders**, and a narrow **event log** — and wires it *into*
+the existing perception → cognitive → voice loop. It is the first phase since the
+scaffold that adds a genuinely **new capability** rather than making an existing one
+real. "Who is this?" now answers *"That's Priya, your daughter. You last saw her two
+days ago,"* recalled from the real record — not a bare "face detected," and not a
+guess.
 
 ### What's added
 
-- **openWakeWord backend** in [`perception/src/wake_word.cpp`](perception/src/wake_word.cpp),
-  behind `ECHO_WITH_OPENWAKEWORD`, next to the untouched Porcupine path. Which one
-  `make_wake_word()` returns is chosen by `-DECHO_WAKEWORD_BACKEND=openwakeword|porcupine`
-  (default `openwakeword` — the one CI and anyone without a Picovoice account can run).
-  Reproduces openWakeWord's pipeline faithfully (int16-as-float audio, the `x/10+2`
-  mel transform, 76-frame/step-8 embedding windows, 16-embedding classifier windows;
-  I/O tensor names queried at runtime, not hard-coded).
-- **Pinned model assets**, the same rigorous way Phases 11–12 pinned theirs — exact
-  URL, SHA-256, size, license, reason — in [`MANIFEST.md`](MANIFEST.md) and
-  [`scripts/fetch_real_engine_assets.sh`](scripts/fetch_real_engine_assets.sh):
-  openWakeWord's `melspectrogram.onnx`, `embedding_model.onnx`, and
-  `hey_jarvis_v0.1.onnx` (Apache-2.0), plus the ONNX Runtime prebuilt (MIT). All
-  checksum-verified before use.
-- **`tests/real_wakeword_test.cpp`** — real openWakeWord inference against fixtures:
-  a Piper-synthesized "hey jarvis" clip must clear the detection threshold; ordinary
-  non-wake speech, silence, and loud garble must stay below it. It **prints every
-  observed score** and asserts on the model's *actual* probabilistic behavior.
-- **Wake-word fixtures**, extending Phase 10's, documented in
-  [`tests/fixtures/README.md`](tests/fixtures/README.md): the two speech clips are
-  **Piper-synthesized in CI** (not committed), the negatives reuse the committed
-  synthetic `silence.wav`/`noisy_garble.wav`.
-- **CI**: the existing `real-engines` job (which already provides Piper) gains
-  `-DECHO_WITH_OPENWAKEWORD=ON`, the checksum-verified model + ONNX Runtime download,
-  the wake-clip synthesis, and the wake-word test — cached by checksum like every
-  other asset.
+- **`memory/` module** mirroring the existing layout:
+  [`memory_engine.hpp`](memory/include/echo/memory/memory_engine.hpp)/`.cpp`, its own
+  `CMakeLists.txt`, and its own unit tests. It stores:
+  - **Person records** — a stable identity key (vision's **SFace embedding**, matched
+    by cosine similarity — never a raw image), a display name + relationship the
+    wearer stated, accumulating notes, and last-seen.
+  - **Reminder records** — text + due time + recurrence (once/daily/weekly) +
+    acknowledged state.
+  - **Event log** — an append-only log of *notable* moments only (a known person
+    seen, a reminder fired/acknowledged). **Not** a transcript store.
+- **Real persistence: SQLite** (vendored amalgamation v3.46.1, public domain, in
+  [`memory/vendor/sqlite3/`](memory/vendor/sqlite3/)), compiled in-tree as
+  `echo-sqlite3`. Records survive restarts — proven by a close/reopen test. It is the
+  honest embedded choice over a hand-rolled file (ADR-13), and stays dependency-free
+  so the stub build is unaffected.
+- **Wired into the pipeline, not around it:**
+  - `perception` now surfaces each face's SFace **embedding** on `FaceObservation`;
+    `cognitive-core` matches it against the store and returns an **enriched recall**
+    *before* the safe-mode gate (retrieval is a fact, not an LLM guess).
+  - Reminders are checked on the **existing `boot/` core tick** (no second timer
+    loop — constraint #3) and spoken through the existing `voice-ui` path.
+  - A new **`[route:memory]`** tag — parsed by Phase 6's **unchanged** route-tag
+    parser (constraint #3) — lets the LLM defer an on-device memory question ("did I
+    take my medication today?") to the engine, which answers from the **real event
+    log** (or returns nothing, so the system falls back rather than fabricate).
+- **Tests** (green in the dependency-free stub build):
+  [`tests/memory_engine_test.cpp`](tests/memory_engine_test.cpp) — CRUD, recurrence,
+  the RAG medication query, persistence-across-reopen, utterance parsing, and **the
+  no-auto-create-from-an-unnamed-face rule**; plus a new turn in
+  [`tests/e2e_pipeline_test.cpp`](tests/e2e_pipeline_test.cpp) driving a fixture
+  embedding + a prior "this is Priya" utterance to an enriched recall, end to end,
+  with no hardware.
 
-### Honest notes (constraints #2, #3, #4)
+### Safety & privacy, made concrete (not aspirational)
 
-- **Custom "Hey ECHO" is a follow-up, not this phase.** This ships the **pretrained**
-  "hey jarvis" model as the closest account-free stand-in. Training a bespoke
-  "Hey ECHO" word (synthesize + mine negatives + train + validate) is a much larger
-  undertaking than downloading a pretrained model, and is documented as such in
-  `MANIFEST.md` and `docs/STATE.md` — not claimed as done.
-- **Why a Piper "hey jarvis" clip is a fair positive.** openWakeWord's *own* training
-  data is Piper-TTS-synthesized speech, so the clip is genuinely in-distribution —
-  not a rigged input.
-- **Nonzero error rates, not hidden.** Wake-word detection is probabilistic. The test
-  asserts real behavior against these clips (peak score on the wake clip clears the
-  threshold; each non-wake clip stays below it) and is **not** tuned to fake a
-  perfect separation the model can't honestly deliver. The observed scores are
-  printed in the CI log.
-- **Porcupine is kept, not deleted** (constraint #4): still available behind
-  `ECHO_WITH_PORCUPINE` as a higher-accuracy production option for a build that has
-  done the account/key step.
+- **A person is created ONLY when the wearer names one.** An unknown face with no
+  naming utterance creates **zero** records — recognizing a stranger never invents an
+  identity. Asserted directly (`test_unknown_face_creates_no_person`) and end to end.
+- **The store's raw content cannot reach `companion-sync`.** Phase 10 proved (via
+  `static_assert`) that the sync transport can't accept a `SensorFrame`; this PR
+  **extends that same proof** to embeddings, person records, and events. It was
+  confirmed to *bite* — a deliberately-wrong "a leak path exists" assertion fails to
+  compile.
+- **No new "phone home" path** (constraint #2): the module makes zero network calls;
+  a future caregiver view stays a `companion-sync` boundary discussion, not something
+  opened here.
+- **Narrow persistence scope** (documented in `docs/ARCHITECTURE.md`): only
+  caregiver-legible summaries are logged ("Saw Priya", "Reminded: take medication") —
+  never verbatim conversation.
 
-### Impact on existing jobs
+### Honest limits (constraint #4 + docs/STATE.md gaps 9–11)
 
-None. The backend and `tests/real_wakeword_test.cpp` are compiled **only** under
-`-DECHO_WITH_OPENWAKEWORD=ON`, so the default + stub CI build is byte-for-byte
-unaffected (stub build stays zero-dependency; verified green locally). The test
-self-skips (green, loud message) if the flag is on but the models aren't present.
+- **File-permission restriction, NOT encryption at rest.** Best-effort owner-only
+  perms (chmod 0600 on POSIX; `std::filesystem` maps loosely on Windows). True
+  encryption is **SQLCipher**, a deliberate follow-up (ADR-13). Stated plainly, not
+  overclaimed.
+- **SQLite built cleanly under MinGW** — ~10 s, zero warnings, links and runs first
+  try on the project's MinGW-w64 ucrt g++ 15.1 toolchain. Unlike the ORT/OpenCV
+  native-dep friction in Phase 14b, there was **no** toolchain gap to work around, so
+  none was invented. (One change: C enabled as a project language for that one TU.)
+- **Still unproven, and labelled as such:** multi-day real-world recall accuracy
+  (tests use fixture embeddings); note summarization/pruning so the store stays
+  bounded (today it only accumulates); and — as ever — any use by a real wearer.
 
-### The gap list now (docs/STATE.md)
+### Impact on existing behavior
 
-- **Verified in CI against real models:** wake-word (openWakeWord), ASR (whisper),
-  vision (OpenCV), TTS (Piper), LLM (llama.cpp, tiny model) — all account-free, on
-  fixtures/synthetic speech.
-- **Remaining, and inherently un-simulatable:** live-hardware behaviour with a real
-  human — real mic/webcam, real room, real background noise, latency under load,
-  SDL playback. Plus two documented non-engine items: production-grade LLM answer
-  quality (deployment-size model) and a custom-trained "Hey ECHO" word.
+None when no store is attached. Every memory branch in `cognitive-core` is guarded on
+an attached, open engine, so the pre-Phase-15 behavior is byte-for-byte unchanged and
+**all previously-green tests still pass** (10/10 CTest suites green locally on MinGW,
+clean-from-scratch). clang-tidy and cppcheck now cover the new first-party `memory/`
+code (findings fixed); the vendored `sqlite3.c` is excluded from both as upstream C.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

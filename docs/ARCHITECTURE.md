@@ -25,7 +25,11 @@ flowchart TB
     POWER["<b>power-mgmt</b><br/>observes whole loop →<br/>Idle / Interactive / Throttled"]
     POWER -.->|DVFS / duty cycle| CORE
 
-    COMP["<b>companion-sync</b><br/>BLE / WiFi to caregiver app<br/><b>alerts · status · firmware ONLY</b><br/>— never raw sensor data —"]
+    MEM["<b>memory</b> (Phase 15)<br/>people · reminders · events<br/>local SQLite — on-device only<br/><b>▶ no path to companion-sync ◀</b>"]
+    COG -.->|"recall · name<br/>[route:memory]"| MEM
+    MEM -.->|"enriched recall /<br/>due reminder"| VOICE
+
+    COMP["<b>companion-sync</b><br/>BLE / WiFi to caregiver app<br/><b>alerts · status · firmware ONLY</b><br/>— never raw sensor data, never memory —"]
     COG -.->|flag caregiver<br/>on safe-mode| COMP
     VOICE -.->|status| COMP
 
@@ -59,6 +63,7 @@ flowchart TB
     style PERC fill:#e8f0ff,stroke:#3366cc
     style VOICE fill:#e8f0ff,stroke:#3366cc
     style COG fill:#ffe8e8,stroke:#cc3333
+    style MEM fill:#eef0e8,stroke:#5a7d2a
     style HUD fill:#fff8e8,stroke:#cc9933
 ```
 
@@ -105,6 +110,45 @@ moment."*) and sets `flag_caregiver = true`, which `companion-sync` turns into a
 `SafeModeEngaged` alert. The interface guarantees this: `respond()` never throws;
 a failure degrades to safe mode rather than propagating.
 
+### The memory & recall engine — what "remembers for you" actually means
+
+[`memory/`](../memory) (Phase 15) is the first module whose whole purpose is the
+product's differentiator, and it is wired *into* the loop, not bolted on. `boot/`
+owns the engine and injects a non-owning pointer into `cognitive-core`:
+
+- **Recall.** `perception` now hands up each face's **SFace embedding** (a derived
+  vector, never pixels) on the `FaceObservation`. `cognitive-core` matches it against
+  the store and, on a confident hit, returns an enriched *"That's Priya, your
+  daughter. You last saw her two days ago"* — computed from the record's `last_seen`,
+  **before** the safe-mode gate (a stored fact is retrieval, not a guess the gate
+  should suppress).
+- **Naming is the only way a person is created.** *"This is my daughter Priya"* binds
+  a name to the embedding in view. An unknown face with no naming utterance creates
+  nothing — the store never invents an identity for a stranger.
+- **Reminders** are checked on the **existing core tick** (no second timer loop) and
+  spoken through `voice-ui` like any other line; recurrence advances on acknowledge.
+- **Memory-queries** ride Phase 6's route-tag parser: the LLM tags an on-device
+  memory question `[route:memory]` and the engine answers from the **real event log**
+  (or returns nothing, so the system falls back rather than fabricate).
+
+**What is persisted, and — deliberately — what is not.** The store holds exactly
+three narrow things: **person records** (name, relationship phrase, SFace embedding,
+last-seen), **reminders** (text, due/recurrence, acknowledged), and an **event log**
+of *notable* moments only — a known person recognized, a reminder fired or
+acknowledged. It does **not** log verbatim transcripts of conversation: raw speech is
+transcribed for the current turn and discarded, and only these caregiver-legible
+summaries ("Saw Priya", "Reminded: take medication") are written. Everything a
+caregiver could later review is something they could reasonably be shown; nothing
+private-by-accident is captured.
+
+**The privacy boundary is structural, not a policy.** The store is **on-device
+only** (local SQLite; no new network path — constraint #2), and its raw content
+**cannot reach `companion-sync`**: the same compile-time proof technique from
+Phase 10 (companion-sync can't accept a `SensorFrame`) is extended in
+`tests/memory_engine_test.cpp` to prove no send path can accept an embedding, a
+person record, or an event. At rest the file is **permission-restricted** (owner-only,
+best-effort), which is honestly *not* encryption — see [ADR-13](DECISIONS.md).
+
 ## The isolation boundary (green box)
 
 The apps layer — media, mail, browser, search, video, telephony, camera,
@@ -145,6 +189,13 @@ the whole voice flow is testable today and real credentials slot in later with
 The default build is **dependency-free**: every toggle is OFF, so the stub build
 compiles on any host toolchain and stays deterministic in CI. See the
 [README](../README.md) Phase 3 and Phase 5 sections for the per-engine detail.
+
+The **memory engine is the exception that proves the rule**: it is *not* behind an
+`ECHO_WITH_*` toggle, because persistence across restarts is its entire point and
+must always be present. It keeps the stub build dependency-free anyway by vendoring
+the single-file SQLite amalgamation in-tree ([ADR-13](DECISIONS.md)) — real on-disk
+persistence with zero external packages. In the stub build the memory *tests* run
+against fixture embeddings, so no OpenCV/ORT is needed to exercise the store.
 
 ## Where to look next
 

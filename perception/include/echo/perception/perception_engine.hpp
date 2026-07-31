@@ -22,6 +22,11 @@ struct FaceObservation {
     Confidence  confidence;
     // Bounding box in normalized [0,1] frame coordinates.
     float x = 0.f, y = 0.f, w = 0.f, h = 0.f;
+    // The SFace embedding for this face (128-d), or empty when unavailable (stub
+    // build, or a detector that didn't recognize). The cognitive core matches this
+    // against the memory engine to recall a named person (Phase 15). It is a
+    // derived vector, never pixels — no raw image leaves perception (principle #4).
+    std::vector<float> embedding;
 };
 
 // A recognized object/scene label (lightweight quantized CNN).

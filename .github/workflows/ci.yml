@@ -216,6 +216,22 @@ jobs:
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
+      # Drop the vendored SQLite amalgamation (memory/vendor/sqlite3) from the
+      # compile database before analysis: it is ~250k lines of upstream C we neither
+      # own nor fix, and scanning it would both slow the job and surface findings we
+      # will not act on. clang-tidy already excludes it via scripts/run_clang_tidy.sh.
+      - name: Drop vendored third-party from the compile database
+        run: |
+          python3 - <<'PY'
+          import json
+          p = "build/compile_commands.json"
+          db = json.load(open(p))
+          kept = [x for x in db if "vendor/sqlite3" not in x["file"].replace("\\", "/")]
+          json.dump(kept, open(p, "w"))
+          print(f"cppcheck scope: {len(kept)} first-party TUs "
+                f"({len(db) - len(kept)} vendored dropped)")
+          PY
+
       # missingInclude(System) is suppressed because cppcheck cannot see the
       # toolchain's system headers and it is not our code to fix; every other
       # warning/performance/portability finding fails the job.
@@ -335,6 +351,7 @@ jobs:
           # gcovr versions); tee it so we can echo it into the run summary too.
           gcovr --root . \
             --exclude '.*/tests/.*' --exclude '.*/fuzz/.*' --exclude '.*/build.*' \
+            --exclude '.*/vendor/.*' \
             --html-details coverage/index.html \
             --xml coverage/coverage.xml \
             --print-summary | tee coverage/summary.txt

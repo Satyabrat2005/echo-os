@@ -76,6 +76,12 @@ public:
             feature = feature.clone();
 
             FaceHit hit;
+            // Hand the SFace embedding up so the memory engine can match it against
+            // stored people (Phase 15). feature is a continuous CV_32F 1xN row.
+            if (feature.isContinuous() && feature.type() == CV_32F) {
+                const float* fb = reinterpret_cast<const float*>(feature.data);
+                hit.embedding.assign(fb, fb + feature.total());
+            }
             const float* f = faces.ptr<float>(i);
             hit.x = f[0] / w; hit.y = f[1] / h;
             hit.w = f[2] / w; hit.h = f[3] / h;

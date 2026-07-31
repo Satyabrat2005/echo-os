@@ -10,7 +10,7 @@ target_include_directories(echo-cognitive PUBLIC
 )
 
 target_link_libraries(echo-cognitive
-    PUBLIC  echo::common echo::perception
+    PUBLIC  echo::common echo::perception echo::memory  # public header exposes memory types
     PRIVATE echo-project-options
 )
 

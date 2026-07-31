@@ -15,6 +15,7 @@
 #include "echo/result.hpp"
 
 #include "echo/sensor/sensor_source.hpp"
+#include "echo/memory/memory_engine.hpp"
 #include "echo/perception/perception_engine.hpp"
 #include "echo/cognitive/cognitive_core.hpp"
 #include "echo/voice/voice_ui.hpp"
@@ -54,11 +55,17 @@ public:
 private:
     void set_state(RuntimeState s) noexcept;
     void handle_response(const cognitive::Response& response);
+    // Check the memory engine for due reminders and speak them. Runs on the same
+    // core tick as everything else — no second timer loop (constraint #3).
+    void deliver_due_reminders();
 
     RuntimeState state_ = RuntimeState::Booting;
     bool         stop_requested_ = false;
 
     sensor::SensorPipeline                    sensors_;
+    // Memory engine is constructed first and injected into the cognitive core, so
+    // it must be declared before cognitive_ (members destroy in reverse order).
+    std::unique_ptr<memory::IMemoryEngine>         memory_;
     std::unique_ptr<perception::IPerceptionEngine> perception_;
     std::unique_ptr<cognitive::ICognitiveCore>     cognitive_;
     std::unique_ptr<voice::IVoiceUi>               voice_;

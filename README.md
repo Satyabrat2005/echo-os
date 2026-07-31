@@ -76,6 +76,7 @@ The sections below remain the detailed, phase-by-phase reference.
 | `sensor-pipeline/`  | C++      | Real-time camera/mic/EEG capture with a **single-producer/single-consumer lock-free ring buffer**, minimal-copy handoff to perception. |
 | `perception/`       | C++      | Quantized face/object recognition (lightweight CNN), wake-word detection, Whisper-class ASR. All local. |
 | `cognitive-core/`   | C++      | Orchestration around the quantized on-device LLM (ONNX Runtime / TensorRT-equivalent), plus the **confidence-threshold safe-mode gate** (principle #5). |
+| `memory/`           | C++      | **The on-device memory & recall engine** (Phase 15): a local, private **SQLite** store of people (name + relationship + SFace embedding), reminders, and a narrow event log. Powers face recall ("that's Priya, your daughter…") and `[route:memory]` questions; its raw content provably never reaches `companion-sync`. Always built (dependency-free vendored SQLite). |
 | `voice-ui/`         | C++      | TTS output and the audio-first interaction shell; double-buffered for zero jank; tone-aware (reassuring vs. neutral). |
 | `companion-sync/`   | C++      | BLE/WiFi sync to the caregiver companion app. Carries **alerts, status, and firmware only — never raw sensor data**, enforced by the interface shape (principle #4). |
 | `power-mgmt/`       | C++      | DVFS / duty-cycle scheduling balancing the latency target against battery and thermals. |

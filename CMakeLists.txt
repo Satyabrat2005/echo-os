@@ -13,7 +13,9 @@ cmake_minimum_required(VERSION 3.16)
 project(echo-os
     VERSION 0.1.0
     DESCRIPTION "On-device software runtime for ECHO smart glasses"
-    LANGUAGES CXX
+    # C is enabled for the single vendored C translation unit (SQLite amalgamation,
+    # memory/vendor/sqlite3/sqlite3.c). All first-party code is C++.
+    LANGUAGES CXX C
 )
 
 # --- Project-wide options carrier -------------------------------------------
@@ -65,8 +67,9 @@ include(cmake/echo_ai.cmake)
 # --- Modules (build order follows the dependency graph) ---------------------
 add_subdirectory(common)          # shared vocabulary
 add_subdirectory(sensor-pipeline) # real-time capture + lock-free buffering
+add_subdirectory(memory)          # on-device person/reminder/event store (Phase 15)
 add_subdirectory(perception)      # face/object/wake-word/ASR
-add_subdirectory(cognitive-core)  # LLM orchestration + safe-mode
+add_subdirectory(cognitive-core)  # LLM orchestration + safe-mode + memory recall
 add_subdirectory(voice-ui)        # TTS + audio-first shell
 add_subdirectory(companion-sync)  # BLE/WiFi to caregiver app
 add_subdirectory(power-mgmt)      # DVFS / duty-cycle scheduling

@@ -5,7 +5,8 @@ validation, how well it's tested, and what quality gates are in place. This is
 the document to read first — a YC partner or a new engineer should be able to
 trust every line of it. It is an internal reference, not marketing copy.*
 
-Last updated: Phase 13 (real wake-word verification in CI). Source of truth for
+Last updated: Phase 15 (the on-device memory & recall engine — the first module
+whose entire purpose is the product's actual differentiator). Source of truth for
 every claim is the repo at this commit; nothing here is aspirational unless
 explicitly labelled.
 
@@ -26,6 +27,21 @@ happened. The honest one-liner: **the skeleton, the contracts, and every real-mo
 integration are solid and CI-tested; what's left is the flesh that can't be
 simulated — real hardware, a real human in a real room, real credentials, and
 measured latency.**
+
+**New in Phase 15 — the product finally *remembers*.** Every phase before this
+built real but *generic* voice-assistant plumbing; nothing on-device persisted who
+a face belongs to or what the wearer needs reminding of. Phase 15 adds the `memory/`
+module: a local, private SQLite store of **people** (name + relationship the wearer
+stated, keyed by the SFace embedding), **reminders** (with recurrence + acknowledged
+state), and a narrow **event log** — wired into the loop so "who is this?" now
+produces *"That's Priya, your daughter. You last saw her two days ago,"* recalled
+from the real record, and a `[route:memory]` question ("did I take my medication
+today?") is answered from the log rather than guessed. It persists across restarts,
+never phones home, and its raw content **provably cannot reach `companion-sync`**
+(compile-time proof, extending the Phase-10 `SensorFrame` guarantee). What it does
+**not** yet claim is multi-day real-world memory accuracy, note summarization/pruning
+so the store stays bounded, or any use by a real wearer — see the Phase 15 section
+below.
 
 ## What's built and verified ✅
 
@@ -48,6 +64,9 @@ measured latency.**
 | Real AI adapter: Porcupine wake-word | **Compiles** behind `ECHO_WITH_PORCUPINE`, not run | Phase 3; account-gated (Picovoice key) — kept as a higher-accuracy **production option**, superseded in CI by openWakeWord |
 | Real API backends (Spotify/Gmail/Search/YouTube) | **Compiles & links** behind `ECHO_WITH_NETWORK` | Phase 5/6; libcurl 8.21.0; **no live API call has run** |
 | JSON parser hardening (depth cap) + Gmail header-injection fix | **Built & tested** | Phase 6 fixes, both with regression tests + a fuzz harness |
+| **Memory & recall engine** (people/reminders/events, SQLite-persisted) | **Built & tested** (Phase 15) | [`memory_engine.hpp`](../memory/include/echo/memory/memory_engine.hpp); `echo-memory` unit suite (CRUD, recurrence, no-auto-create rule, RAG medication query, persistence-across-reopen) + `echo-e2e-fixture` face-recall turn — all in the dependency-free stub build |
+| **Face-based recall wired into the loop** (perception→cognitive→voice) | **Built & tested** (Phase 15) | a fixture embedding + a prior naming utterance → an enriched "That's Priya…" turn, end to end in `echo-e2e-fixture` |
+| **Memory store cannot reach `companion-sync`** (compile-time) | **Built & tested** (Phase 15) | `static_assert`s in `echo-memory` extend the Phase-10 `SensorFrame` proof to embeddings, person records, and events |
 
 ## What's pending real-world validation ⏳
 
@@ -66,6 +85,9 @@ evidence exists.
 | 6 | One-time OAuth authorize helper (`scripts/authorize.*`) | 5 | currently a documented manual browser-paste step |
 | 7 | On-glasses sensor DMA frontends + BLE/WiFi companion transport | hardware | the real embedded target; today these are stubs |
 | 8 | Custom-trained "Hey ECHO" wake word (either backend) | 13 | CI verifies wake-word with openWakeWord's **pretrained** "hey jarvis"; a bespoke "Hey ECHO" model is a *training* undertaking (openWakeWord: synthesize+train; or Porcupine: account-gated `.ppn`) — a documented follow-up, not a bug |
+| 9 | **Multi-day, real-world memory accuracy** | 15 | recall is verified against *fixture* embeddings on clean input; whether SFace re-identifies the same person across days, lighting, and aging — and how often it false-matches a stranger — needs the real vision engine + a real wearer over time |
+| 10 | **Note summarization / pruning (bounded growth)** | 15 | notes and the event log currently only *accumulate*; nothing summarizes or ages them out, so the store grows unbounded over a long deployment. A retention/summarization policy is designed-for (narrow event scope) but **not** implemented |
+| 11 | **A real wearer uses recall in daily life** | 15 | no person with memory loss has named someone to ECHO and been reminded of them later; like every other engine, "works on clean fixtures" ≠ "helps a real user" |
 
 The README's Phase 4/5 tables are the canonical place these numbers get filled in
 **during** the real bring-up, and are deliberately left as `_—_` placeholders
@@ -195,13 +217,73 @@ on code they never run.
 > would reward testing stub code). The number is made visible and trending first;
 > a floor comes once the real engines land and the meaningful denominator settles.
 
+## Phase 15 — the memory & recall engine (the product's actual core)
+
+This is the first phase since the scaffold that adds a **genuinely new capability**
+rather than making an existing one real. The `memory/` module is a local, private,
+on-device store — real **SQLite** (vendored amalgamation, v3.46.1, compiled in-tree;
+see [ADR-13](DECISIONS.md)), persisted to `echo_memory.db`, surviving restarts.
+
+**What is now true, and CI-verified in the dependency-free stub build:**
+
+- **People, created only when named.** The wearer saying *"this is my daughter
+  Priya"* creates a person record (name + relationship + the SFace embedding). An
+  unknown face with **no** naming utterance creates **zero** records — recognizing a
+  stranger never invents an identity. Both are asserted (`test_unknown_face_creates_no_person`,
+  and end-to-end in `echo-e2e-fixture`).
+- **Enriched recall in the loop.** `cognitive-core` matches a face embedding against
+  the store and, on a confident match, returns *"That's Priya, your daughter. You
+  last saw her two days ago"* — a fact from the record, returned **before** the
+  safe-mode gate (recall is retrieval, not an LLM guess). Wired through the real
+  perception→cognitive→voice path; the enriched turn is exercised in `echo-e2e-fixture`.
+- **Reminders on the existing tick.** `boot/`'s runtime checks due reminders on the
+  **same core tick** (no second timer loop) and speaks them through `voice-ui`.
+  Recurrence (once/daily/weekly) advances on acknowledge; verified in `echo-memory`.
+- **Retrieval-augmented answers.** A `[route:memory]` tag (parsed by Phase 6's
+  unchanged route-tag parser) routes "did I take my medication today?" to the engine,
+  which answers **from the event log** ("Yes — you took your … at 9:07am" / "Not yet
+  today …") or returns `""` so the caller falls back rather than fabricate. Verified
+  against the real log in `echo-memory`.
+- **Persistence across restart** is proven: a record written, the engine closed, a
+  *fresh* engine opened on the same file, and the person (embedding included) recalled
+  (`test_persistence_across_reopen`).
+- **Privacy, proven not asserted.** The store's raw content — embeddings, person
+  records, events — has **no path to `companion-sync`**: compile-time `static_assert`s
+  in `echo-memory` extend the Phase-10 `SensorFrame` proof, and were confirmed to
+  *bite* (a deliberately-wrong "leak exists" assertion fails to compile). No new
+  network path is introduced (constraint #2).
+
+**What this phase honestly does NOT achieve** (also in the gap table, rows 9–11):
+
+- **Encryption at rest.** At rest the store is **file-permission restricted**
+  (best-effort owner-only), **not encrypted**. On POSIX that's chmod 0600; on Windows
+  `std::filesystem::permissions` maps loosely (ACLs still apply). True encryption is
+  **SQLCipher**, a deliberate follow-up ([ADR-13](DECISIONS.md)).
+- **Real-world recall accuracy.** Tests use *fixture* embeddings (orthogonal for
+  strangers, identical for the same person) — the clean-input analogue of the other
+  engines' fixtures. Whether SFace re-identifies a real person across days/lighting,
+  and its false-match rate, needs the real vision engine + a real wearer.
+- **Bounded growth.** Notes and the event log only accumulate today; summarization/
+  pruning so the store doesn't grow forever is designed-for (the event scope is kept
+  narrow — recognized-person and reminder events, never raw conversation transcripts)
+  but not implemented.
+- **A real wearer.** Same permanent, un-simulatable gap as every engine: no person
+  with memory loss has actually used this yet.
+
+**MinGW toolchain reality (constraint #4):** SQLite 3.46.1 compiled **cleanly** on
+this MinGW-w64 ucrt g++ 15.1 laptop (~10 s, zero warnings, links and runs first
+try) — the opposite of the ORT/OpenCV native-dep friction in Phase 14b. There was no
+build gap to work around, so none was invented. (One project-level change: C was
+enabled as a language for that single vendored TU.)
+
 ## Quality gates in place (CI)
 
 Every push and PR to `master` runs [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 | Gate | What it enforces |
 |------|------------------|
-| **Stub build + full ctest** | dependency-free build, all four suites — the always-green safety net |
+| **Stub build + full ctest** | dependency-free build, all suites (incl. Phase 15 `echo-memory` + the memory-enriched `echo-e2e-fixture`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps |
+| **clang-tidy / cppcheck scope** | both now cover the first-party `memory/` code; the vendored `memory/vendor/sqlite3/` amalgamation is **excluded** from both (upstream C we compile but do not lint) |
 | **Network build** | `-DECHO_WITH_NETWORK=ON` compiles & links libcurl; appkit/apps tests pass on a clean machine (no live API calls) |
 | **Secret scan** | `check_secrets.sh` blocks a committed API key, OAuth secret, private key, token cache, or `.env` |
 | **clang-tidy** | `bugprone-*` / `cert-*` / `clang-analyzer-*` over every first-party TU; findings are hard errors |

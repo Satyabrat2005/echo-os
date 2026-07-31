@@ -8,3 +8,10 @@
 # a CRLF shebang line breaks the interpreter. Normalize regardless of a
 # contributor's core.autocrlf.
 *.sh text eol=lf
+
+# The vendored SQLite amalgamation (Phase 15) is upstream code we compile but do
+# not author. Mark it vendored so GitHub's language stats and diffs treat it as
+# third-party, and keep it LF like the rest of the C/C++ tree.
+memory/vendor/** linguist-vendored
+memory/vendor/sqlite3/sqlite3.c text eol=lf
+memory/vendor/sqlite3/sqlite3.h text eol=lf

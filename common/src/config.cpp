@@ -71,4 +71,12 @@ std::string object_model()        { return resolve("ECHO_OBJECT_MODEL",  "mobile
 std::string object_labels()       { return resolve("ECHO_OBJECT_LABELS", "imagenet_classes.txt"); }
 std::string faces_dir()           { return resolve("ECHO_FACES_DIR", "faces"); }
 
+std::string memory_db() {
+    // The on-device memory store (Phase 15). NOT under models/ — it is written
+    // data, not a downloaded model. $ECHO_MEMORY_DB, else "echo_memory.db" in the
+    // working directory. This file never leaves the device (principle #4).
+    std::string d = env("ECHO_MEMORY_DB");
+    return d.empty() ? std::string("echo_memory.db") : d;
+}
+
 }  // namespace echo::config
