@@ -5,12 +5,19 @@ validation, how well it's tested, and what quality gates are in place. This is
 the document to read first — a YC partner or a new engineer should be able to
 trust every line of it. It is an internal reference, not marketing copy.*
 
-Last updated: Phase 20 (longevity & resource-leak soak — a simulated-time soak that drives the
-real runtime + real memory engine through 7 compressed days and puts real numbers on
-reminder-scheduler drift, event-log retention, RSS, fd count, and repeated watchdog recovery;
-it found and fixed two genuine longevity bugs along the way. See the dedicated section below).
+Last updated: Phase 21 (the answer-side safe-mode gate — the gate now scores what ECHO *says*,
+not only what it heard. A question about the wearer's own life is answered from the record or
+not at all, the LLM is no longer the fallback when the store has nothing, and an ungrounded turn
+returns the new `ResponseKind::Unverified`. Read the "What Phase 21 does NOT do" subsection with
+the rest: this does not detect a confidently wrong answer in general, and does not claim to.
+See the dedicated section below).
 Source of truth for every claim is the repo at this commit; nothing here is aspirational unless
 explicitly labelled.
+
+For **how the project got here** — what each phase 1 → 22 shipped, the non-negotiable rules every
+phase inherits, the gap register with an owner per row, and the candidate next phases — see
+[PHASE_LEDGER.md](PHASE_LEDGER.md). This file stays the source of truth for *current* status; the
+ledger is the history and the working method.
 
 ## In one paragraph
 
@@ -52,7 +59,8 @@ below.
 | Module boundaries & public interfaces | **Built** | `common`, `sensor-pipeline`, `perception`, `cognitive-core`, `voice-ui`, `companion-sync`, `power-mgmt`, `boot` all compile as static libs |
 | Lock-free SPSC ring buffer (sensor handoff) | **Built & tested** | [`ring_buffer.hpp`](../sensor-pipeline/include/echo/sensor/ring_buffer.hpp); fixture frames traverse the real queue in `echo-sensor` |
 | 120 ms latency budget as an enforced contract | **Built & tested** | encoded in [`latency.hpp`](../common/include/echo/latency.hpp), asserted by unit test |
-| Safe-mode gate (principle #5) | **Built & tested** | [`cognitive_core.cpp`](../cognitive-core/src/cognitive_core.cpp), threshold 0.72; degrades on failure |
+| Safe-mode gate, INPUT side (principle #5) | **Built & tested** | [`cognitive_core.cpp`](../cognitive-core/src/cognitive_core.cpp), threshold 0.72; degrades on failure |
+| **Safe-mode gate, ANSWER side** (grounding + a degeneracy floor) | **Built & tested** (Phase 21) | [`cognitive_core.cpp`](../cognitive-core/src/cognitive_core.cpp) + [`utterance.hpp`](../memory/include/echo/memory/utterance.hpp); `echo-answer-gate` drives the real core + real memory store with a scripted LLM ([`tests/fake_llm.hpp`](../tests/fake_llm.hpp)) through the private DI seam. A question about the wearer's own life is answered **from the record or not at all** — the LLM is not consulted; an ungrounded turn returns the new `ResponseKind::Unverified`. **Catches degenerate and autobiographical fabrication; does NOT detect a confidently wrong answer in general — see the Phase 21 section and ADR-18** |
 | Privacy-by-shape companion transport (principle #4) | **Built & tested** | [`companion_sync.hpp`](../companion-sync/include/echo/companion/companion_sync.hpp) — "no API accepts a `SensorFrame`" is now a compile-time assertion in `echo-companion` |
 | End-to-end core turn (sensor→perception→cognitive→voice) | **Built & tested** | fixture audio → safe-mode fallback spoken, asserted in `echo-e2e-fixture` |
 | Apps layer: 8 apps as real supervised processes | **Built & tested** | IPC round-trip + crash containment in `echo-apps-smoke` |
@@ -669,13 +677,83 @@ engines on real hardware for real days. Simulated-time soak with fakes is a real
 valuable longevity proof of everything ECHO actually wrote — and honest about the boundary
 where third-party code and real time take over.
 
+## Phase 21 — the answer-side safe-mode gate (gating what ECHO *says*)
+
+For twenty phases the safe-mode gate scored the **observation**. Nothing scored the
+sentence ECHO was about to speak. Once a clean transcript cleared 0.72, the model's
+text was returned verbatim as `ResponseKind::Normal` with `flag_caregiver = false` —
+so ADR-4's premise, that a confident wrong answer is worse than "I'm not sure" for a
+wearer who cannot fact-check, was only half enforced. Phase 12 recorded the finding
+that makes this urgent (a real model produces confident text for *every* prompt) and
+it sat unactioned. Worse, `cognitive_core.cpp` made the fallback for "the memory store
+has no record" be the LLM's guess — the one case where the store positively knows it
+has nothing was the one case where we answered from the model anyway.
+
+**What shipped.**
+
+| Piece | Where |
+|---|---|
+| `is_self_referential_query()` — the grounding classifier | [`memory/src/utterance.cpp`](../memory/src/utterance.cpp), beside `parse_naming`/`is_identity_query` |
+| Grounded-or-abstain routing + the corrected `[route:memory]` fallback | [`cognitive-core/src/cognitive_core.cpp`](../cognitive-core/src/cognitive_core.cpp) |
+| `ResponseKind::Unverified` + `min_answer_confidence` / `unverified_response` | [`cognitive_core.hpp`](../cognitive-core/include/echo/cognitive/cognitive_core.hpp) |
+| `LlmReply::confidence` from real logits (softmax over the sampled token, meaned) | [`cognitive-core/src/llm.cpp`](../cognitive-core/src/llm.cpp) |
+| The DI seam that made this testable at all | [`cognitive-core/src/core_factory.hpp`](../cognitive-core/src/core_factory.hpp), [`tests/fake_llm.hpp`](../tests/fake_llm.hpp) |
+| Repeated-abstention trend → `AlertKind::LowConfidenceTrend` (dormant since Phase 1) | [`boot/src/runtime.cpp`](../boot/src/runtime.cpp) |
+| 15 suites, stub build | [`tests/answer_gate_test.cpp`](../tests/answer_gate_test.cpp) → `echo-answer-gate` |
+
+**Verified by mutation, not just by green.** A passing test proves nothing unless it
+would have failed before. Removing the grounding branch makes **9 checks across 4
+suites** fail — including `!llm->consulted()`, i.e. the suite detects the exact
+pre-Phase-21 behaviour of asking the model about the wearer's own life. Reverting the
+`[route:memory]` fallback to its Phase-15 form fails **2 more**, catching the model's
+invented "appointment at four" reaching the wearer. This is the same discipline Phase
+15 used on the compile-time privacy proof: a check that doesn't bite is decoration.
+
+**The three decline paths stay distinct** (the mistake Phase 17 explicitly avoided):
+
+| Situation | Kind | Spoken line | Caregiver |
+|---|---|---|---|
+| Input unclear (< 0.72) | `SafeMode` | "I'm not quite sure right now…" | `SafeModeEngaged`, runtime → `RuntimeState::SafeMode` |
+| Input clear, answer ungrounded | `Unverified` | "I don't have a record of that…" | **nothing on a single turn**; `LowConfidenceTrend` on a streak |
+| Engine silent / hung | *(not a `ResponseKind`)* | the Phase-17 engine-fault line | `EngineDegraded` |
+
+An abstention deliberately does **not** flag the caregiver or change runtime state.
+ECHO honestly saying "I don't know" is the system working; alerting per-turn would
+bury the signal that matters under normal behaviour.
+
+### What Phase 21 does NOT do
+
+Stated plainly, because the difference is easy to overclaim:
+
+- **It cannot detect a confidently wrong answer in general.** The grounding rule
+  covers questions about the wearer's own life. Ask a factual question outside that —
+  history, medicine, current events — and a 0.5B model's mistake is still spoken in an
+  ordinary voice. The answer confidence will not catch it: mean token probability is a
+  **fluency** signal, and a fluent falsehood scores like a fluent truth. That is why the
+  floor defaults to a low 0.35 and is documented as a degeneracy catch, and why the
+  grounding rule — which uses no probability at all — carries the guarantee.
+- **The classifier is a curated phrase list**, conservative by design. It will miss
+  phrasings it doesn't know more often than it over-fires. A miss costs a normal LLM
+  answer; a false positive costs an abstention on something answerable. Both recover;
+  asserting an invented memory does not.
+- **The confidence numbers are not yet measured on real hardware.** `real_llm_test.cpp`
+  prints the observed distribution across six prompt kinds in the `real-llm` CI job, but
+  those figures have not been recorded here yet — this section will carry the measured
+  table once that job has run on a commit with the Phase 21 code. If the spread turns
+  out to be narrow (the expected outcome given Phase 12), that is the finding, and it
+  should be written down as such rather than tuned away.
+- **Latency of the scoring pass is unmeasured**, like every other latency number in this
+  project (principle #2, gaps #2/#3). One softmax over the vocabulary per generated token
+  is real work; it is small next to `llama_decode` itself, but "small next to" is a
+  reasoned expectation, not a measurement.
+
 ## Quality gates in place (CI)
 
 Every push and PR to `master` runs [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 | Gate | What it enforces |
 |------|------------------|
-| **Stub build + full ctest** | dependency-free build, all fast suites (incl. Phase 15 `echo-memory`, the memory-enriched `echo-e2e-fixture`, Phase 17 `echo-fault-injection`, and Phase 18 `echo-power-mgmt`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps. The longer Phase 20 `echo-soak` is excluded here and runs in its own job (below) so per-PR feedback stays fast |
+| **Stub build + full ctest** | dependency-free build, all fast suites (incl. Phase 15 `echo-memory`, the memory-enriched `echo-e2e-fixture`, Phase 17 `echo-fault-injection`, Phase 18 `echo-power-mgmt`, and Phase 21 `echo-answer-gate`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps. The longer Phase 20 `echo-soak` is excluded here and runs in its own job (below) so per-PR feedback stays fast |
 | **Longevity soak** (Phase 20) | its own dependency-free job builds & runs `echo-soak` — the real runtime + real memory engine through **7 simulated days** (10,080 ticks, virtual clock) — asserting reminder drift, retention boundedness, RSS plateau, fd stability, and watchdog-recovery worker-leak stability. Scoped like the real-LLM job (separate, time-bounded) so it never slows the fast suites |
 | **clang-tidy / cppcheck scope** | both now cover the first-party `memory/` code; the vendored `memory/vendor/sqlite3/` amalgamation is **excluded** from both (upstream C we compile but do not lint) |
 | **Network build** | `-DECHO_WITH_NETWORK=ON` compiles & links libcurl; appkit/apps tests pass on a clean machine (no live API calls) |

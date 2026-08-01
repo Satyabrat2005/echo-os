@@ -218,6 +218,48 @@ void test_llm_not_responding_is_distinct_from_safe_mode_gate() {
 }
 
 // ---------------------------------------------------------------------------
+// 4b. The THIRD decline path (Phase 21): the ANSWER-side gate. ECHO understood the
+//     question and the engine answered — the answer just could not be grounded. This
+//     must stay distinguishable from BOTH cases above, and its caregiver posture is
+//     deliberately different from either: quiet on a single turn, loud on a trend.
+void test_unverified_answer_is_distinct_and_only_trends_to_an_alert() {
+    // (a) One abstention is ECHO working correctly. It speaks its own line, raises
+    //     NO alert, and — importantly — does not drag the runtime into SafeMode. A
+    //     device that reported ill-health every time it honestly said "I don't know"
+    //     would make the caregiver channel useless.
+    {
+        Fakes fk;
+        auto rt = make_runtime(fk);
+        fk.cognitive->simulate_unverified = true;
+        tick_with(*rt, Modality::Microphone);
+
+        CHECK(voice_said(*fk.voice, FakeCognitive::kUnverifiedLine));
+        CHECK(!voice_said(*fk.voice, FakeCognitive::kGateLine));   // not the input gate
+        CHECK(!voice_said(*fk.voice, kEngineFaultLine));           // not the engine fault
+        CHECK(fk.companion->count_of(companion::AlertKind::SafeModeEngaged) == 0);
+        CHECK(fk.companion->count_of(companion::AlertKind::EngineDegraded) == 0);
+        CHECK(fk.companion->count_of(companion::AlertKind::LowConfidenceTrend) == 0);
+        CHECK(rt->state() != RuntimeState::SafeMode);
+    }
+    // (b) A RUN of them is a signal worth a caregiver's attention — an empty store, a
+    //     store that failed to open, or someone stuck on an unanswerable question. It
+    //     rides LowConfidenceTrend, unused in the enum since Phase 1 and describing
+    //     exactly this, rather than a new alert kind (ADR-17's discipline).
+    {
+        Fakes fk;
+        auto rt = make_runtime(fk);
+        fk.cognitive->simulate_unverified = true;
+        for (int i = 0; i < 4; ++i) tick_with(*rt, Modality::Microphone);
+
+        CHECK(fk.companion->count_of(companion::AlertKind::LowConfidenceTrend) >= 1);
+        // Still not the other two channels: a trend of honest abstentions is not a
+        // low-confidence input and not a degraded engine.
+        CHECK(fk.companion->count_of(companion::AlertKind::SafeModeEngaged) == 0);
+        CHECK(fk.companion->count_of(companion::AlertKind::EngineDegraded) == 0);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // 5. Memory write failure -> the reminder is STILL delivered this session and is NOT
 //    dropped, the process does not crash, and it is not repeated every tick even
 //    though it stays "pending" because the write failed.
@@ -284,6 +326,7 @@ int main() {
     test_vision_failure_is_voice_only_no_fabrication();
     test_asr_failure_speaks_retry();
     test_llm_not_responding_is_distinct_from_safe_mode_gate();
+    test_unverified_answer_is_distinct_and_only_trends_to_an_alert();
     test_memory_write_failure_still_delivers_once();
     test_watchdog_recovers_transient_and_escalates_persistent_hang();
     return echo::test::report("fault-injection");

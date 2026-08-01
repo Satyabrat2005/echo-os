@@ -156,6 +156,24 @@ void Runtime::handle_response(const cognitive::Response& response) {
             companion::AlertKind::SafeModeEngaged, now(), "System deferred to safe mode."});
         set_state(RuntimeState::SafeMode);
     }
+
+    // --- Repeated-abstention trend (Phase 21) --------------------------------
+    // Note what this deliberately does NOT do: an Unverified turn does not set
+    // RuntimeState::SafeMode and does not raise a per-turn alert. ECHO declining to
+    // invent a memory is the system working, and treating it as a fault would both
+    // spam the caregiver and make the state machine lie about the device's health.
+    // Only the streak is reported, and only Normal clears it — a run of abstentions
+    // broken by a low-confidence turn is still a run of abstentions.
+    if (response.kind == cognitive::ResponseKind::Unverified) {
+        if (++unverified_streak_ >= kUnverifiedTrendThreshold) {
+            unverified_streak_ = 0;  // report once per run, not once per turn thereafter
+            send_alert_guarded(companion::Alert{
+                companion::AlertKind::LowConfidenceTrend, now(),
+                "Repeated unanswered questions; ECHO declined to guess."});
+        }
+    } else if (response.kind == cognitive::ResponseKind::Normal) {
+        unverified_streak_ = 0;
+    }
 }
 
 void Runtime::on_perception_failure(Modality modality, Status s) {

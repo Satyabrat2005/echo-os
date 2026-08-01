@@ -28,4 +28,25 @@ std::optional<Naming> parse_naming(const std::string& transcript);
 // doesn't answer "that's Priya" to an unrelated question.
 bool is_identity_query(const std::string& transcript);
 
+// True when the transcript asks about the WEARER'S OWN life or history — "did I
+// take my tablets?", "when did I last see Priya?", "who visited yesterday?",
+// "where did I put my keys?".
+//
+// WHY THIS EXISTS (Phase 21). These are the questions ECHO is worn to answer, and
+// they are also the questions where a wrong answer does the most damage: the one
+// person who could contradict it is the person who cannot remember. There is no
+// confidence score that makes a generated answer to one of these safe, so the
+// cognitive core does not use one — a hit here routes to the store, and if the
+// store has nothing the core abstains instead of consulting the LLM at all.
+//
+// Deliberately conservative in the direction of MISSING a question rather than
+// catching an innocent one. A miss costs a normal LLM answer to something like
+// "what's the weather"; a false positive costs an abstention on a question ECHO
+// could have answered. Both are recoverable; asserting an invented memory is not.
+//
+// Identity queries ("who is this") are excluded — they have their own pre-gate
+// face-recall path in cognitive-core, and the two classifiers stay disjoint so it
+// is always clear which one is responsible for a given turn.
+bool is_self_referential_query(const std::string& transcript);
+
 }  // namespace echo::memory

@@ -90,12 +90,21 @@ class FakeCognitive final : public cognitive::ICognitiveCore {
 public:
     std::atomic<Fault> fault{Fault::None};
     std::atomic<bool>  simulate_gate{false};  // emit an Ok safe-mode result (the confidence gate)
+    // Emit an Ok Unverified result: the ANSWER-side gate (Phase 21). Takes precedence
+    // over simulate_gate when both are set, so a test can be explicit about which of
+    // the three decline paths it is driving.
+    std::atomic<bool>  simulate_unverified{false};
     std::atomic<int>   respond_calls{0};
 
     // The line the (simulated) confidence gate speaks — an Ok response, flag_caregiver set.
     // Deliberately different text from the runtime's engine-fault line so the two paths are
     // visibly distinct (Phase 17 constraint #1).
     static constexpr const char* kGateLine = "I'm not quite sure right now. Let's take a moment.";
+    // The line the (simulated) answer-side gate speaks — an Ok response, flag_caregiver
+    // NOT set: ECHO declining to invent a memory is correct behaviour, not a fault
+    // (Phase 21). Distinct text again, for the same reason.
+    static constexpr const char* kUnverifiedLine =
+        "I don't have a record of that, so I'd rather not guess.";
 
     Status initialize() override {
         maybe_hang(fault.load());
@@ -110,7 +119,11 @@ public:
         if (f == Fault::Error) return Result<cognitive::Response>::fail(Status::HardwareError);
 
         cognitive::Response r;
-        if (simulate_gate.load()) {
+        if (simulate_unverified.load()) {
+            r.kind = cognitive::ResponseKind::Unverified;
+            r.text = kUnverifiedLine;
+            r.flag_caregiver = false;
+        } else if (simulate_gate.load()) {
             r.kind = cognitive::ResponseKind::SafeMode;
             r.text = kGateLine;
             r.flag_caregiver = true;

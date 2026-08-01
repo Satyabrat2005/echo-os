@@ -27,6 +27,16 @@
 #  include <dirent.h>
 #  include <unistd.h>
 #elif defined(_WIN32)
+// NOMINMAX before windows.h: without it the SDK defines min/max as object-like
+// macros, and every std::min/std::max call in a TU that includes this header fails
+// to compile (MSVC: "C2589 illegal token on right side of '::'"). soak_test.cpp hits
+// exactly that. WIN32_LEAN_AND_MEAN keeps the include cheap for a test-only probe.
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
 #  include <windows.h>
 #  include <psapi.h>
 #endif

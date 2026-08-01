@@ -22,6 +22,24 @@ namespace echo::cognitive {
 struct LlmReply {
     std::string text;    // what ECHO says (empty => generation failed => safe mode)
     std::string intent;  // routing hint, or "" for a conversational answer
+
+    // --- Answer-side confidence (Phase 21) -----------------------------------
+    // The mean probability the model assigned to the tokens it actually emitted,
+    // derived from the real logits (see llm.cpp). This is the LLM analogue of the
+    // mean-token-probability confidence perception already derives for ASR.
+    //
+    // WHAT IT MEASURES: fluency — how sure the model was of *those words*. It falls
+    // for degenerate, collapsed, or near-random generation.
+    // WHAT IT DOES NOT MEASURE: truth. A small model states a wrong fact just as
+    // confidently as a right one, which is exactly what Phase 12 observed. Do not
+    // read a high value here as "the answer is correct".
+    //
+    // `scored` is false when the backend cannot produce a confidence at all (the
+    // stub, or a llama.cpp build whose logits are unavailable). An unknown score is
+    // NOT the same as a zero score, so the caller must skip the floor rather than
+    // treat unscored output as maximally suspect.
+    Confidence confidence{0.0f};
+    bool       scored = false;
 };
 
 class ILlm {

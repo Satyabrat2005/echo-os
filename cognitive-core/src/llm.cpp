@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -94,12 +95,20 @@ public:
         if (tokens.empty()) return {};
 
         std::string out;
+        double prob_sum = 0.0;   // running sum of P(sampled token) — see below
+        int    prob_n   = 0;
         llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int32_t>(tokens.size()));
         const int kMaxNewTokens = 96;  // one short sentence; keeps us near budget
         for (int i = 0; i < kMaxNewTokens; ++i) {
             if (llama_decode(ctx_, batch) != 0) break;
             llama_token id = llama_sampler_sample(sampler_, ctx_, -1);
             if (llama_vocab_is_eog(vocab_, id)) break;
+            // Score the token BEFORE advancing the batch: the logits currently held
+            // by the context are the ones this token was drawn from (Phase 21).
+            if (const float p = sampled_token_probability(id); p >= 0.0f) {
+                prob_sum += p;
+                ++prob_n;
+            }
             out += token_to_piece(id);
             cur_token_ = id;
             batch = llama_batch_get_one(&cur_token_, 1);
@@ -112,6 +121,10 @@ public:
         LlmReply reply;
         reply.text   = trim(out);
         reply.intent = parse_route_tag(reply.text);
+        if (prob_n > 0) {
+            reply.confidence = Confidence{static_cast<float>(prob_sum / prob_n)};
+            reply.scored     = true;
+        }
         return reply;
     }
 
@@ -123,6 +136,38 @@ public:
     }
 
 private:
+    // P(token `id`) under the distribution the context most recently produced, via a
+    // numerically-stable softmax over the raw logits (Phase 21). Returns -1 when the
+    // logits are unavailable, which the caller treats as "unscored" rather than as a
+    // zero — a missing measurement is not a low measurement.
+    //
+    // This is the LLM analogue of the mean-token-probability confidence perception
+    // already derives for ASR from whisper_full_get_token_p, and it is deliberately
+    // the same shape so the two numbers can be reasoned about together.
+    //
+    // COST: one pass over the vocabulary per generated token (~150k floats on Qwen2.5,
+    // so ~96 passes for a full reply). That is real but small next to llama_decode
+    // itself; the `real-llm` job reports the measured per-call latency alongside the
+    // confidence table so this stays an informed trade rather than an assumed one.
+    //
+    // NOTE: under the greedy sampler configured in initialize(), the sampled token is
+    // by definition the argmax, so this value is the *peakedness* of the distribution
+    // — how much the model preferred its top choice over the alternatives. That is a
+    // meaningful degeneracy signal and, as llm.hpp states plainly, not a truth signal.
+    float sampled_token_probability(llama_token id) const {
+        const float* logits = llama_get_logits_ith(ctx_, -1);
+        if (!logits) return -1.0f;
+        const int n_vocab = llama_vocab_n_tokens(vocab_);
+        if (n_vocab <= 0 || id < 0 || id >= n_vocab) return -1.0f;
+
+        const float max_logit = *std::max_element(logits, logits + n_vocab);
+        double sum = 0.0;
+        for (int t = 0; t < n_vocab; ++t)
+            sum += std::exp(static_cast<double>(logits[t] - max_logit));
+        if (!(sum > 0.0)) return -1.0f;
+        return static_cast<float>(std::exp(static_cast<double>(logits[id] - max_logit)) / sum);
+    }
+
     std::string build_prompt(const std::string& user_text) {
         // Prefer the model's own chat template so instruct models behave.
         llama_chat_message msgs[2] = {

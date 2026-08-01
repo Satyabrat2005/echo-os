@@ -431,6 +431,71 @@ read-fault neither crashes the loop nor invents a charge — all in `tests/power
 
 ---
 
+## ADR-18 — The answer-side gate is GROUNDING first, a confidence floor second
+*Decided: Phase 21 · 2026-08-01*
+
+**Decision.** The safe-mode gate now scores the ANSWER as well as the observation, via two
+mechanisms that are deliberately unequal in the weight they carry. (1) **Grounding**, which
+does the real work: a question about the wearer's own life (`is_self_referential_query`, in
+`memory/utterance.hpp` beside `parse_naming`/`is_identity_query`) is answered from the memory
+store or not at all — the LLM is not consulted, not even as a fallback. (2) A **degeneracy
+floor** on the model's own mean token probability (`LlmReply::confidence`, derived from real
+`llama_get_logits_ith` logits + softmax, the LLM analogue of the ASR confidence whisper already
+supplies), defaulting to a deliberately low 0.35. A turn declined by either produces the new
+`ResponseKind::Unverified` with its own known-good line. Repeated abstentions — a trend the
+runtime sees and a single turn cannot — raise `AlertKind::LowConfidenceTrend`.
+
+**Why grounding carries the guarantee and the score does not.** Phase 12 put a real model
+behind the gate and recorded the finding this ADR is built on: a small instruct model produces
+confident text for *every* prompt. A mean token probability therefore measures **fluency**, not
+truth — it catches collapsed or near-random generation and cannot catch a well-formed
+falsehood, which is exactly the dangerous case. Any threshold high enough to reject a fluent
+lie would reject most good answers first. So the floor is set low and scoped honestly as a
+degeneracy catch, and the actual protection comes from a rule that involves no probability at
+all: for the questions where being wrong does the most damage, the record answers or nobody
+does. That rule cannot be degraded by a weaker model.
+
+**Why abstain instead of falling back to the LLM.** Phase 15 wired `[route:memory]` to the
+store but kept the model's sentence when the store returned `""`. That had it backwards: the
+one case where the store *positively knows* it has nothing is the one case where a guess is
+least defensible, and it is asked of the one person who cannot check it. Both the pre-LLM
+grounding path and the post-LLM route-tag path now decline instead.
+
+**Why a third `ResponseKind` rather than reusing `SafeMode`.** "I didn't follow you" and "I
+don't know that" are different statements about the device, and Phase 17 already established
+that decline reasons must stay distinguishable (it kept "engine didn't respond" separate from
+"input unclear"). Collapsing them would leave a caregiver unable to tell a careful device from
+a broken one. Correspondingly, an abstention does **not** set `flag_caregiver` and does **not**
+push the runtime into `RuntimeState::SafeMode` — ECHO declining to invent a memory is the system
+working, and alerting on it per-turn would bury the signal that matters. Only the *streak* is
+reported, on `LowConfidenceTrend`, an enumerator dormant in the alert enum since Phase 1 —
+reused rather than replaced, the same discipline ADR-17 followed with `EngineDegraded`.
+
+**Why a private DI seam instead of widening the public factory.** The gate could only ever be
+exercised with whatever engine the build compiled in: the stub returns empty text (always safe
+mode, never reaching the answer path) and a real model answers confidently on cue for nothing.
+Neither can express "the model said something confident and wrong". That, not a lack of
+awareness, is why the hole survived twenty phases. `make_cognitive_core_with_llm` lives in
+`cognitive-core/src/core_factory.hpp` and tests reach it by adding that directory to their
+include path — the pattern the Phase-11 real-engine tests have used since. The public
+`make_cognitive_core(config, memory)` is byte-for-byte source-compatible; `ILlm` stays private.
+Putting `std::unique_ptr<ILlm>` in the public header would have forced all seven call sites to
+see the complete type merely to destroy a defaulted argument.
+
+**Trade-off — what this does NOT catch, stated plainly.** ECHO can now decline a *degenerate*
+answer and refuses to generate an *autobiographical* one. It still **cannot detect a confidently
+wrong answer in general**: ask it a factual question outside the wearer's own history and a
+0.5B model's mistake will be spoken in an ordinary voice at a high confidence score. Closing
+that needs either retrieval against a trusted corpus or a much larger model, and neither fits
+this device. The classifier is also a curated phrase list, conservative by design: it will miss
+phrasings it does not know (costing a normal LLM answer) far more often than it over-fires
+(costing an abstention on something answerable). Both are recoverable; asserting an invented
+memory is not. The `real-llm` CI job prints the measured confidence distribution so the floor
+can be revised from data — and if that data shows the floor separates good answers from bad
+only weakly, that is the expected result, not a failure.
+
+---
+
 *To add an entry: append with the next ADR number, a date, the decision, the why,
 and the honest trade-off. Keep it short — this is a log of real choices, not a
 design spec.*

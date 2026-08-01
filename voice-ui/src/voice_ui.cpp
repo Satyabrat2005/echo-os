@@ -20,9 +20,24 @@ namespace echo::voice {
 Utterance to_utterance(const cognitive::Response& response) {
     Utterance u;
     u.text = response.text;
-    u.tone = (response.kind == cognitive::ResponseKind::SafeMode)
-                 ? Tone::Reassuring
-                 : Tone::Neutral;
+    // A switch, not a ternary: with three kinds a binary test would quietly bucket
+    // any future enumerator into Neutral, and "spoken in an ordinary voice" is the
+    // wrong default for a sentence that declines to answer.
+    switch (response.kind) {
+        case cognitive::ResponseKind::SafeMode:
+            u.tone = Tone::Reassuring;
+            break;
+        case cognitive::ResponseKind::Unverified:
+            // Also reassuring (Phase 21). ECHO admitting it has no record is a moment
+            // the wearer may find unsettling — it is delivered warmly and unhurriedly,
+            // the same as safe mode. The two are distinguished by their WORDS, not by
+            // their prosody; voice-ui only renders the decision the core already made.
+            u.tone = Tone::Reassuring;
+            break;
+        case cognitive::ResponseKind::Normal:
+            u.tone = Tone::Neutral;
+            break;
+    }
     return u;
 }
 

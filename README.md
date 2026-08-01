@@ -18,7 +18,7 @@ principles.
 
 ## Documentation
 
-New here? Start with these four docs — they give the fastest honest picture of
+New here? Start with these five docs — they give the fastest honest picture of
 the system:
 
 | Doc | Read it for |
@@ -27,6 +27,7 @@ the system:
 | 📊 [**docs/STATE.md**](docs/STATE.md) | Honest project status: what's built vs. still pending real-world validation, and test coverage by module. **Read this first.** |
 | 🚀 [**docs/RUNBOOK.md**](docs/RUNBOOK.md) | The consolidated, linear checklist to actually run it for real — deps, accounts, scripts, in order. |
 | 🧭 [**docs/DECISIONS.md**](docs/DECISIONS.md) | The architectural decision log — the real choices made and why. |
+| 🧱 [**docs/PHASE_LEDGER.md**](docs/PHASE_LEDGER.md) | How the project got here, phase 1 → 22: what each phase shipped, the rules every phase inherits, the gap register, and what to build next. |
 
 The sections below remain the detailed, phase-by-phase reference.
 
