@@ -104,4 +104,38 @@ bool is_identity_query(const std::string& transcript) {
     return false;
 }
 
+bool is_self_referential_query(const std::string& transcript) {
+    const std::string t = lower(trim(transcript));
+
+    // Identity queries belong to the face-recall path, not here. Checking this
+    // first keeps the two classifiers disjoint by construction rather than by
+    // careful phrase-list curation, which would drift.
+    if (is_identity_query(t)) return false;
+
+    // A phrase list, in the same style as is_identity_query, rather than a clever
+    // grammatical rule. It is easy to audit, easy for a reviewer to argue with, and
+    // it fails toward "not self-referential" on anything unusual — which is the
+    // direction we want to fail in. Every entry pins BOTH a first-person reference
+    // and a recall-shaped question, so "what did you say" and "who is the prime
+    // minister" do not match.
+    static const char* kPhrases[] = {
+        // Past actions of the wearer.
+        "did i", "have i", "had i", "when did i", "where did i", "what did i",
+        "who did i", "why did i", "how did i", "what have i", "when was i",
+        // Possessions and people belonging to the wearer's life.
+        "did my", "has my", "have my", "when did my", "where is my", "where's my",
+        "when was my", "where are my", "when is my",
+        // Visits — asked about others, but a fact about the wearer's own history.
+        "who visited", "who came by", "who came to see me", "who came over",
+        "did anyone visit", "did anyone come", "has anyone visited",
+        // Obligations the store holds as reminders.
+        "am i supposed to", "what am i supposed to", "do i have to",
+        "do i need to", "what do i need to", "what's on my", "what is on my",
+        "am i meant to",
+    };
+    for (const char* p : kPhrases)
+        if (t.find(p) != std::string::npos) return true;
+    return false;
+}
+
 }  // namespace echo::memory

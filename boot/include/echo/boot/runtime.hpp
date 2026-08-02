@@ -212,6 +212,21 @@ private:
     static constexpr const char* kAsrRetryResponse =
         "Sorry, I didn't catch that. Could you say it again?";
 
+    // --- Repeated-abstention trend (Phase 21) --------------------------------
+    // One "I don't have a record of that" is ECHO working correctly. Several in a
+    // row is a signal about the device or the wearer that a caregiver should see:
+    // a store that failed to open, a store that was never populated, or someone
+    // asking the same unanswerable question repeatedly. That is a TREND, which is
+    // why it lives on the runtime (which sees every turn) rather than in the
+    // cognitive core (which sees one).
+    //
+    // It rides AlertKind::LowConfidenceTrend — an enumerator that has sat unused in
+    // companion-sync since Phase 1 and describes exactly this. Same discipline as
+    // ADR-17 reusing EngineDegraded for power conditions: extend the existing
+    // caregiver vocabulary, never grow a parallel one.
+    static constexpr int kUnverifiedTrendThreshold = 3;
+    int unverified_streak_ = 0;
+
     // Declaration order matters. The guards are declared AFTER the engines so that at
     // shutdown they destruct FIRST — reaping/joining any abandoned worker threads while
     // the engines those workers reference are still alive. watchdog_ precedes the guards

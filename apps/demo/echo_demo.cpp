@@ -205,12 +205,21 @@ int main(int argc, char** argv) {
                 auto v0 = now();
                 voice->speak(voice::to_utterance(R));
                 voice_ms = ms_since(v0);
-                hud::StatusKind st = (R.kind == cognitive::ResponseKind::SafeMode)
-                                         ? hud::StatusKind::Working
-                                         : hud::StatusKind::Success;
+                // Three kinds, three states. Showing a green Success tick under a
+                // sentence that declines to answer would be the HUD contradicting the
+                // words — exactly the confident-looking wrongness Phase 21 exists to
+                // remove, reintroduced one layer up.
+                hud::StatusKind st = hud::StatusKind::Success;
+                switch (R.kind) {
+                    case cognitive::ResponseKind::SafeMode:
+                    case cognitive::ResponseKind::Unverified: st = hud::StatusKind::Working; break;
+                    case cognitive::ResponseKind::Normal:     st = hud::StatusKind::Success; break;
+                }
                 hud_c->present("echo", hud::HudFrame{}.with_subtitle(R.text, 5000).with_status(st));
                 if (R.flag_caregiver)
                     log_warn("demo", "safe mode engaged — caregiver would be flagged");
+                else if (R.kind == cognitive::ResponseKind::Unverified)
+                    log_info("demo", "answer not grounded — ECHO declined to assert");
             }
         }
         latency.record("reason", perception_ms, cognitive_ms, voice_ms, ms_since(turn_start));

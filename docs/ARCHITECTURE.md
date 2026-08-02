@@ -112,6 +112,31 @@ moment."*) and sets `flag_caregiver = true`, which `companion-sync` turns into a
 `SafeModeEngaged` alert. The interface guarantees this: `respond()` never throws;
 a failure degrades to safe mode rather than propagating.
 
+That is the **input** side of the gate, and until Phase 21 it was the only side:
+once a clean transcript cleared 0.72, the model's sentence was spoken verbatim.
+The gate now also scores the **answer**, with two mechanisms of deliberately
+unequal weight:
+
+- **Grounding**, which does the real work. `is_self_referential_query()` (in
+  [`memory/utterance.hpp`](../memory/include/echo/memory/utterance.hpp), beside
+  the naming and identity classifiers) recognizes a question about the wearer's
+  own life — *did I take my tablets, who visited yesterday, where did I put my
+  keys*. Those are answered **from the memory store or not at all**: the LLM is
+  never consulted, not even as a fallback. This needs no probability estimate, so
+  no amount of model weakness can erode it.
+- **A degeneracy floor** on `LlmReply::confidence` — the model's own mean token
+  probability, derived from real logits and defaulting to a low **0.35**. It
+  catches collapsed generation. It is a *fluency* signal and does not catch a
+  fluent falsehood; see ADR-18 for why the threshold is low on purpose.
+
+Either produces `ResponseKind::Unverified` with its own known-good line (*"I
+don't have a record of that, so I'd rather not guess."*). Three decline reasons
+now exist and stay distinguishable — input unclear (`SafeMode`), answer
+ungrounded (`Unverified`), engine silent (the runtime's own engine-fault line) —
+the same separation Phase 17 insisted on. An abstention does **not** flag the
+caregiver: one honest "I don't know" is correct behaviour, and only a *streak*
+of them raises `AlertKind::LowConfidenceTrend` from the runtime.
+
 ### The memory & recall engine — what "remembers for you" actually means
 
 [`memory/`](../memory) (Phase 15) is the first module whose whole purpose is the

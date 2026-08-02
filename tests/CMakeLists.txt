@@ -56,6 +56,19 @@ echo_add_core_test(echo-e2e-tests e2e_pipeline_test.cpp
     echo::common echo::sensor echo::perception echo::cognitive echo::memory echo::voice)
 add_test(NAME echo-e2e-fixture COMMAND echo-e2e-tests)
 
+# --- Phase 21: the answer-side safe-mode gate --------------------------------
+# Drives the REAL cognitive core + REAL memory engine with a SCRIPTED LLM
+# (fake_llm.hpp) injected through the private DI seam, so the "model answered, and
+# the answer is the problem" case can actually be written as a test — something
+# neither the stub LLM (always empty -> safe mode) nor a real model (confident on
+# every prompt, per Phase 12) can express. Needs the private core_factory.hpp/llm.hpp
+# from cognitive-core/src, the same way the Phase-11 real-engine tests reach in.
+# Fully in the dependency-free stub build: no llama.cpp, no model weights.
+echo_add_core_test(echo-answer-gate-tests answer_gate_test.cpp
+    echo::common echo::cognitive echo::memory echo::perception echo::voice)
+target_include_directories(echo-answer-gate-tests PRIVATE ${CMAKE_SOURCE_DIR}/cognitive-core/src)
+add_test(NAME echo-answer-gate COMMAND echo-answer-gate-tests)
+
 # --- Phase 17: fault injection ------------------------------------------------
 # Drives the REAL runtime (echo::runtime) with fault-injecting fake engines, making
 # each engine boundary throw / return an error / hang, and asserts containment,
