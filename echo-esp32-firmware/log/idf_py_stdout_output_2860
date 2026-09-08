@@ -1,0 +1,2559 @@
+ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0mets Jul 29 20�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+lets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESE�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1430) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1438) cpu_start: Pro cpu start user code[0m
+[0;32mI (1438) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1438) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1447) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1463) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1483) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1490) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1496) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1522) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1538) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1546) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+[0;32mI (2010) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2010) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2010) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2020) cam_hal: cam config ok[0m
+[0;32mI (2040) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2060) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2060) camera_capture: camera initialized[0m
+[0;32mI (2070) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2070) app_main: OLED disabled in this build (panel unplugged; 0x3C belongs to the camera)[0m
+cam_hal: NO-SOI - JPEG start marker missing
+cam_hal: NO-SOI - JPEG start marker missing
+[0;32mI (2140) wifi:wifi driver task: 3ffd90c0, prio:23, stack:6656, core=0[0m
+[0;32mI (2150) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2150) wifi:wifi certification version: v7.0[0m
+[0;32mI (2150) wifi:config NVS flash: enabled[0m
+[0;32mI (2150) wifi:config nano formating: disabled[0m
+[0;32mI (2160) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2160) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2170) wifi:Init management short buffer num: 32[0m
+[0;32mI (2170) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2180) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2180) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2180) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2190) wifi_init: rx ba win: 6[0m
+[0;32mI (2190) wifi_init: accept mbox: 6[0m
+[0;32mI (2200) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2200) wifi_init: udp mbox: 6[0m
+[0;32mI (2200) wifi_init: tcp mbox: 6[0m
+[0;32mI (2210) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2210) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2220) wifi_init: tcp mss: 1440[0m
+[0;32mI (2220) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2220) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2230) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2320) wifi:mode : sta (e0:8c:fe:b6:00:8c)[0m
+[0;32mI (2320) wifi:enable tsf[0m
+[0;32mI (2320) wifi_manager: --- scanning for nearby 2.4GHz networks ---[0m
+[0;32mI (4830) wifi_manager: found 12 network(s):[0m
+[0;32mI (4830) wifi_manager:   [ 0] rssi= -51 ch= 1  'Airtel_Unboxed Community'[0m
+[0;32mI (4830) wifi_manager:   [ 1] rssi= -60 ch=11  'Galaxy A34 5G '[0m
+[0;32mI (4840) wifi_manager:   [ 2] rssi= -61 ch= 6  'Bobby 5G'[0m
+[0;32mI (4840) wifi_manager:   [ 3] rssi= -69 ch= 6  'Airtel_hima_5737'[0m
+[0;32mI (4850) wifi_manager:   [ 4] rssi= -78 ch= 6  'Infinix NOTE 30 5G'[0m
+[0;32mI (4860) wifi_manager:   [ 5] rssi= -79 ch= 6  'Airtel_raje_8038'[0m
+[0;32mI (4860) wifi_manager:   [ 6] rssi= -79 ch=11  'Raju'[0m
+[0;32mI (4870) wifi_manager:   [ 7] rssi= -80 ch= 1  'Airtel_hari_8380'[0m
+[0;32mI (4870) wifi_manager:   [ 8] rssi= -82 ch=11  'www.excitel.com'[0m
+[0;32mI (4880) wifi_manager:   [ 9] rssi= -82 ch=13  'Kanika'[0m
+[0;32mI (4890) wifi_manager:   [10] rssi= -87 ch= 1  ''[0m
+[0;32mI (4890) wifi_manager:   [11] rssi= -91 ch=11  'OnePlus Nord CE 2 Lite 5G'[0m
+[0;32mI (4900) wifi_manager: --- looking for 'Galaxy A34 5G ' in the list above ---[0m
+[0;32mI (4910) wifi_manager: wifi_manager initialized, connecting to SSID 'Galaxy A34 5G '[0m
+[0;32mI (4920) app_main: waiting for WiFi connection...[0m
+[0;32mI (4930) wifi:new:<11,0>, old:<1,0>, ap:<255,255>, sta:<11,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (4930) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (4950) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (4970) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (4990) wifi:connected with Galaxy A34 5G , aid = 2, channel 11, BW20, bssid = 56:92:11:46:a0:46[0m
+[0;32mI (4990) wifi:security: WPA2-PSK, phy: bgn, rssi: -61[0m
+[0;32mI (4990) wifi:pm start, type: 1[0m
+
+[0;32mI (5000) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (5050) wifi:dp: 2, bi: 102400, li: 4, scale listen interval from 307200 us to 409600 us[0m
+[0;32mI (5050) wifi:AP's beacon interval = 102400 us, DTIM period = 2[0m
+[0;32mI (6010) esp_netif_handlers: sta ip: 10.83.86.172, mask: 255.255.255.0, gw: 10.83.86.83[0m
+[0;32mI (6010) wifi_manager: connected, got IP[0m
+[0;32mI (6010) app_main: WiFi connected[0m
+[0;32mI (10860) wifi:<ba-add>idx:0 (ifx:0, 56:92:11:46:a0:46), tid:0, ssn:4, winSize:64[0m
+[0;32mI (11410) web_capture: capture webserver started: /snapshot /audio /meta[0m
+[0;32mI (11410) app_main: ready — laptop page can now pull /snapshot, /audio, /meta[0m
+[0;32mI (21190) touch_trigger: touch press detected[0m
+[0;32mI (21190) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (67450) touch_trigger: touch press detected[0m
+[0;32mI (67450) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (69510) touch_trigger: touch press detected[0m
+[0;32mI (69510) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (70670) touch_trigger: touch press detected[0m
+[0;32mI (70670) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (71630) touch_trigger: touch press detected[0m
+[0;32mI (71630) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (72810) touch_trigger: touch press detected[0m
+[0;32mI (72810) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (76450) touch_trigger: touch press detected[0m
+[0;32mI (76450) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x1b (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+ets Jul 29 2019 12:21:46
+
+rst:0x10 �ets Jul 29�ets�ets Juets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x1b (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (62) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (62) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (62) boot: Multicore bootloader[0m
+[0;32mI (67) boot: chip revision: v3.1[0m
+[0;32mI (71) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (75) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (80) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (84) boot: Enabling RNG early entropy source...[0m
+[0;32mI (90) boot: Partition Table:[0m
+[0;32mI (93) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (101) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (108) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (116) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (123) boot: End of partition table[0m
+[0;32mI (128) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (191) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (202) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (205) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (455) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (519) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (519) boot: Disabling RNG early entropy source...[0m
+[0;32mI (531) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (533) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (534) esp_psram: Speed: 40MHz[0m
+[0;32mI (535) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (543) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (552) cpu_start: Multicore app[0m
+[0;32mI (1461) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1469) cpu_start: Pro cpu start user code[0m
+[0;32mI (1469) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1469) app_init: Application information:[0m
+[0;32mI (1472) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1478) app_init: App version:      1[0m
+[0;32mI (1483) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1489) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1494) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1499) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1504) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1509) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1514) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1521) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1527) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1533) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1540) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1546) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1553) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1562) spi_flash: detected chip: generic[0m
+[0;32mI (1565) spi_flash: flash io: dio[0m
+[0;33mW (1569) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1577) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1590) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1602) main_task: Started on CPU0[0m
+[0;32mI (1612) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1612) main_task: Calling app_main()[0m
+[0;32mI (1612) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1622) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1632) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1642) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1652) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1652) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1662) cam_hal: cam init ok[0m
+[0;32mI (1672) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1672) sccb: sccb_i2c_port=1[0m
+[0;32mI (1682) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1712) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1712) camera: Detected OV3660 camera[0m
+[0;32mI (1712) camera: Detected camera at address=0x3c[0m
+[0;32mI (2042) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2042) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2042) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2052) cam_hal: cam config ok[0m
+[0;32mI (2072) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2092) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2092) camera_capture: camera initialized[0m
+[0;32mI (2102) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2102) app_main: OLED disabled in this build (panel unplugged; 0x3C belongs to the camera)[0m
+cam_hal: NO-SOI - JPEG start marker missing
+cam_hal: NO-SOI - JPEG start marker missing
+[0;32mI (2172) wifi:wifi driver task: 3ffd90c0, prio:23, stack:6656, core=0[0m
+[0;32mI (2182) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2182) wifi:wifi certification version: v7.0[0m
+[0;32mI (2182) wifi:config NVS flash: enabled[0m
+[0;32mI (2182) wifi:config nano formating: disabled[0m
+[0;32mI (2192) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2192) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2202) wifi:Init management short buffer num: 32[0m
+[0;32mI (2202) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2212) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2212) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2212) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2222) wifi_init: rx ba win: 6[0m
+[0;32mI (2222) wifi_init: accept mbox: 6[0m
+[0;32mI (2232) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2232) wifi_init: udp mbox: 6[0m
+[0;32mI (2232) wifi_init: tcp mbox: 6[0m
+[0;32mI (2242) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2242) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2252) wifi_init: tcp mss: 1440[0m
+[0;32mI (2252) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2252) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2262) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2352) wifi:mode : sta (e0:8c:fe:b6:00:8c)[0m
+[0;32mI (2352) wifi:enable tsf[0m
+[0;32mI (2352) wifi_manager: --- scanning for nearby 2.4GHz networks ---[0m
+�               �           �                         �ets Jul 29 2019 12:21:46
+
+rst:0x1 (     �                           ���   ���� �    �   �    ��     �                                            ����                              �                               ���                      �                                            ���     �                 ���                                                  ��                  ��              ��                     ��        ��           ���                    ���                �                                                        �    � �   � �� �  � ��    ��  ��  �� ��� �����  �  ��  ��� ������� ���� ����� ���� � � � ���������ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:1566                                        ��                                                           ��      �      �       �    �          � �        � � ��  � �    � ��    ���   � � �����������������etsets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (3��  �  �  ��  �  �  ��  ��   I � 	  �  	� @  �  �   � a�� ��� ��                  �@�   `  �   �        ��� �         �     $   �@	$  �    $ ��     ��������� ����� 0�	 	 �@�m�4���8" 	���H�"���� ؀ 4@ �(  L5 �<���Â������� � �����  �   �����ހ�                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         �             ��          �                    ��           �      ��             �     ��     �            �              �         ��      �   �    �      ��    � �   �      ��      �    �       �  �   �   �     �   ��    �   �� � ���� �  ���  ���� �  �� ��   � �� ��    �    ��  ��   �   h     ��  ��   ��    ��  �   �   �    �   ���   ��  ��    �  � � ������ � ���� ���  �� ���� ���  H��  �� ���� ��  �� ��  ��    ��   ��� � � �� � � ���� ����  ��� ���  �� ����#|��D�� ����  �  � ��������  �    �  ��  �   � ��         ��   � ��  �   �   �   ��   �   ��  @��  ��     ���   ���  �   �    �  ���   �   �  ��    � ��� ��   �       �� �� �    �� ���   � �� � � ��� ��@��� �    ��� ���     �   �   ���� � ����� �  ���  � � �� � ��   �  ��� �  � �   ����� �  ��   �    ��  ��� ��   �  � ��  � �����   ����      � �    � � �����     ��   @�  ��  ��   � ��   � �� ����� �� �� ��� ��   ��    � � ���  �  �  � ��� � ���� ���  @� ��  � �  ������ ����      �� �   �   �� ��@  �� ���� ��  ��� �   �� ��� ��  �   � �� ��� �  �����    �   � �   ��� ���    �  �  � ���� � ��� � �������    ���� �   �� �����  ��� �     ��� ����  �� ��� ���� �   �  ������@�� �    ��  � ����  ��� � �� ����������� �  ����� ����� ��� ��   � ���������� ���   ��� 0��  ������   � �������� ���� ���  ����� ����� � ���  � � ������� ������� �������������� ������  ���������    � � �  � ������� ���� �  ������� ��  ���� �� �� � ���      ��  � � �������   �   ������������� �� ��������� ����  ��� ��������������   �  �������  �� �� ���� ���� �����   �  ��  �������� ������� � � �   ���� ��� ��  �   ���� ��� �����������   ��� �� �� �� � ��  �����  ��� ��� �  �  ��������      � �� �  � ���  � �����   �� �� � ��� ��    � � ��  ��  � ���� �������������    �������      �� � � ��$����  � �   � �� �� ��   �� �@ �� ����  �  �   ���  �� � � �� ����  �  �   ��   �    �         � � �         �� �      ����              �    � ������ � �� �@ " ����  ��� � ���0��|ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (31) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (31) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v3.1[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (48) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (58) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (173) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (487) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (487) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (503) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1429) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1437) cpu_start: Pro cpu start user code[0m
+[0;32mI (1437) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1437) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1446) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1462) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1482) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1489) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1495) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1521) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1537) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1545) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+[0;32mI (2010) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2010) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2010) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2020) cam_hal: cam config ok[0m
+[0;32mI (2040) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2060) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2060) camera_capture: camera initialized[0m
+[0;32mI (2070) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2070) app_main: OLED disabled in this build (panel unplugged; 0x3C belongs to the camera)[0m
+cam_hal: NO-SOI - JPEG start marker missing
+cam_hal: NO-SOI - JPEG start marker missing
+[0;32mI (2140) wifi:wifi driver task: 3ffd90c0, prio:23, stack:6656, core=0[0m
+[0;32mI (2150) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2150) wifi:wifi certification version: v7.0[0m
+[0;32mI (2150) wifi:config NVS flash: enabled[0m
+[0;32mI (2150) wifi:config nano formating: disabled[0m
+[0;32mI (2160) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2160) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2170) wifi:Init management short buffer num: 32[0m
+[0;32mI (2170) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2180) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2180) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2180) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2190) wifi_init: rx ba win: 6[0m
+[0;32mI (2190) wifi_init: accept mbox: 6[0m
+[0;32mI (2200) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2200) wifi_init: udp mbox: 6[0m
+[0;32mI (2200) wifi_init: tcp mbox: 6[0m
+[0;32mI (2210) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2210) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2220) wifi_init: tcp mss: 1440[0m
+[0;32mI (2220) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2220) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2230) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2320) wifi:mode : sta (e0:8c:fe:b6:00:8c)[0m
+[0;32mI (2320) wifi:enable tsf[0m
+[0;32mI (2320) wifi_manager: --- scanning for nearby 2.4GHz networks ---[0m
+[0;32mI (4830) wifi_manager: found 10 network(s):[0m
+[0;32mI (4830) wifi_manager:   [ 0] rssi= -55 ch= 1  'Airtel_Unboxed Community'[0m
+[0;32mI (4830) wifi_manager:   [ 1] rssi= -55 ch= 6  'Bobby 5G'[0m
+[0;32mI (4830) wifi_manager:   [ 2] rssi= -57 ch=11  'Galaxy A34 5G '[0m
+[0;32mI (4840) wifi_manager:   [ 3] rssi= -70 ch= 6  'Airtel_hima_5737'[0m
+[0;32mI (4850) wifi_manager:   [ 4] rssi= -72 ch= 1  'Airtel_hari_8380'[0m
+[0;32mI (4850) wifi_manager:   [ 5] rssi= -74 ch= 6  'Airtel_raje_8038'[0m
+[0;32mI (4860) wifi_manager:   [ 6] rssi= -77 ch=11  'Raju'[0m
+[0;32mI (4870) wifi_manager:   [ 7] rssi= -77 ch=11  'www.excitel.com'[0m
+[0;32mI (4870) wifi_manager:   [ 8] rssi= -81 ch= 1  'Airtel_nish_0298'[0m
+[0;32mI (4880) wifi_manager:   [ 9] rssi= -82 ch=13  'Kanika'[0m
+[0;32mI (4890) wifi_manager: --- looking for 'Galaxy A34 5G ' in the list above ---[0m
+[0;32mI (4890) wifi_manager: wifi_manager initialized, connecting to SSID 'Galaxy A34 5G '[0m
+[0;32mI (4910) app_main: waiting for WiFi connection...[0m
+[0;32mI (4910) wifi:new:<11,0>, old:<1,0>, ap:<255,255>, sta:<11,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (4920) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (4960) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (4990) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (5010) wifi:connected with Galaxy A34 5G , aid = 2, channel 11, BW20, bssid = 56:92:11:46:a0:46[0m
+[0;32mI (5010) wifi:security: WPA2-PSK, phy: bgn, rssi: -63[0m
+[0;32mI (5010) wifi:pm start, type: 1[0m
+
+[0;32mI (5010) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (5020) wifi:dp: 2, bi: 102400, li: 4, scale listen interval from 307200 us to 409600 us[0m
+[0;32mI (5030) wifi:AP's beacon interval = 102400 us, DTIM period = 2[0m
+[0;32mI (6040) esp_netif_handlers: sta ip: 10.83.86.172, mask: 255.255.255.0, gw: 10.83.86.83[0m
+[0;32mI (6040) wifi_manager: connected, got IP[0m
+[0;32mI (6040) app_main: WiFi connected[0m
+[0;32mI (7080) wifi:<ba-add>idx:0 (ifx:0, 56:92:11:46:a0:46), tid:0, ssn:4, winSize:64[0m
+[0;32mI (7110) web_capture: capture webserver started: /snapshot /audio /meta[0m
+[0;32mI (7110) app_main: ready — laptop page can now pull /snapshot, /audio, /meta[0m
+ ��  �                                                                                                                                               �                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   �                                                                   �                                                                                     �                �                                                                                              �                                                                                                                      �           ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCets Jul 29ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLA�Yets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1430) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1438) cpu_start: Pro cpu start user code[0m
+[0;32mI (1438) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1438) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1447) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1463) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1483) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1490) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1496) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1522) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1538) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1546) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+[0;32mI (2010) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2010) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2010) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2020) cam_hal: cam config ok[0m
+[0;32mI (2040) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2060) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2060) camera_capture: camera initialized[0m
+[0;32mI (2070) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2070) app_main: OLED disabled in this build (panel unplugged; 0x3C belongs to the camera)[0m
+cam_hal: NO-SOI - JPEG start marker missing
+cam_hal: NO-SOI - JPEG start marker missing
+[0;32mI (2140) wifi:wifi driver task: 3ffd90c0, prio:23, stack:6656, core=0[0m
+[0;32mI (2150) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2150) wifi:wifi certification version: v7.0[0m
+[0;32mI (2150) wifi:config NVS flash: enabled[0m
+[0;32mI (2150) wifi:config nano formating: disabled[0m
+[0;32mI (2160) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2160) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2170) wifi:Init management short buffer num: 32[0m
+[0;32mI (2170) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2180) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2180) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2180) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2190) wifi_init: rx ba win: 6[0m
+[0;32mI (2190) wifi_init: accept mbox: 6[0m
+[0;32mI (2200) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2200) wifi_init: udp mbox: 6[0m
+[0;32mI (2200) wifi_init: tcp mbox: 6[0m
+[0;32mI (2210) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2210) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2220) wifi_init: tcp mss: 1440[0m
+[0;32mI (2220) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2220) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2230) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2320) wifi:mode : sta (e0:8c:fe:b6:00:8c)[0m
+[0;32mI (2320) wifi:enable tsf[0m
+[0;32mI (2320) wifi_manager: --- scanning for nearby 2.4GHz networks ---[0m
+[0;32mI (4830) wifi_manager: found 13 network(s):[0m
+[0;32mI (4830) wifi_manager:   [ 0] rssi= -56 ch= 1  'Airtel_Unboxed Community'[0m
+[0;32mI (4830) wifi_manager:   [ 1] rssi= -60 ch= 6  'Bobby 5G'[0m
+[0;32mI (4830) wifi_manager:   [ 2] rssi= -64 ch=11  'Galaxy A34 5G '[0m
+[0;32mI (4840) wifi_manager:   [ 3] rssi= -71 ch= 6  'Airtel_raje_8038'[0m
+[0;32mI (4850) wifi_manager:   [ 4] rssi= -72 ch= 1  'Airtel_hari_8380'[0m
+[0;32mI (4860) wifi_manager:   [ 5] rssi= -78 ch= 1  'Airtel_nish_0298'[0m
+[0;32mI (4860) wifi_manager:   [ 6] rssi= -78 ch= 6  'Airtel_hima_5737'[0m
+[0;32mI (4870) wifi_manager:   [ 7] rssi= -78 ch=11  'www.excitel.com'[0m
+[0;32mI (4880) wifi_manager:   [ 8] rssi= -79 ch=11  'Raju'[0m
+[0;32mI (4880) wifi_manager:   [ 9] rssi= -80 ch= 1  ''[0m
+[0;32mI (4890) wifi_manager:   [10] rssi= -81 ch= 6  'Infinix NOTE 30 5G'[0m
+[0;32mI (4890) wifi_manager:   [11] rssi= -83 ch= 9  'Gautam 2G'[0m
+[0;32mI (4900) wifi_manager:   [12] rssi= -83 ch=13  'Kanika'[0m
+[0;32mI (4910) wifi_manager: --- looking for 'Galaxy A34 5G ' in the list above ---[0m
+[0;32mI (4910) wifi_manager: wifi_manager initialized, connecting to SSID 'Galaxy A34 5G '[0m
+[0;32mI (4920) app_main: waiting for WiFi connection...[0m
+[0;32mI (4930) wifi:new:<11,0>, old:<1,0>, ap:<255,255>, sta:<11,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (4940) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (4980) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (5000) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (5020) wifi:connected with Galaxy A34 5G , aid = 2, channel 11, BW20, bssid = 56:92:11:46:a0:46[0m
+[0;32mI (5030) wifi:security: WPA2-PSK, phy: bgn, rssi: -67[0m
+[0;32mI (5030) wifi:pm start, type: 1[0m
+
+[0;32mI (5030) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (5110) wifi:dp: 2, bi: 102400, li: 4, scale listen interval from 307200 us to 409600 us[0m
+[0;32mI (5110) wifi:AP's beacon interval = 102400 us, DTIM period = 2[0m
+[0;32mI (6040) esp_netif_handlers: sta ip: 10.83.86.172, mask: 255.255.255.0, gw: 10.83.86.83[0m
+[0;32mI (6040) wifi_manager: connected, got IP[0m
+[0;32mI (6040) app_main: WiFi connected[0m
+[0;32mI (8900) wifi:<ba-add>idx:0 (ifx:0, 56:92:11:46:a0:46), tid:0, ssn:4, winSize:64[0m
+[0;32mI (8920) web_capture: capture webserver started: /snapshot /audio /meta[0m
+[0;32mI (8920) app_main: ready — laptop page can now pull /snapshot, /audio, /meta[0m
+[0;32mI (150710) touch_trigger: touch press detected[0m
+[0;32mI (150710) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (151170) touch_trigger: touch press detected[0m
+[0;32mI (151170) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (159430) touch_trigger: touch press detected[0m
+[0;32mI (159430) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (161860) touch_trigger: touch press detected[0m
+[0;32mI (161860) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (172290) touch_trigger: touch press detected[0m
+[0;32mI (172290) app_main: touch press detected (capture cycle disabled in this build)[0m
+  �          �   �                                                                                                     �               �  ��   �  �      �   �                                     �                              �                    �          �                        �                                                     �   �                      �     �� ��  ��  �                                                                                    �                   �       �  �       �                �    ��         �  ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff003�� ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (31) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (31) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v3.1[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (48) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (58) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;3�  � ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RES�et��      ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (�ets Jul 2�etets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (31) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (31) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v3.1[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (48) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (58) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (173) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (487) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (487) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (503) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1429) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1437) cpu_start: Pro cpu start user code[0m
+[0;32mI (1437) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1437) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1446) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1462) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1482) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1489) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1495) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1521) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1537) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1545) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+ ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (31) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (31) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v3.1[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (48) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (58) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (173) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+�                �              �       �                                         �                                       �                                                                                                                                                                     �                                                     �                                     �    ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0�e   �ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (31) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (31) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v3.1[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (48) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (58) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (173) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (487) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (487) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (503) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1429) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1437) cpu_start: Pro cpu start user code[0m
+[0;32mI (1437) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1437) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1446) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1462) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1482) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1489) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1495) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1521) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1537) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1545) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+[0;32mI (2010) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2010) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2010) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2020) cam_hal: cam config ok[0m
+[0;32mI (2040) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2060) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2060) camera_capture: camera initialized[0m
+[0;32mI (2070) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2070) app_main: OLED disabled in this build (panel unplugged; 0x3C belongs to the camera)[0m
+cam_hal: NO-SOI - JPEG start marker missing
+cam_hal: NO-SOI - JPEG start marker missing
+[0;32mI (2140) wifi:wifi driver task: 3ffd90c0, prio:23, stack:6656, core=0[0m
+[0;32mI (2150) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2150) wifi:wifi certification version: v7.0[0m
+[0;32mI (2150) wifi:config NVS flash: enabled[0m
+[0;32mI (2150) wifi:config nano formating: disabled[0m
+[0;32mI (2160) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2160) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2170) wifi:Init management short buffer num: 32[0m
+[0;32mI (2170) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2180) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2180) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2180) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2190) wifi_init: rx ba win: 6[0m
+[0;32mI (2190) wifi_init: accept mbox: 6[0m
+[0;32mI (2200) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2200) wifi_init: udp mbox: 6[0m
+[0;32mI (2200) wifi_init: tcp mbox: 6[0m
+[0;32mI (2210) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2210) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2220) wifi_init: tcp mss: 1440[0m
+[0;32mI (2220) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2220) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2230) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2320) wifi:mode : sta (e0:8c:fe:b6:00:8c)[0m
+[0;32mI (2320) wifi:enable tsf[0m
+[0;32mI (2320) wifi_manager: --- scanning for nearby 2.4GHz networks ---[0m
+[0;32mI (4830) wifi_manager: found 13 network(s):[0m
+[0;32mI (4830) wifi_manager:   [ 0] rssi= -53 ch= 1  'Airtel_Unboxed Community'[0m
+[0;32mI (4830) wifi_manager:   [ 1] rssi= -61 ch= 6  'Bobby 5G'[0m
+[0;32mI (4830) wifi_manager:   [ 2] rssi= -67 ch=11  'Galaxy A34 5G '[0m
+[0;32mI (4840) wifi_manager:   [ 3] rssi= -69 ch= 6  'Airtel_hima_5737'[0m
+[0;32mI (4850) wifi_manager:   [ 4] rssi= -72 ch= 1  'Airtel_hari_8380'[0m
+[0;32mI (4860) wifi_manager:   [ 5] rssi= -76 ch=11  'Raju'[0m
+[0;32mI (4860) wifi_manager:   [ 6] rssi= -80 ch=11  'www.excitel.com'[0m
+[0;32mI (4870) wifi_manager:   [ 7] rssi= -80 ch=13  'Kanika'[0m
+[0;32mI (4870) wifi_manager:   [ 8] rssi= -81 ch= 6  'Airtel_raje_8038'[0m
+[0;32mI (4880) wifi_manager:   [ 9] rssi= -82 ch= 1  'Airtel_nish_0298'[0m
+[0;32mI (4890) wifi_manager:   [10] rssi= -82 ch= 1  ''[0m
+[0;32mI (4890) wifi_manager:   [11] rssi= -82 ch= 6  'Infinix NOTE 30 5G'[0m
+[0;32mI (4900) wifi_manager:   [12] rssi= -84 ch= 9  'Gautam 2G'[0m
+[0;32mI (4910) wifi_manager: --- looking for 'Galaxy A34 5G ' in the list above ---[0m
+[0;32mI (4910) wifi_manager: wifi_manager initialized, connecting to SSID 'Galaxy A34 5G '[0m
+[0;32mI (4920) app_main: waiting for WiFi connection...[0m
+[0;32mI (5000) wifi:new:<11,0>, old:<1,0>, ap:<255,255>, sta:<11,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (5010) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (5050) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (5080) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (5100) wifi:connected with Galaxy A34 5G , aid = 2, channel 11, BW20, bssid = 56:92:11:46:a0:46[0m
+[0;32mI (5100) wifi:security: WPA2-PSK, phy: bgn, rssi: -76[0m
+[0;32mI (5100) wifi:pm start, type: 1[0m
+
+[0;32mI (5100) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (5190) wifi:dp: 2, bi: 102400, li: 4, scale listen interval from 307200 us to 409600 us[0m
+[0;32mI (5190) wifi:AP's beacon interval = 102400 us, DTIM period = 2[0m
+[0;32mI (6110) esp_netif_handlers: sta ip: 10.83.86.172, mask: 255.255.255.0, gw: 10.83.86.83[0m
+[0;32mI (6110) wifi_manager: connected, got IP[0m
+[0;32mI (6110) app_main: WiFi connected[0m
+[0;32mI (6140) wifi:<ba-add>idx:0 (ifx:0, 56:92:11:46:a0:46), tid:0, ssn:4, winSize:64[0m
+                                                �  ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (31) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (31) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v3.1[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (48) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (58) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (173) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (487) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (487) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (503) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1429) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1437) cpu_start: Pro cpu start user code[0m
+[0;32mI (1437) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1437) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1446) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1462) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1482) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1489) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1495) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1521) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1537) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1545) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+[0;32mI (2010) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2010) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2010) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2020) cam_hal: cam config ok[0m
+[0;32mI (2040) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2060) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2060) camera_capture: camera initialized[0m
+[0;32mI (2070) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2070) app_main: OLED disabled in this build (panel unplugged; 0x3C belongs to the camera)[0m
+cam_hal: NO-SOI - JPEG start marker missing
+cam_hal: NO-SOI - JPEG start marker missing
+[0;32mI (2140) wifi:wifi driver task: 3ffd90c0, prio:23, stack:6656, core=0[0m
+[0;32mI (2150) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2150) wifi:wifi certification version: v7.0[0m
+[0;32mI (2150) wifi:config NVS flash: enabled[0m
+[0;32mI (2150) wifi:config nano formating: disabled[0m
+[0;32mI (2160) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2160) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2170) wifi:Init management short buffer num: 32[0m
+[0;32mI (2170) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2180) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2180) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2180) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2190) wifi_init: rx ba win: 6[0m
+[0;32mI (2190) wifi_init: accept mbox: 6[0m
+[0;32mI (2200) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2200) wifi_init: udp mbox: 6[0m
+[0;32mI (2200) wifi_init: tcp mbox: 6[0m
+[0;32mI (2210) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2210) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2220) wifi_init: tcp mss: 1440[0m
+[0;32mI (2220) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2220) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2230) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2320) phy_init: Saving new calibration data due to checksum failure or outdated calibration data, mode(0)[0m
+[0;32mI (2400) wifi:mode : sta (e0:8c:fe:b6:00:8c)[0m
+[0;32mI (2400) wifi:enable tsf[0m
+[0;32mI (2400) wifi_manager: --- scanning for nearby 2.4GHz networks ---[0m
+[0;32mI (4900) wifi_manager: found 8 network(s):[0m
+[0;32mI (4900) wifi_manager:   [ 0] rssi= -59 ch= 1  'Airtel_Unboxed Community'[0m
+[0;32mI (4900) wifi_manager:   [ 1] rssi= -77 ch= 6  'Airtel_hima_5737'[0m
+[0;32mI (4910) wifi_manager:   [ 2] rssi= -77 ch= 6  'Bobby 5G'[0m
+[0;32mI (4910) wifi_manager:   [ 3] rssi= -79 ch=11  'Galaxy A34 5G '[0m
+[0;32mI (4920) wifi_manager:   [ 4] rssi= -90 ch=11  'www.excitel.com'[0m
+[0;32mI (4920) wifi_manager:   [ 5] rssi= -91 ch=11  'Raju'[0m
+[0;32mI (4930) wifi_manager:   [ 6] rssi= -92 ch= 6  'Infinix NOTE 30 5G'[0m
+[0;32mI (4940) wifi_manager:   [ 7] rssi= -93 ch=13  'Kanika'[0m
+[0;32mI (4940) wifi_manager: --- looking for 'Galaxy A34 5G ' in the list above ---[0m
+[0;32mI (4950) wifi_manager: wifi_manager initialized, connecting to SSID 'Galaxy A34 5G '[0m
+[0;32mI (4960) app_main: waiting for WiFi connection...[0m
+[0;32mI (4970) wifi:new:<11,0>, old:<1,0>, ap:<255,255>, sta:<11,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (4970) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (5020) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (5050) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (5070) wifi:connected with Galaxy A34 5G , aid = 2, channel 11, BW20, bssid = 56:92:11:46:a0:46[0m
+[0;32mI (5070) wifi:security: WPA2-PSK, phy: bgn, rssi: -77[0m
+[0;32mI (5080) wifi:pm start, type: 1[0m
+
+[0;32mI (5080) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (5090) wifi:dp: 2, bi: 102400, li: 4, scale listen interval from 307200 us to 409600 us[0m
+[0;32mI (5090) wifi:AP's beacon interval = 102400 us, DTIM period = 2[0m
+[0;32mI (5820) wifi:<ba-add>idx:0 (ifx:0, 56:92:11:46:a0:46), tid:0, ssn:4, winSize:64[0m
+[0;32mI (6090) esp_netif_handlers: sta ip: 10.83.86.172, mask: 255.255.255.0, gw: 10.83.86.83[0m
+[0;32mI (6090) wifi_manager: connected, got IP[0m
+[0;32mI (6090) app_main: WiFi connected[0m
+[0;32mI (7140) web_capture: capture webserver started: /snapshot /audio /meta[0m
+[0;32mI (7150) app_main: ready — laptop page can now pull /snapshot, /audio, /meta[0m
+[0;32mI (22250) touch_trigger: touch press detected[0m
+[0;32mI (22250) app_main: touch press detected (capture cycle disabled in this build)[0m
+  ��    eets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,dets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+ ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x1�ets Jul 29 2019�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1430) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1438) cpu_start: Pro cpu start user code[0m
+[0;32mI (1438) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1438) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1447) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1463) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1483) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1490) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1496) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1522) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1538) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1546) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+[0;32mI (2010) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2010) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2010) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2020) cam_hal: cam config ok[0m
+[0;32mI (2040) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2060) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2060) camera_capture: camera initialized[0m
+[0;32mI (2070) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2070) app_main: OLED disabled in this build (panel unplugged; 0x3C belongs to the camera)[0m
+cam_hal: NO-SOI - JPEG start marker missing
+cam_hal: NO-SOI - JPEG start marker missing
+[0;32mI (2140) wifi:wifi driver task: 3ffd90c0, prio:23, stack:6656, core=0[0m
+[0;32mI (2150) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2150) wifi:wifi certification version: v7.0[0m
+[0;32mI (2150) wifi:config NVS flash: enabled[0m
+[0;32mI (2150) wifi:config nano formating: disabled[0m
+[0;32mI (2160) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2160) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2170) wifi:Init management short buffer num: 32[0m
+[0;32mI (2170) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2180) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2180) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2180) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2190) wifi_init: rx ba win: 6[0m
+[0;32mI (2190) wifi_init: accept mbox: 6[0m
+[0;32mI (2200) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2200) wifi_init: udp mbox: 6[0m
+[0;32mI (2200) wifi_init: tcp mbox: 6[0m
+[0;32mI (2210) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2210) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2220) wifi_init: tcp mss: 1440[0m
+[0;32mI (2220) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2220) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2230) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2320) phy_init: Saving new calibration data due to checksum failure or outdated calibration data, mode(0)[0m
+[0;32mI (2340) wifi:mode : sta (e0:8c:fe:b6:00:8c)[0m
+[0;32mI (2340) wifi:enable tsf[0m
+[0;32mI (2340) wifi_manager: --- scanning for nearby 2.4GHz networks ---[0m
+[0;32mI (4850) wifi_manager: found 10 network(s):[0m
+[0;32mI (4850) wifi_manager:   [ 0] rssi= -50 ch= 1  'Airtel_Unboxed Community'[0m
+[0;32mI (4850) wifi_manager:   [ 1] rssi= -64 ch= 6  'Airtel_hima_5737'[0m
+[0;32mI (4860) wifi_manager:   [ 2] rssi= -64 ch=11  'Galaxy A34 5G '[0m
+[0;32mI (4860) wifi_manager:   [ 3] rssi= -70 ch= 1  'Airtel_hari_8380'[0m
+[0;32mI (4870) wifi_manager:   [ 4] rssi= -71 ch= 6  'Airtel_raje_8038'[0m
+[0;32mI (4880) wifi_manager:   [ 5] rssi= -72 ch= 6  'Bobby 5G'[0m
+[0;32mI (4880) wifi_manager:   [ 6] rssi= -80 ch= 1  'Airtel_nish_0298'[0m
+[0;32mI (4890) wifi_manager:   [ 7] rssi= -81 ch= 1  ''[0m
+[0;32mI (4890) wifi_manager:   [ 8] rssi= -86 ch=11  'www.excitel.com'[0m
+[0;32mI (4900) wifi_manager:   [ 9] rssi= -88 ch=11  'Raju'[0m
+[0;32mI (4910) wifi_manager: --- looking for 'Galaxy A34 5G ' in the list above ---[0m
+[0;32mI (4910) wifi_manager: wifi_manager initialized, connecting to SSID 'Galaxy A34 5G '[0m
+[0;32mI (4930) app_main: waiting for WiFi connection...[0m
+[0;32mI (4930) wifi:new:<11,0>, old:<1,0>, ap:<255,255>, sta:<11,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (4940) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (4980) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (5010) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (5030) wifi:connected with Galaxy A34 5G , aid = 2, channel 11, BW20, bssid = 56:92:11:46:a0:46[0m
+[0;32mI (5030) wifi:security: WPA2-PSK, phy: bgn, rssi: -67[0m
+[0;32mI (5030) wifi:pm start, type: 1[0m
+
+[0;32mI (5030) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (5130) wifi:dp: 2, bi: 102400, li: 4, scale listen interval from 307200 us to 409600 us[0m
+[0;32mI (5130) wifi:AP's beacon interval = 102400 us, DTIM period = 2[0m
+[0;32mI (6040) esp_netif_handlers: sta ip: 10.83.86.172, mask: 255.255.255.0, gw: 10.83.86.83[0m
+[0;32mI (6040) wifi_manager: connected, got IP[0m
+[0;32mI (6040) app_main: WiFi connected[0m
+[0;32mI (6060) wifi:<ba-add>idx:0 (ifx:0, 56:92:11:46:a0:46), tid:0, ssn:4, winSize:64[0m
+[0;32mI (8010) web_capture: capture webserver started: /snapshot /audio /meta[0m
+[0;32mI (8010) app_main: ready — laptop page can now pull /snapshot, /audio, /meta[0m
+[0;32mI (10420) touch_trigger: touch press detected[0m
+[0;32mI (10420) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11300) touch_trigger: touch press detected[0m
+[0;32mI (11300) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (14350) touch_trigger: touch press detected[0m
+[0;32mI (14350) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (15570) touch_trigger: touch press detected[0m
+[0;32mI (15570) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (22620) touch_trigger: touch press detected[0m
+[0;32mI (22620) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (23140) touch_trigger: touch press detected[0m
+[0;32mI (23140) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (23660) touch_trigger: touch press detected[0m
+[0;32mI (23660) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (24140) touch_trigger: touch press detected[0m
+[0;32mI (24140) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (24720) touch_trigger: touch press detected[0m
+[0;32mI (24720) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (25240) touch_trigger: touch press detected[0m
+[0;32mI (25240) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (25820) touch_trigger: touch press detected[0m
+[0;32mI (25820) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (30320) touch_trigger: touch press detected[0m
+[0;32mI (30320) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (32220) touch_trigger: touch press detected[0m
+[0;32mI (32220) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (32800) touch_trigger: touch press detected[0m
+[0;32mI (32800) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (33740) touch_trigger: touch press detected[0m
+[0;32mI (33740) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (34200) touch_trigger: touch press detected[0m
+[0;32mI (34200) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (34800) touch_trigger: touch press detected[0m
+[0;32mI (34800) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (35420) touch_trigger: touch press detected[0m
+[0;32mI (35420) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (36480) touch_trigger: touch press detected[0m
+[0;32mI (36480) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (37060) touch_trigger: touch press detected[0m
+[0;32mI (37060) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (37660) touch_trigger: touch press detected[0m
+[0;32mI (37660) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (38240) touch_trigger: touch press detected[0m
+[0;32mI (38240) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (38860) touch_trigger: touch press detected[0m
+[0;32mI (38860) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (39440) touch_trigger: touch press detected[0m
+[0;32mI (39440) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (40020) touch_trigger: touch press detected[0m
+[0;32mI (40020) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (40600) touch_trigger: touch press detected[0m
+[0;32mI (40600) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (41260) touch_trigger: touch press detected[0m
+[0;32mI (41260) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (42280) touch_trigger: touch press detected[0m
+[0;32mI (42280) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (42940) touch_trigger: touch press detected[0m
+[0;32mI (42940) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (43860) touch_trigger: touch press detected[0m
+[0;32mI (43860) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (46780) touch_trigger: touch press detected[0m
+[0;32mI (46780) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (48380) touch_trigger: touch press detected[0m
+[0;32mI (48380) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (57490) touch_trigger: touch press detected[0m
+[0;32mI (57490) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (61910) touch_trigger: touch press detected[0m
+[0;32mI (61910) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (66440) touch_trigger: touch press detected[0m
+[0;32mI (66440) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (67300) touch_trigger: touch press detected[0m
+[0;32mI (67300) app_main: touch press detected (capture cycle disabled in this build)[0m
+ ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+ �         �        �               �      �                                                         �                                  �                                   �                                           �   �   � �             �    �   � �" �          �   �    �    �        ��   A �  �    �     � �     �  � `  ��@���    �     �@ �  �� @   �  H( �@ �    I       @ � �    � �     @    ���@ ��   � �   �  �     �   �  B�                  �  �  �  @   �            � � � �  �      �  � �   H       � �    @                   !     �  �      �               � �     �   @�   �     �    � `    �              ��    �  �  �              �                 �   �                                                             �  �  �                    �                                     ��                                                                               �    �            �                                                                                                      �                                                                                                             �                                                            �                                �     �       �                                                         �                                      �                                        �     �  � ��                                       � �� � ����� �  ����A0H!�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stag�et�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd �ets Jul 29 2019 12:21:46
+
+rst:0x10�ets Jul 29�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+�ets�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCW��ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (S�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy so��ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x1�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1430) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1438) cpu_start: Pro cpu start user code[0m
+[0;32mI (1438) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1438) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1447) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1463) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1483) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1490) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1496) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1522) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1538) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1546) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+[0;32mI (2010) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2010) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2010) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2020) cam_hal: cam config ok[0m
+[0;32mI (2040) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2060) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2060) camera_capture: camera initialized[0m
+[0;32mI (2070) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2070) app_main: OLED disabled in this build (panel unplugged; 0x3C belongs to the camera)[0m
+cam_hal: NO-SOI - JPEG start marker missing
+cam_hal: NO-SOI - JPEG start marker missing
+[0;32mI (2140) wifi:wifi driver task: 3ffd90c0, prio:23, stack:6656, core=0[0m
+[0;32mI (2150) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2150) wifi:wifi certification version: v7.0[0m
+[0;32mI (2150) wifi:config NVS flash: enabled[0m
+[0;32mI (2150) wifi:config nano formating: disabled[0m
+[0;32mI (2160) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2160) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2170) wifi:Init management short buffer num: 32[0m
+[0;32mI (2170) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2180) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2180) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2180) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2190) wifi_init: rx ba win: 6[0m
+[0;32mI (2190) wifi_init: accept mbox: 6[0m
+[0;32mI (2200) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2200) wifi_init: udp mbox: 6[0m
+[0;32mI (2200) wifi_init: tcp mbox: 6[0m
+[0;32mI (2210) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2210) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2220) wifi_init: tcp mss: 1440[0m
+[0;32mI (2220) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2220) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2230) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2330) phy_in=�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_F�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+    � ��  ���                   �                  ��   �   ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x1a (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (31) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (31) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v3.1[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (48) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (58) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (173) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+  �      ��         �   �������            �         �                                                      �              � � ��                                                                                                                                                  �                                                                                                                                                                                                                                                                                                                                                                                                                        �  � �                                                                                                                                                                                                      ets�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x1a (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: M�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x1a (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92J���� End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+   �� �   �         �       �  �        ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x1a (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (31) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (31) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v3.1[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (48) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (58) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (173) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+  � �  �  � �        �    �  �  �  �  �       ���        ��                                                                                     �        �                                              �   �   � �      �� �  ����   �  � � �    �   � � � ��    �   ��       �     �     �      � �                �          �          �                                 � ets Jul �ets J�ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_Re  ��      ets Jul 29 2019  �     ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x1a (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00 ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWE�                                                                           �   � � �                       � �    �               �   �        ���    ��  � �  ���       � �� � ����    ����     ��   ��   �             �  �   �    ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x1q ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x1a (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (31) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (31) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v3.1[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (48) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (58) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (173) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (487) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (487) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (503) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1429) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1437) cpu_start: Pro cpu start user code[0m
+[0;32mI (1437) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1437) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1446) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1462) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1482) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1489) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1495) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1521) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1537) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1545) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+Guru Meditation Error: Core  0 panic'ed (Interrupt wdt timeout on CPU0). 
+
+Core  0 register dump:
+PC      : 0x4008615b  PS      : 0x00050034  A0      : 0x4000bff0  A1      : 0x3ffb2210  
+A2      : 0x00000100  A3      : 0x3ffaf230  A4      : 0x0000013f  A5      : 0x3ffb21e0  
+A6      : 0x00000000  A7      : 0x00000000  A8      : 0x3ffafea8  A9      : 0x400921f2  
+A10     : 0x00000000  A11     : 0x3ffaff4c  A12     : 0x00000000  A13     : 0x3ff44000  
+A14     : 0x00000000  A15     : 0x00000000  SAR     : 0x00000007  EXCCAUSE: 0x00000005  
+EXCVADDR: 0x00000000  LBEG    : 0x00000000  LEND    : 0x00000000  LCOUNT  : 0x00000000  
+Core  0 was running in ISR context:
+EPC1    : 0x400d448f  EPC2    : 0x00000000  EPC3    : 0x00000000  EPC4    : 0x4008615b
+
+
+Backtrace: 0x40086158:0x3ffb2210 0x4000bfed:0x3ffaf230 0x4009216e:0x3ffaf240 0x400d5453:0x3ffaf260 0x400d54b5:0x3ffaf2b0 0x400ea69d:0x3ffaf2e0 0x40082606:0x3ffaf300 0x40091df1:0x3ffaf320
+
+
+Core  1 register dump:
+PC      : 0x4008ea76  PS      : 0x00060734  A0      : 0x800d431e  A1      : 0x3ffbfe70  
+A2      : 0x00000000  A3      : 0x00000000  A4      : 0x3ffaf8a0  A5      : 0x3ffaf880  
+A6      : 0x40082534  A7      : 0x00000001  A8      : 0x800ecb9a  A9      : 0x3ffbfe30  
+A10     : 0x00000000  A11     : 0x00000000  A12     : 0x3ffaf880  A13     : 0x3ffaf860  
+A14     : 0x00000001  A15     : 0x3ffbff60  SAR     : 0x00000000  EXCCAUSE: 0x00000005  
+EXCVADDR: 0x00000000  LBEG    : 0x00000000  LEND    : 0x00000000  LCOUNT  : 0x00000000  
+
+
+Backtrace: 0x4008ea73:0x3ffbfe70 0x400d431b:0x3ffbfe90 0x40092ec5:0x3ffbfeb0 0x40091df1:0x3ffbfed0
+
+
+
+
+ELF file SHA256: 92702cd6a
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x1a (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (31) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (31) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (31) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v3.1[0m
+[0;32mI (39) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (48) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (58) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (173) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (487) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (487) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (503) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1429) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1437) cpu_start: Pro cpu start user code[0m
+[0;32mI (1437) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1437) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1446) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1462) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1482) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1489) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1495) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1514) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1521) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1537) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1545) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+[0;32mI (2010) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2010) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2010) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2020) cam_hal: cam config ok[0m
+[0;32mI (2040) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2060) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2060) camera_capture: camera initialized[0m
+[0;32mI (2070) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2070) app_main: OLED disabled in this build (panel unplugged; 0x3C belongs to the camera)[0m
+cam_hal: NO-SOI - JPEG start marker missing
+cam_hal: NO-SOI - JPEG start marker missing
+[0;32mI (2140) wifi:wifi driver task: 3ffd90c0, prio:23, stack:6656, core=0[0m
+[0;32mI (2150) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2150) wifi:wifi certification version: v7.0[0m
+[0;32mI (2150) wifi:config NVS flash: enabled[0m
+[0;32mI (2150) wifi:config nano formating: disabled[0m
+[0;32mI (2160) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2160) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2170) wifi:Init management short buffer num: 32[0m
+[0;32mI (2170) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2180) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2180) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2180) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2190) wifi_init: rx ba win: 6[0m
+[0;32mI (2190) wifi_init: accept mbox: 6[0m
+[0;32mI (2200) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2200) wifi_init: udp mbox: 6[0m
+[0;32mI (2200) wifi_init: tcp mbox: 6[0m
+[0;32mI (2210) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2210) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2220) wifi_init: tcp mss: 1440[0m
+[0;32mI (2220) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2220) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2230) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2330) phy_init: Saving new calibration data due to checksum failure or outdated calibration data, mode(0)[0m
+[0;32mI (2400) wifi:mode : sta (e0:8c:fe:b6:00:8c)[0m
+[0;32mI (2400) wifi:enable tsf[0m
+[0;32mI (2400) wifi_manager: --- scanning for nearby 2.4GHz networks ---[0m
+[0;32mI (4900) wifi_manager: found 10 network(s):[0m
+[0;32mI (4900) wifi_manager:   [ 0] rssi= -45 ch= 1  'Airtel_Unboxed Community'[0m
+[0;32mI (4900) wifi_manager:   [ 1] rssi= -59 ch= 6  'Airtel_hima_5737'[0m
+[0;32mI (4910) wifi_manager:   [ 2] rssi= -71 ch= 6  'Bobby 5G'[0m
+[0;32mI (4910) wifi_manager:   [ 3] rssi= -75 ch= 6  'Airtel_raje_8038'[0m
+[0;32mI (4920) wifi_manager:   [ 4] rssi= -76 ch= 1  'Airtel_hari_8380'[0m
+[0;32mI (4930) wifi_manager:   [ 5] rssi= -77 ch=11  'Raju'[0m
+[0;32mI (4930) wifi_manager:   [ 6] rssi= -77 ch=11  'www.excitel.com'[0m
+[0;32mI (4940) wifi_manager:   [ 7] rssi= -78 ch= 1  'Airtel_nish_0298'[0m
+[0;32mI (4940) wifi_manager:   [ 8] rssi= -78 ch=11  'Galaxy A34 5G '[0m
+[0;32mI (4950) wifi_manager:   [ 9] rssi= -79 ch= 6  'Infinix NOTE 30 5G'[0m
+[0;32mI (4960) wifi_manager: --- looking for 'Galaxy A34 5G ' in the list above ---[0m
+[0;32mI (4970) wifi_manager: wifi_manager initialized, connecting to SSID 'Galaxy A34 5G '[0m
+[0;32mI (4980) app_main: waiting for WiFi connection...[0m
+[0;32mI (4990) wifi:new:<11,0>, old:<1,0>, ap:<255,255>, sta:<11,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (4990) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (5030) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (5050) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (5070) wifi:connected with Galaxy A34 5G , aid = 2, channel 11, BW20, bssid = 56:92:11:46:a0:46[0m
+[0;32mI (5070) wifi:security: WPA2-PSK, phy: bgn, rssi: -70[0m
+[0;32mI (5080) wifi:pm start, type: 1[0m
+
+[0;32mI (5080) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (5090) wifi:dp: 2, bi: 102400, li: 4, scale listen interval from 307200 us to 409600 us[0m
+[0;32mI (5090) wifi:AP's beacon interval = 102400 us, DTIM period = 2[0m
+[0;32mI (6100) esp_netif_handlers: sta ip: 10.83.86.172, mask: 255.255.255.0, gw: 10.83.86.83[0m
+[0;32mI (6100) wifi_manager: connected, got IP[0m
+[0;32mI (6100) app_main: WiFi connected[0m
+[0;32mI (6330) wifi:<ba-add>idx:0 (ifx:0, 56:92:11:46:a0:46), tid:0, ssn:4, winSize:64[0m
+     �                   ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1430) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1438) cpu_start: Pro cpu start user code[0m
+[0;32mI (1438) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1438) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1447) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1463) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1483) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1490) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1496) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1522) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1538) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1546) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+[0;32mI (2010) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2010) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2010) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2020) cam_hal: cam config ok[0m
+[0;32mI (2040) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2060) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2060) camera_capture: camera initialized[0m
+[0;32mI (2070) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2070) app_main: OLED disabled in this build (panel unplugged; 0x3C belongs to the camera)[0m
+cam_hal: NO-SOI - JPEG start marker missing
+cam_hal: NO-SOI - JPEG start marker missing
+[0;32mI (2140) wifi:wifi driver task: 3ffd90c0, prio:23, stack:6656, core=0[0m
+[0;32mI (2150) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2150) wifi:wifi certification version: v7.0[0m
+[0;32mI (2150) wifi:config NVS flash: enabled[0m
+[0;32mI (2150) wifi:config nano formating: disabled[0m
+[0;32mI (2160) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2160) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2170) wifi:Init management short buffer num: 32[0m
+[0;32mI (2170) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2180) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2180) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2180) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2190) wifi_init: rx ba win: 6[0m
+[0;32mI (2190) wifi_init: accept mbox: 6[0m
+[0;32mI (2200) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2200) wifi_init: udp mbox: 6[0m
+[0;32mI (2200) wifi_init: tcp mbox: 6[0m
+[0;32mI (2210) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2210) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2220) wifi_init: tcp mss: 1440[0m
+[0;32mI (2220) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2220) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2230) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2320) phy_init: Saving new calibration data due to checksum failure or outdated calibration data, mode(0)[0m
+[0;32mI (2340) wifi:mode : sta (e0:8c:fe:b6:00:8c)[0m
+[0;32mI (2340) wifi:enable tsf[0m
+[0;32mI (2340) wifi_manager: --- scanning for nearby 2.4GHz networks ---[0m
+[0;32mI (4850) wifi_manager: found 7 network(s):[0m
+[0;32mI (4850) wifi_manager:   [ 0] rssi= -50 ch= 1  'Airtel_Unboxed Community'[0m
+[0;32mI (4850) wifi_manager:   [ 1] rssi= -66 ch=11  'Galaxy A34 5G '[0m
+[0;32mI (4860) wifi_manager:   [ 2] rssi= -73 ch= 6  'Airtel_raje_8038'[0m
+[0;32mI (4860) wifi_manager:   [ 3] rssi= -80 ch=11  'Raju'[0m
+[0;32mI (4870) wifi_manager:   [ 4] rssi= -81 ch= 1  'Airtel_hari_8380'[0m
+[0;32mI (4870) wifi_manager:   [ 5] rssi= -82 ch= 6  'Airtel_hima_5737'[0m
+[0;32mI (4880) wifi_manager:   [ 6] rssi= -82 ch=11  'www.excitel.com'[0m
+[0;32mI (4890) wifi_manager: --- looking for 'Galaxy A34 5G ' in the list above ---[0m
+[0;32mI (4900) wifi_manager: wifi_manager initialized, connecting to SSID 'Galaxy A34 5G '[0m
+[0;32mI (4910) app_main: waiting for WiFi connection...[0m
+[0;32mI (4920) wifi:new:<11,0>, old:<1,0>, ap:<255,255>, sta:<11,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (4920) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (4960) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (4990) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (5000) wifi:connected with Galaxy A34 5G , aid = 2, channel 11, BW20, bssid = 56:92:11:46:a0:46[0m
+[0;32mI (5010) wifi:security: WPA2-PSK, phy: bgn, rssi: -68[0m
+[0;32mI (5010) wifi:pm start, type: 1[0m
+
+[0;32mI (5010) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (5060) wifi:dp: 2, bi: 102400, li: 4, scale listen interval from 307200 us to 409600 us[0m
+[0;32mI (5060) wifi:AP's beacon interval = 102400 us, DTIM period = 2[0m
+[0;32mI (6020) esp_netif_handlers: sta ip: 10.83.86.172, mask: 255.255.255.0, gw: 10.83.86.83[0m
+[0;32mI (6020) wifi_manager: connected, got IP[0m
+[0;32mI (6020) app_main: WiFi connected[0m
+[0;32mI (6030) wifi:<ba-add>idx:0 (ifx:0, 56:92:11:46:a0:46), tid:0, ssn:4, winSize:64[0m
+[0;32mI (10390) web_capture: capture webserver started: /snapshot /audio /meta[0m
+[0;32mI (10390) app_main: ready — laptop page can now pull /snapshot, /audio, /meta[0m
+��ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (423) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (488) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (488) boot: Disabling RNG early entropy source...[0m
+[0;32mI (500) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (502) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (502) esp_psram: Speed: 40MHz[0m
+[0;32mI (504) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (511) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (520) cpu_start: Multicore app[0m
+[0;32mI (1430) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1438) cpu_start: Pro cpu start user code[0m
+[0;32mI (1438) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1438) app_init: Application information:[0m
+[0;32mI (1441) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1447) app_init: App version:      1[0m
+[0;32mI (1451) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1457) app_init: ELF file SHA256:  92702cd6a...[0m
+[0;32mI (1463) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1467) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1472) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1477) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1483) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1490) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1496) heap_init: At 3FFBBDA0 len 00024260 (144 KiB): DRAM[0m
+[0;32mI (1502) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1508) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1515) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1522) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1530) spi_flash: detected chip: generic[0m
+[0;32mI (1533) spi_flash: flash io: dio[0m
+[0;33mW (1538) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1546) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1558) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1570) main_task: Started on CPU0[0m
+[0;32mI (1580) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1580) main_task: Calling app_main()[0m
+[0;32mI (1580) app_main: ECHO sensor node booting — laptop-prototype build (OLED off, web capture on)[0m
+[0;32mI (1590) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1600) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1610) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1620) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1620) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1630) cam_hal: cam init ok[0m
+[0;32mI (1640) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1640) sccb: sccb_i2c_port=1[0m
+[0;32mI (1650) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1680) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1680) camera: Detected OV3660 camera[0m
+[0;32mI (1680) camera: Detected camera at address=0x3c[0m
+�� ���                                        ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factorets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (174) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (62) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (62) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (62) boot: Multicore bootloader[0m
+[0;32mI (67) boot: chip revision: v3.1[0m
+[0;32mI (71) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (75) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (80) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (84) boot: Enabling RNG early entropy source...[0m
+[0;32mI (90) boot: Partition Table:[0m
+[0;32mI (93) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (101) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (108) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (116) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (123) boot: End of partition table[0m
+[0;32mI (128) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (191) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (202) esp_image: segment 2: paddr=0003df78 vaddr=40080000 size=020a0h (  8352) load[0m
+[0;32mI (205) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=b0524h (722212) map[0m
+[0;32mI (455) esp_image: segment 4: paddr=000f054c vaddr=400820a0 size=1db78h (121720) load[0m
+[0;32mI (519) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (519) boot: Disabling RNG early entropy source...[0m
+[0;32mI (531) quad_psram: This chip is ESP32-D0WD[0m
+[0;32mI (533) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (534) esp_psram: Speed: 40MHz[0m
+[0;32mI (535) esp_psram: PSRAM initialized, cache is in low/high (2-core) mode.[0m
+[0;33mW (543) esp_psram: Virtual address not enough for PSRAM, map as much as we can. 4MB is mapped[0m
+[0;32mI (552) cpu_start: Multicore app[0m
+�ets Jul 29 2019 12:21:46
+
+rst:0x10 (RTCWDT_RTC_RESET),boot:0x12 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15660
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+[0;32mI (32) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (32) boot: compile time Sep  6 2026 15:20:27[0m
+[0;32mI (32) boot: Multicore bootloader[0m
+[0;32mI (36) boot: chip revision: v3.1[0m
+[0;32mI (40) boot.esp32: SPI Speed      : 40MHz[0m
+[0;32mI (44) boot.esp32: SPI Mode       : DIO[0m
+[0;32mI (49) boot.esp32: SPI Flash Size : 4MB[0m
+[0;32mI (53) boot: Enabling RNG early entropy source...[0m
+[0;32mI (59) boot: Partition Table:[0m
+[0;32mI (62) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (70) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (77) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (84) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (92) boot: End of partition table[0m
+[0;32mI (96) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=26d28h (159016) map[0m
+[0;32mI (159) esp_image: segment 1: paddr=00036d50 vaddr=3ffb0000 size=07220h ( 29216) load[0m
+[0;32mI (170) esp_image: segme�ets Jul 29 2019 12:21:46
+
+rst:�ets�ets Jul 29 2��ets Jul 29 2019 12:2

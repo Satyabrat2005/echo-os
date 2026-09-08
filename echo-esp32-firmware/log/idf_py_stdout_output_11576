@@ -1,0 +1,532 @@
+[0;32mI (87620) touch_trigger: touch press detected[0m
+[0;32mI (87620) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (90300) touch_trigger: touch press detected[0m
+[0;32mI (90300) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (90840) touch_trigger: touch press detected[0m
+[0;32mI (90840) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (94200) touch_trigger: touch press detected[0m
+[0;32mI (94200) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (95150) touch_trigger: touch press detected[0m
+[0;32mI (95150) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (97230) touch_trigger: touch press detected[0m
+[0;32mI (97230) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (102200) touch_trigger: touch press detected[0m
+[0;32mI (102200) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (107540) touch_trigger: touch press detected[0m
+[0;32mI (107540) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (108160) touch_trigger: touch press detected[0m
+[0;32mI (108160) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (125590) touch_trigger: touch press detected[0m
+[0;32mI (125590) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (128560) touch_trigger: touch press detected[0m
+[0;32mI (128560) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (129310) touch_trigger: touch press detected[0m
+[0;32mI (129310) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (130190) touch_trigger: touch press detected[0m
+[0;32mI (130190) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (145900) touch_trigger: touch press detected[0m
+[0;32mI (145900) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (147220) touch_trigger: touch press detected[0m
+[0;32mI (147220) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (148120) touch_trigger: touch press detected[0m
+[0;32mI (148120) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (149040) touch_trigger: touch press detected[0m
+[0;32mI (149040) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (149660) touch_trigger: touch press detected[0m
+[0;32mI (149660) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (150780) touch_trigger: touch press detected[0m
+[0;32mI (150780) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (153560) touch_trigger: touch press detected[0m
+[0;32mI (153560) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (157640) touch_trigger: touch press detected[0m
+[0;32mI (157640) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (158520) touch_trigger: touch press detected[0m
+[0;32mI (158520) app_main: touch press detected (capture cycle disabled in this build)[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;32mI (185050) touch_trigger: touch press detected[0m
+[0;32mI (185050) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (185690) touch_trigger: touch press detected[0m
+[0;32mI (185690) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (186630) touch_trigger: touch press detected[0m
+[0;32mI (186630) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (187780) touch_trigger: touch press detected[0m
+[0;32mI (187780) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (189060) touch_trigger: touch press detected[0m
+[0;32mI (189060) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (189920) touch_trigger: touch press detected[0m
+[0;32mI (189920) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (191880) touch_trigger: touch press detected[0m
+[0;32mI (191880) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (194300) touch_trigger: touch press detected[0m
+[0;32mI (194300) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (195000) touch_trigger: touch press detected[0m
+[0;32mI (195000) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (196800) touch_trigger: touch press detected[0m
+[0;32mI (196800) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (197780) touch_trigger: touch press detected[0m
+[0;32mI (197780) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (199550) touch_trigger: touch press detected[0m
+[0;32mI (199550) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (201000) touch_trigger: touch press detected[0m
+[0;32mI (201000) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (203080) touch_trigger: touch press detected[0m
+[0;32mI (203080) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (291330) touch_trigger: touch press detected[0m
+[0;32mI (291330) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (347720) touch_trigger: touch press detected[0m
+[0;32mI (347720) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (385410) touch_trigger: touch press detected[0m
+[0;32mI (385410) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (403390) touch_trigger: touch press detected[0m
+[0;32mI (403390) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (500970) touch_trigger: touch press detected[0m
+[0;32mI (500970) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (962080) touch_trigger: touch press detected[0m
+[0;32mI (962080) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (986940) touch_trigger: touch press detected[0m
+[0;32mI (986940) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (1023430) touch_trigger: touch press detected[0m
+[0;32mI (1023430) app_main: touch press detected (capture cycle disabled in this build)[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;32mI (2538610) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (2541120) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (2707780) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (2710040) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;32mI (3015950) touch_trigger: touch press detected[0m
+[0;32mI (3015950) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (3017830) touch_trigger: touch press detected[0m
+[0;32mI (3017830) app_main: touch press detected (capture cycle disabled in this build)[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;32mI (3075650) touch_trigger: touch press detected[0m
+[0;32mI (3075650) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (3076950) touch_trigger: touch press detected[0m
+[0;32mI (3076950) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (3084250) touch_trigger: touch press detected[0m
+[0;32mI (3084250) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (3094140) touch_trigger: touch press detected[0m
+[0;32mI (3094140) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (3096910) touch_trigger: touch press detected[0m
+[0;32mI (3096910) app_main: touch press detected (capture cycle disabled in this build)[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;32mI (3199830) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;32mI (3208340) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (3208350) wifi:[ADDBA]RX DELBA, reason:38, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (3210790) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;33mW (3371890) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (3371890) web_capture: camera capture failed[0m
+[0;33mW (3371890) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (3371910) httpd_uri: httpd_uri: uri handler execution failed[0m
+[0;33mW (3378050) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (3378050) web_capture: camera capture failed[0m
+[0;33mW (3378050) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (3378060) httpd_uri: httpd_uri: uri handler execution failed[0m
+cam_hal: FB-OVF
+[0;33mW (3384200) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (3384200) web_capture: camera capture failed[0m
+[0;33mW (3384200) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (3384220) httpd_uri: httpd_uri: uri handler execution failed[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;32mI (3608410) touch_trigger: touch press detected[0m
+[0;32mI (3608410) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (3609850) touch_trigger: touch press detected[0m
+[0;32mI (3609850) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (4349430) touch_trigger: touch press detected[0m
+[0;32mI (4349430) app_main: touch press detected (capture cycle disabled in this build)[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;32mI (4436760) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;32mI (7985850) touch_trigger: touch press detected[0m
+[0;32mI (7985850) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (7986250) touch_trigger: touch press detected[0m
+[0;32mI (7986250) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (7994570) touch_trigger: touch press detected[0m
+[0;32mI (7994570) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (7997990) touch_trigger: touch press detected[0m
+[0;32mI (7997990) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (7999370) touch_trigger: touch press detected[0m
+[0;32mI (7999370) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8000990) touch_trigger: touch press detected[0m
+[0;32mI (8000990) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8002470) touch_trigger: touch press detected[0m
+[0;32mI (8002470) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8014350) touch_trigger: touch press detected[0m
+[0;32mI (8014350) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8018530) touch_trigger: touch press detected[0m
+[0;32mI (8018530) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8028330) touch_trigger: touch press detected[0m
+[0;32mI (8028330) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8034730) touch_trigger: touch press detected[0m
+[0;32mI (8034730) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8036250) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (8036350) touch_trigger: touch press detected[0m
+[0;32mI (8036350) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8050350) touch_trigger: touch press detected[0m
+[0;32mI (8050350) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8050990) touch_trigger: touch press detected[0m
+[0;32mI (8050990) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8060490) touch_trigger: touch press detected[0m
+[0;32mI (8060490) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8061170) touch_trigger: touch press detected[0m
+[0;32mI (8061170) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8066130) touch_trigger: touch press detected[0m
+[0;32mI (8066130) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8068210) touch_trigger: touch press detected[0m
+[0;32mI (8068210) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8069590) touch_trigger: touch press detected[0m
+[0;32mI (8069590) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8075210) touch_trigger: touch press detected[0m
+[0;32mI (8075210) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8080450) touch_trigger: touch press detected[0m
+[0;32mI (8080450) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8081190) touch_trigger: touch press detected[0m
+[0;32mI (8081190) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8088850) touch_trigger: touch press detected[0m
+[0;32mI (8088850) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8095030) touch_trigger: touch press detected[0m
+[0;32mI (8095030) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8119470) touch_trigger: touch press detected[0m
+[0;32mI (8119470) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8127910) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (8179830) touch_trigger: touch press detected[0m
+[0;32mI (8179830) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8196130) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (8198480) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (8256220) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (8430510) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (8441250) touch_trigger: touch press detected[0m
+[0;32mI (8441250) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8442070) touch_trigger: touch press detected[0m
+[0;32mI (8442070) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8698090) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (8893610) touch_trigger: touch press detected[0m
+[0;32mI (8893610) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8921470) touch_trigger: touch press detected[0m
+[0;32mI (8921470) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8925270) touch_trigger: touch press detected[0m
+[0;32mI (8925270) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8954610) touch_trigger: touch press detected[0m
+[0;32mI (8954610) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (8955610) touch_trigger: touch press detected[0m
+[0;32mI (8955610) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9091550) touch_trigger: touch press detected[0m
+[0;32mI (9091550) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9145750) touch_trigger: touch press detected[0m
+[0;32mI (9145750) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9217570) touch_trigger: touch press detected[0m
+[0;32mI (9217570) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9245450) touch_trigger: touch press detected[0m
+[0;32mI (9245450) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9309910) touch_trigger: touch press detected[0m
+[0;32mI (9309910) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9358130) touch_trigger: touch press detected[0m
+[0;32mI (9358130) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9502570) touch_trigger: touch press detected[0m
+[0;32mI (9502570) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9523710) touch_trigger: touch press detected[0m
+[0;32mI (9523710) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9525150) touch_trigger: touch press detected[0m
+[0;32mI (9525150) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9527790) touch_trigger: touch press detected[0m
+[0;32mI (9527790) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9530850) touch_trigger: touch press detected[0m
+[0;32mI (9530850) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9532030) touch_trigger: touch press detected[0m
+[0;32mI (9532030) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9534290) touch_trigger: touch press detected[0m
+[0;32mI (9534290) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9540030) touch_trigger: touch press detected[0m
+[0;32mI (9540030) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9578370) touch_trigger: touch press detected[0m
+[0;32mI (9578370) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9625150) touch_trigger: touch press detected[0m
+[0;32mI (9625150) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9628610) touch_trigger: touch press detected[0m
+[0;32mI (9628610) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9632010) touch_trigger: touch press detected[0m
+[0;32mI (9632010) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9634450) touch_trigger: touch press detected[0m
+[0;32mI (9634450) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9635170) touch_trigger: touch press detected[0m
+[0;32mI (9635170) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9638170) touch_trigger: touch press detected[0m
+[0;32mI (9638170) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9649170) touch_trigger: touch press detected[0m
+[0;32mI (9649170) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9696610) touch_trigger: touch press detected[0m
+[0;32mI (9696610) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9697910) touch_trigger: touch press detected[0m
+[0;32mI (9697910) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9725570) touch_trigger: touch press detected[0m
+[0;32mI (9725570) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9731550) touch_trigger: touch press detected[0m
+[0;32mI (9731550) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9769510) touch_trigger: touch press detected[0m
+[0;32mI (9769510) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9772970) touch_trigger: touch press detected[0m
+[0;32mI (9772970) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9826330) touch_trigger: touch press detected[0m
+[0;32mI (9826330) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9836990) touch_trigger: touch press detected[0m
+[0;32mI (9836990) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9843070) touch_trigger: touch press detected[0m
+[0;32mI (9843070) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9850250) touch_trigger: touch press detected[0m
+[0;32mI (9850250) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9851170) touch_trigger: touch press detected[0m
+[0;32mI (9851170) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9916190) touch_trigger: touch press detected[0m
+[0;32mI (9916190) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9917000) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (9918450) touch_trigger: touch press detected[0m
+[0;32mI (9918450) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9966150) touch_trigger: touch press detected[0m
+[0;32mI (9966150) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9991150) touch_trigger: touch press detected[0m
+[0;32mI (9991150) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (9997250) touch_trigger: touch press detected[0m
+[0;32mI (9997250) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10013270) touch_trigger: touch press detected[0m
+[0;32mI (10013270) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10034350) touch_trigger: touch press detected[0m
+[0;32mI (10034350) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10066610) touch_trigger: touch press detected[0m
+[0;32mI (10066610) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10071250) touch_trigger: touch press detected[0m
+[0;32mI (10071250) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10126970) touch_trigger: touch press detected[0m
+[0;32mI (10126970) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10272870) touch_trigger: touch press detected[0m
+[0;32mI (10272870) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10278090) touch_trigger: touch press detected[0m
+[0;32mI (10278090) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10314650) touch_trigger: touch press detected[0m
+[0;32mI (10314650) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10363570) touch_trigger: touch press detected[0m
+[0;32mI (10363570) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10364130) touch_trigger: touch press detected[0m
+[0;32mI (10364130) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10364990) touch_trigger: touch press detected[0m
+[0;32mI (10364990) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10366270) touch_trigger: touch press detected[0m
+[0;32mI (10366270) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10510830) touch_trigger: touch press detected[0m
+[0;32mI (10510830) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10618390) touch_trigger: touch press detected[0m
+[0;32mI (10618390) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10686420) touch_trigger: touch press detected[0m
+[0;32mI (10686420) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10758700) touch_trigger: touch press detected[0m
+[0;32mI (10758700) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10774320) touch_trigger: touch press detected[0m
+[0;32mI (10774320) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (10781340) touch_trigger: touch press detected[0m
+[0;32mI (10781340) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11088240) touch_trigger: touch press detected[0m
+[0;32mI (11088240) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11169500) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (11173320) touch_trigger: touch press detected[0m
+[0;32mI (11173320) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11175700) touch_trigger: touch press detected[0m
+[0;32mI (11175700) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11206580) touch_trigger: touch press detected[0m
+[0;32mI (11206580) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11268820) touch_trigger: touch press detected[0m
+[0;32mI (11268820) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11318440) touch_trigger: touch press detected[0m
+[0;32mI (11318440) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11375980) touch_trigger: touch press detected[0m
+[0;32mI (11375980) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11460520) touch_trigger: touch press detected[0m
+[0;32mI (11460520) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11788240) touch_trigger: touch press detected[0m
+[0;32mI (11788240) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11812570) touch_trigger: touch press detected[0m
+[0;32mI (11812570) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11813780) touch_trigger: touch press detected[0m
+[0;32mI (11813780) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11814440) touch_trigger: touch press detected[0m
+[0;32mI (11814440) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11816160) touch_trigger: touch press detected[0m
+[0;32mI (11816160) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11839700) touch_trigger: touch press detected[0m
+[0;32mI (11839700) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11845380) touch_trigger: touch press detected[0m
+[0;32mI (11845380) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11847080) touch_trigger: touch press detected[0m
+[0;32mI (11847080) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11847600) touch_trigger: touch press detected[0m
+[0;32mI (11847600) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11849240) touch_trigger: touch press detected[0m
+[0;32mI (11849240) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11849760) touch_trigger: touch press detected[0m
+[0;32mI (11849760) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11850360) touch_trigger: touch press detected[0m
+[0;32mI (11850360) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11851520) touch_trigger: touch press detected[0m
+[0;32mI (11851520) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11852060) touch_trigger: touch press detected[0m
+[0;32mI (11852060) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11852660) touch_trigger: touch press detected[0m
+[0;32mI (11852660) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11853160) touch_trigger: touch press detected[0m
+[0;32mI (11853160) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11853720) touch_trigger: touch press detected[0m
+[0;32mI (11853720) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11854260) touch_trigger: touch press detected[0m
+[0;32mI (11854260) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11856500) touch_trigger: touch press detected[0m
+[0;32mI (11856500) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11857310) touch_trigger: touch press detected[0m
+[0;32mI (11857310) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11857830) touch_trigger: touch press detected[0m
+[0;32mI (11857830) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11858630) touch_trigger: touch press detected[0m
+[0;32mI (11858630) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11859170) touch_trigger: touch press detected[0m
+[0;32mI (11859170) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11860070) touch_trigger: touch press detected[0m
+[0;32mI (11860070) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11936800) touch_trigger: touch press detected[0m
+[0;32mI (11936800) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11958760) touch_trigger: touch press detected[0m
+[0;32mI (11958760) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (11969780) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+cam_hal: FB-OVF
+[0;32mI (11987540) touch_trigger: touch press detected[0m
+[0;32mI (11987540) app_main: touch press detected (capture cycle disabled in this build)[0m
+[0;32mI (12000430) wifi:[ADDBA]RX DELBA, reason:38, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (12000440) wifi:[ADDBA]RX DELBA, reason:38, delete tid:0, initiator:0(recipient)[0m
+[0;33mW (12000460) wifi:[ADDBA]RX addba response, tid:0, txa_attempts:0, token mismatch, expect:23(rx:22), status:0[0m
+[0;32mI (12034920) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (12037220) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+cam_hal: FB-OVF
+[0;32mI (12278220) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (12280440) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (12298530) wifi:[ADDBA]RX DELBA, reason:1, delete tid:0, initiator:0(recipient)[0m
+[0;32mI (12298550) wifi:[ADDBA]RX DELBA, reason:38, delete tid:0, initiator:0(recipient)[0m
+cam_hal: FB-OVF

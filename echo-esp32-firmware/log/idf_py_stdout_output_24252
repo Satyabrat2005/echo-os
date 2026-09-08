@@ -1,0 +1,89 @@
+[1/10] Performing build step for 'bootloader'
+[1/1] C:\Windows\system32\cmd.exe /C "cd /D "C:\Users\Asus republic\Downloads\echo-esp32-firmware\build\bootloader\esp-idf\esptool_py" && C:\Espressif\python_env\idf5.3_py3.11_env\Scripts\python.exe C:/Espressif/frameworks/esp-idf-v5.3.5/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x1000 "C:/Users/Asus republic/Downloads/echo-esp32-firmware/build/bootloader/bootloader.bin""
+Bootloader binary size 0x68e0 bytes. 0x720 bytes (6%) free.
+[2/10] No install step for 'bootloader'
+[3/10] Completed 'bootloader'
+[4/10] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/app_main.c.obj
+[5/10] Linking C static library esp-idf\main\libmain.a
+[6/10] Generating ld/sections.ld
+[7/10] Linking CXX executable echo_sensor_node.elf
+[8/10] Generating binary image from built executable
+esptool.py v4.11.0
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+Generated C:/Users/Asus republic/Downloads/echo-esp32-firmware/build/echo_sensor_node.bin
+[9/10] C:\Windows\system32\cmd.exe /C "cd /D "C:\Users\Asus republic\Downloads\echo-esp32-firmware\build\esp-idf\esptool_py" && C:\Espressif\python_env\idf5.3_py3.11_env\Scripts\python.exe C:/Espressif/frameworks/esp-idf-v5.3.5/components/partition_table/check_sizes.py --offset 0x8000 partition --type app "C:/Users/Asus republic/Downloads/echo-esp32-firmware/build/partition_table/partition-table.bin" "C:/Users/Asus republic/Downloads/echo-esp32-firmware/build/echo_sensor_node.bin""
+echo_sensor_node.bin binary size 0xfe0f0 bytes. Smallest app partition is 0x177000 bytes. 0x78f10 bytes (32%) free.
+[9/10] C:\Windows\system32\cmd.exe /C "cd /D C:\Espressif\frameworks\esp-idf-v5.3.5\components\esptool_py && C:\Espressif\tools\cmake\3.30.2\bin\cmake.exe -D IDF_PATH=C:/Espressif/frameworks/esp-idf-v5.3.5 -D SERIAL_TOOL=C:/Espressif/python_env/idf5.3_py3.11_env/Scripts/python.exe;;C:/Espressif/frameworks/esp-idf-v5.3.5/components/esptool_py/esptool/esptool.py;--chip;esp32 -D SERIAL_TOOL_ARGS=--before=default_reset;--after=hard_reset;write_flash;@flash_args -D "WORKING_DIRECTORY=C:/Users/Asus republic/Downloads/echo-esp32-firmware/build" -P C:/Espressif/frameworks/esp-idf-v5.3.5/components/esptool_py/run_serial_tool.cmake"
+esptool.py --chip esp32 -p COM3 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 40m --flash_size 4MB 0x1000 bootloader/bootloader.bin 0x10000 echo_sensor_node.bin 0x8000 partition_table/partition-table.bin
+esptool.py v4.11.0
+Serial port COM3
+Connecting.....
+Chip is ESP32-D0WD-V3 (revision v3.1)
+Features: WiFi, BT, Dual Core, 240MHz, VRef calibration in efuse, Coding Scheme None
+Crystal is 40MHz
+MAC: e0:8c:fe:b6:00:8c
+Uploading stub...
+Running stub...
+Stub running...
+Changing baud rate to 460800
+Changed.
+Configuring flash size...
+Flash will be erased from 0x00001000 to 0x00007fff...
+Flash will be erased from 0x00010000 to 0x0010efff...
+Flash will be erased from 0x00008000 to 0x00008fff...
+SHA digest in image updated
+Compressed 26848 bytes to 16431...
+Writing at 0x00001000... (50 %)
+Writing at 0x0000789c... (100 %)
+Wrote 26848 bytes (16431 compressed) at 0x00001000 in 0.7 seconds (effective 287.3 kbit/s)...
+Hash of data verified.
+Compressed 1040624 bytes to 621860...
+Writing at 0x00010000... (2 %)
+Writing at 0x00021041... (5 %)
+Writing at 0x0002b6a0... (7 %)
+Writing at 0x00034466... (10 %)
+Writing at 0x0003ea2f... (13 %)
+Writing at 0x0004487a... (15 %)
+Writing at 0x0004aca0... (18 %)
+Writing at 0x00051787... (21 %)
+Writing at 0x000598f5... (23 %)
+Writing at 0x0005fa77... (26 %)
+Writing at 0x00065cd2... (28 %)
+Writing at 0x0006be6a... (31 %)
+Writing at 0x00071efc... (34 %)
+Writing at 0x00077c74... (36 %)
+Writing at 0x0007dd3a... (39 %)
+Writing at 0x00083132... (42 %)
+Writing at 0x00088d4c... (44 %)
+Writing at 0x0008e7eb... (47 %)
+Writing at 0x00094012... (50 %)
+Writing at 0x0009982f... (52 %)
+Writing at 0x0009f6b5... (55 %)
+Writing at 0x000a587f... (57 %)
+Writing at 0x000ab3d4... (60 %)
+Writing at 0x000b1452... (63 %)
+Writing at 0x000b71f4... (65 %)
+Writing at 0x000bce82... (68 %)
+Writing at 0x000c2b6c... (71 %)
+Writing at 0x000c8a85... (73 %)
+Writing at 0x000cf091... (76 %)
+Writing at 0x000d48fe... (78 %)
+Writing at 0x000dae15... (81 %)
+Writing at 0x000e46e8... (84 %)
+Writing at 0x000eb507... (86 %)
+Writing at 0x000f12b1... (89 %)
+Writing at 0x000f787b... (92 %)
+Writing at 0x000fcead... (94 %)
+Writing at 0x0010312d... (97 %)
+Writing at 0x00108ad5... (100 %)
+Wrote 1040624 bytes (621860 compressed) at 0x00010000 in 14.4 seconds (effective 579.8 kbit/s)...
+Hash of data verified.
+Compressed 3072 bytes to 105...
+Writing at 0x00008000... (100 %)
+Wrote 3072 bytes (105 compressed) at 0x00008000 in 0.1 seconds (effective 417.9 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...

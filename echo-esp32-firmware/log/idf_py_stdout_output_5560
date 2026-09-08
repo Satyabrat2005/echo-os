@@ -1,0 +1,187 @@
+[0;32mI (1434) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1442) cpu_start: Pro cpu start user code[0m
+[0;32mI (1442) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1442) app_init: Application information:[0m
+[0;32mI (1445) app_init: Project name:     echo_sensor_node[0m
+[0;32mI (1451) app_init: App version:      1[0m
+[0;32mI (1455) app_init: Compile time:     Sep  6 2026 15:20:16[0m
+[0;32mI (1461) app_init: ELF file SHA256:  a287eaf3a...[0m
+[0;32mI (1467) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (1472) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1476) efuse_init: Max chip rev:     v3.99 [0m
+[0;32mI (1482) efuse_init: Chip rev:         v3.1[0m
+[0;32mI (1487) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1494) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM[0m
+[0;32mI (1500) heap_init: At 3FFBC1A8 len 00023E58 (143 KiB): DRAM[0m
+[0;32mI (1506) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM[0m
+[0;32mI (1513) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM[0m
+[0;32mI (1519) heap_init: At 4009FC18 len 000003E8 (0 KiB): IRAM[0m
+[0;32mI (1526) esp_psram: Adding pool of 4096K of PSRAM memory to heap allocator[0m
+[0;32mI (1534) spi_flash: detected chip: generic[0m
+[0;32mI (1538) spi_flash: flash io: dio[0m
+[0;33mW (1542) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`[0m
+[0;33mW (1550) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (1563) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (1574) main_task: Started on CPU0[0m
+[0;32mI (1584) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1584) main_task: Calling app_main()[0m
+[0;32mI (1584) app_main: ECHO sensor node booting — touch-trigger build (no voice wake-word)[0m
+[0;32mI (1594) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1604) status_led: status LED initialized on GPIO4[0m
+[0;32mI (1614) gpio: GPIO[13]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1614) touch_trigger: touch trigger polling on GPIO13 (active level assumed = 1)[0m
+[0;32mI (1624) gpio: GPIO[25]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:2 [0m
+[0;32mI (1634) cam_hal: cam init ok[0m
+[0;32mI (1644) sccb: pin_sda 26 pin_scl 27[0m
+[0;32mI (1644) sccb: sccb_i2c_port=1[0m
+[0;32mI (1644) gpio: GPIO[32]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1684) camera: Camera PID=0x3660 VER=0x00 MIDL=0x00 MIDH=0x00[0m
+[0;32mI (1684) camera: Detected OV3660 camera[0m
+[0;32mI (1684) camera: Detected camera at address=0x3c[0m
+[0;32mI (2014) cam_hal: PSRAM DMA mode disabled[0m
+[0;32mI (2014) cam_hal: buffer_size: 32768, half_buffer_size: 4096, node_buffer_size: 2048, node_cnt: 16, total_cnt: 23[0m
+[0;32mI (2014) cam_hal: Allocating 96000 Byte frame buffer in PSRAM[0m
+[0;32mI (2024) cam_hal: cam config ok[0m
+[0;32mI (2044) ov3660: Calculated VCO: 200000000 Hz, PLLCLK: 200000000 Hz, SYSCLK: 50000000 Hz, PCLK: 10000000 Hz[0m
+[0;32mI (2064) camera_capture: camera sensor PID: 0x3660 (expect OV3660_PID = 0x3660)[0m
+[0;32mI (2064) camera_capture: camera initialized[0m
+[0;32mI (2074) audio_io: audio I2S initialized (RX+TX shared bus, port 1)[0m
+[0;33mW (2074) oled: OLED answered at 0x3C, not the configured 0x3D[0m
+[0;33mW (2084) oled: *** OLED is at 0x3C — the SAME address as the camera on this bus. ***[0m
+[0;33mW (2094) oled: *** Move the module's address jumper to 0x3D (marked 0x7A) or the  ***[0m
+[0;33mW (2094) oled: *** camera and display will corrupt each other's transfers.        ***[0m
+[0;32mI (2214) oled: OLED ready at 0x3C (128x64, 21 cols x 8 rows of text)[0m
+[0;32mI (2374) wifi:wifi driver task: 3ffd94c8, prio:23, stack:6656, core=0[0m
+[0;32mI (2384) wifi:wifi firmware version: 18db208[0m
+[0;32mI (2384) wifi:wifi certification version: v7.0[0m
+[0;32mI (2384) wifi:config NVS flash: enabled[0m
+[0;32mI (2384) wifi:config nano formating: disabled[0m
+[0;32mI (2394) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (2394) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2404) wifi:Init management short buffer num: 32[0m
+[0;32mI (2404) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2414) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2414) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2414) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2424) wifi_init: rx ba win: 6[0m
+[0;32mI (2424) wifi_init: accept mbox: 6[0m
+[0;32mI (2434) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2434) wifi_init: udp mbox: 6[0m
+[0;32mI (2434) wifi_init: tcp mbox: 6[0m
+[0;32mI (2444) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2444) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2454) wifi_init: tcp mss: 1440[0m
+[0;32mI (2454) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2454) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2464) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06[0m
+[0;32mI (2554) wifi:mode : sta (e0:8c:fe:b6:00:8c)[0m
+[0;32mI (2554) wifi:enable tsf[0m
+[0;32mI (2554) wifi_manager: --- scanning for nearby 2.4GHz networks ---[0m
+[0;32mI (5064) wifi_manager: found 7 network(s):[0m
+[0;32mI (5064) wifi_manager:   [ 0] rssi= -60 ch= 6  'Bobby 5G'[0m
+[0;32mI (5064) wifi_manager:   [ 1] rssi= -63 ch= 6  'Airtel_hima_5737'[0m
+[0;32mI (5064) wifi_manager:   [ 2] rssi= -67 ch= 1  'Airtel_Unboxed Community'[0m
+[0;32mI (5074) wifi_manager:   [ 3] rssi= -77 ch= 1  'Airtel_hari_8380'[0m
+[0;32mI (5084) wifi_manager:   [ 4] rssi= -77 ch= 1  'OnePlus Nord CE 2 Lite 5G'[0m
+[0;32mI (5094) wifi_manager:   [ 5] rssi= -79 ch= 6  'Airtel_raje_8038'[0m
+[0;32mI (5094) wifi_manager:   [ 6] rssi= -80 ch= 6  'Infinix NOTE 30 5G'[0m
+[0;32mI (5104) wifi_manager: --- looking for 'Galaxy A34 5G ' in the list above ---[0m
+[0;32mI (5114) wifi_manager: wifi_manager initialized, connecting to SSID 'Galaxy A34 5G '[0m
+[0;32mI (5124) app_main: waiting for WiFi connection...[0m
+[0;33mW (7534) wifi_manager: disconnected (reason=201), retrying in 2000 ms[0m
+[0;33mW (11944) wifi_manager: disconnected (reason=201), retrying in 2000 ms[0m
+[0;33mW (16354) wifi_manager: disconnected (reason=201), retrying in 2000 ms[0m
+[0;33mW (20764) wifi_manager: disconnected (reason=201), retrying in 2000 ms[0m
+[0;32mI (22774) wifi:new:<11,0>, old:<1,0>, ap:<255,255>, sta:<11,0>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (22774) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (22794) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (22824) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (22844) wifi:connected with Galaxy A34 5G , aid = 1, channel 11, BW20, bssid = 56:92:11:46:a0:46[0m
+[0;32mI (22844) wifi:security: WPA2-PSK, phy: bgn, rssi: -57[0m
+[0;32mI (22854) wifi:pm start, type: 1[0m
+
+[0;32mI (22854) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (23034) wifi:dp: 2, bi: 102400, li: 4, scale listen interval from 307200 us to 409600 us[0m
+[0;32mI (23034) wifi:AP's beacon interval = 102400 us, DTIM period = 2[0m
+[0;32mI (23864) esp_netif_handlers: sta ip: 10.83.86.172, mask: 255.255.255.0, gw: 10.83.86.83[0m
+[0;32mI (23864) wifi_manager: connected, got IP[0m
+[0;32mI (23864) app_main: WiFi connected[0m
+[0;32mI (26024) wifi:<ba-add>idx:0 (ifx:0, 56:92:11:46:a0:46), tid:0, ssn:4, winSize:64[0m
+[0;33mW (33874) web_capture: SNTP sync did not complete in time — timestamps may be wrong until it does[0m
+[0;32mI (33874) web_capture: capture webserver started: /snapshot /audio /meta[0m
+[0;32mI (37974) touch_trigger: touch press detected[0m
+[0;32mI (38074) camera_capture: captured frame: 20669 bytes[0m
+[0;32mI (42964) audio_io: captured 160000 bytes of audio (5 s @ 16000 Hz)[0m
+[0;31mE (54684) network_client: connect() to 10.182.76.127:7890 failed: errno 104[0m
+[0;31mE (54684) app_main: capture cycle failed: no reply received this round[0m
+[0;32mI (194754) touch_trigger: touch press detected[0m
+[0;32mI (194854) camera_capture: captured frame: 16690 bytes[0m
+[0;32mI (199734) audio_io: captured 160000 bytes of audio (5 s @ 16000 Hz)[0m
+[0;31mE (211464) network_client: connect() to 10.182.76.127:7890 failed: errno 104[0m
+[0;31mE (211464) app_main: capture cycle failed: no reply received this round[0m
+[0;32mI (426454) touch_trigger: touch press detected[0m
+[0;32mI (426554) camera_capture: captured frame: 16528 bytes[0m
+[0;32mI (431414) audio_io: captured 160000 bytes of audio (5 s @ 16000 Hz)[0m
+[0;31mE (444014) network_client: connect() to 10.182.76.127:7890 failed: errno 104[0m
+[0;31mE (444024) app_main: capture cycle failed: no reply received this round[0m
+[0;32mI (464714) touch_trigger: touch press detected[0m
+[0;32mI (464814) camera_capture: captured frame: 16721 bytes[0m
+[0;32mI (469684) audio_io: captured 160000 bytes of audio (5 s @ 16000 Hz)[0m
+[0;31mE (482364) network_client: connect() to 10.182.76.127:7890 failed: errno 104[0m
+[0;31mE (482364) app_main: capture cycle failed: no reply received this round[0m
+[0;32mI (905364) touch_trigger: touch press detected[0m
+[0;32mI (905464) camera_capture: captured frame: 13261 bytes[0m
+[0;33mW (909654) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (909654) web_capture: camera capture failed[0m
+[0;33mW (909654) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (909674) httpd_uri: httpd_uri: uri handler execution failed[0m
+[0;32mI (910354) audio_io: captured 160000 bytes of audio (5 s @ 16000 Hz)[0m
+[0;33mW (917144) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (917144) web_capture: camera capture failed[0m
+[0;33mW (917144) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (917164) httpd_uri: httpd_uri: uri handler execution failed[0m
+[0;31mE (922554) network_client: connect() to 10.182.76.127:7890 failed: errno 104[0m
+[0;31mE (922554) app_main: capture cycle failed: no reply received this round[0m
+[0;32mI (939514) touch_trigger: touch press detected[0m
+[0;32mI (939614) camera_capture: captured frame: 17538 bytes[0m
+[0;33mW (943664) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (943664) web_capture: camera capture failed[0m
+[0;33mW (943664) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (943684) httpd_uri: httpd_uri: uri handler execution failed[0m
+[0;32mI (944504) audio_io: captured 160000 bytes of audio (5 s @ 16000 Hz)[0m
+[0;33mW (950934) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (950934) web_capture: camera capture failed[0m
+[0;33mW (950934) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (950954) httpd_uri: httpd_uri: uri handler execution failed[0m
+[0;31mE (956244) network_client: connect() to 10.182.76.127:7890 failed: errno 104[0m
+[0;31mE (956244) app_main: capture cycle failed: no reply received this round[0m
+[0;32mI (988824) touch_trigger: touch press detected[0m
+[0;32mI (988924) camera_capture: captured frame: 15230 bytes[0m
+[0;33mW (993024) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (993024) web_capture: camera capture failed[0m
+[0;33mW (993024) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (993044) httpd_uri: httpd_uri: uri handler execution failed[0m
+[0;32mI (993814) audio_io: captured 160000 bytes of audio (5 s @ 16000 Hz)[0m
+[0;33mW (1000304) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (1000304) web_capture: camera capture failed[0m
+[0;33mW (1000304) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (1000314) httpd_uri: httpd_uri: uri handler execution failed[0m
+[0;31mE (1005394) network_client: connect() to 10.182.76.127:7890 failed: errno 104[0m
+[0;31mE (1005394) app_main: capture cycle failed: no reply received this round[0m
+[0;32mI (1572484) touch_trigger: touch press detected[0m
+[0;32mI (1572774) camera_capture: captured frame: 24331 bytes[0m
+[0;33mW (1577324) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (1577324) web_capture: camera capture failed[0m
+[0;33mW (1577324) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (1577344) httpd_uri: httpd_uri: uri handler execution failed[0m
+[0;32mI (1577654) audio_io: captured 160000 bytes of audio (5 s @ 16000 Hz)[0m
+[0;33mW (1584084) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (1584084) web_capture: camera capture failed[0m
+[0;33mW (1584084) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (1584104) httpd_uri: httpd_uri: uri handler execution failed[0m
+[0;33mW (1590244) cam_hal: Failed to get frame: timeout[0m
+[0;31mE (1590244) web_capture: camera capture failed[0m
+[0;33mW (1590244) httpd_txrx: httpd_resp_send_err: 500 Internal Server Error - Server has encountered an unexpected error[0m
+[0;33mW (1590264) httpd_uri: httpd_uri: uri handler execution failed[0m
+[0;31mE (1590264) network_client: connect() to 10.182.76.127:7890 failed: errno 104[0m
+[0;31mE (1590264) app_main: capture cycle failed: no reply received this round[0m

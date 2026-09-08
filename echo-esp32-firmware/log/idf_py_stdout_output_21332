@@ -1,0 +1,32 @@
+[1/16] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/app_main.c.obj
+[2/16] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/touch_trigger.c.obj
+[3/16] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/wifi_manager.c.obj
+[4/16] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/camera_capture.c.obj
+[5/16] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/status_led.c.obj
+[6/16] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/audio_io.c.obj
+In file included from C:/Espressif/frameworks/esp-idf-v5.3.5/components/driver/deprecated/driver/i2s.h:23,
+                 from C:/Users/Asus republic/Downloads/echo-esp32-firmware/main/audio_io.c:3:
+C:/Espressif/frameworks/esp-idf-v5.3.5/components/driver/deprecated/driver/adc.h:19:2: warning: #warning "legacy adc driver is deprecated, please migrate to use esp_adc/adc_oneshot.h and esp_adc/adc_continuous.h for oneshot mode and continuous mode drivers respectively" [-Wcpp]
+   19 | #warning "legacy adc driver is deprecated, please migrate to use esp_adc/adc_oneshot.h and esp_adc/adc_continuous.h for oneshot mode and continuous mode drivers respectively"
+      |  ^~~~~~~
+C:/Espressif/frameworks/esp-idf-v5.3.5/components/driver/deprecated/driver/i2s.h:27:2: warning: #warning "This set of I2S APIs has been deprecated, please include 'driver/i2s_std.h', 'driver/i2s_pdm.h' or 'driver/i2s_tdm.h' instead. if you want to keep using the old APIs and ignore this warning, you can enable 'Suppress legacy driver deprecated warning' option under 'I2S Configuration' menu in Kconfig" [-Wcpp]
+   27 | #warning "This set of I2S APIs has been deprecated, \
+      |  ^~~~~~~
+[7/16] Performing build step for 'bootloader'
+[1/1] C:\Windows\system32\cmd.exe /C "cd /D "C:\Users\Asus republic\Downloads\echo-esp32-firmware\build\bootloader\esp-idf\esptool_py" && C:\Espressif\python_env\idf5.3_py3.11_env\Scripts\python.exe C:/Espressif/frameworks/esp-idf-v5.3.5/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x1000 "C:/Users/Asus republic/Downloads/echo-esp32-firmware/build/bootloader/bootloader.bin""
+Bootloader binary size 0x68e0 bytes. 0x720 bytes (6%) free.
+[8/16] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/oled.c.obj
+[9/16] No install step for 'bootloader'
+[10/16] Completed 'bootloader'
+[11/16] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/network_client.c.obj
+[12/16] Linking C static library esp-idf\main\libmain.a
+[13/16] Generating ld/sections.ld
+[14/16] Linking CXX executable echo_sensor_node.elf
+[15/16] Generating binary image from built executable
+esptool.py v4.11.0
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+Generated C:/Users/Asus republic/Downloads/echo-esp32-firmware/build/echo_sensor_node.bin
+[16/16] C:\Windows\system32\cmd.exe /C "cd /D "C:\Users\Asus republic\Downloads\echo-esp32-firmware\build\esp-idf\esptool_py" && C:\Espressif\python_env\idf5.3_py3.11_env\Scripts\python.exe C:/Espressif/frameworks/esp-idf-v5.3.5/components/partition_table/check_sizes.py --offset 0x8000 partition --type app "C:/Users/Asus republic/Downloads/echo-esp32-firmware/build/partition_table/partition-table.bin" "C:/Users/Asus republic/Downloads/echo-esp32-firmware/build/echo_sensor_node.bin""
+echo_sensor_node.bin binary size 0x1007e0 bytes. Smallest app partition is 0x177000 bytes. 0x76820 bytes (32%) free.
