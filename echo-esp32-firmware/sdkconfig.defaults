@@ -1,0 +1,17 @@
+# Classic ESP32 (AI-Thinker ESP32-CAM) needs PSRAM enabled for the camera
+# frame buffer at SVGA/JPEG — the module has 4MB PSRAM on this board.
+CONFIG_ESP32_SPIRAM_SUPPORT=y
+CONFIG_SPIRAM_MODE_QUAD=y
+CONFIG_SPIRAM_USE_MALLOC=y
+# Camera + WiFi + I2S together push close to the default main-task stack
+# limit on some builds; bumped defensively. If bring-up hits a stack
+# overflow panic, this is the first place to look.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+# Default WiFi buffer counts are usually fine for this workload, left at
+# their standard defaults intentionally rather than tuned blind.
+
+# Board's flash chip is actually 4MB (confirmed in boot log), and adding
+# the web-capture server pushed the firmware just over the default 1MB
+# app partition. Bump both so there's real headroom.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y

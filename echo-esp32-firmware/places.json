@@ -1,0 +1,42 @@
+{
+  "places": [
+    {
+      "name": "delhi",
+      "aps": [
+        {
+          "ssid": "Airtel_Unboxed Community",
+          "rssi": -59
+        },
+        {
+          "ssid": "Galaxy A34 5G ",
+          "rssi": -72
+        },
+        {
+          "ssid": "Bobby 5G",
+          "rssi": -72
+        },
+        {
+          "ssid": "Airtel_hima_5737",
+          "rssi": -82
+        },
+        {
+          "ssid": "Raju",
+          "rssi": -89
+        },
+        {
+          "ssid": "www.excitel.com",
+          "rssi": -91
+        },
+        {
+          "ssid": "Infinix NOTE 30 5G",
+          "rssi": -91
+        },
+        {
+          "ssid": "Airtel_hari_8380",
+          "rssi": -93
+        }
+      ],
+      "saved": "2026-09-06 18:25:52"
+    }
+  ]
+}
