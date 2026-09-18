@@ -200,7 +200,7 @@ bool RateLimiter::allow(std::int64_t now) noexcept {
 
     // Roll the daily window. A fixed 24h window from first use, not a calendar day:
     // the device has no timezone and does not need one to cap a count.
-    if (now - day_start_ >= 24 * 3600) {
+    if (now - day_start_ >= 24LL * 3600) {
         day_start_ = now;
         accepted_today_ = 0;
     }

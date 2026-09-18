@@ -613,6 +613,7 @@ void Runtime::caregiver_tick() {
         try {
             companion_->set_consent(ConsentScope::None);
         } catch (...) {
+            log_warn("runtime", "companion set_consent(None) failed while failing closed");
         }
         log_warn("runtime", "consent read failed; caregiver link held closed this tick");
         return;
