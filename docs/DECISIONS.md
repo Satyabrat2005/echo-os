@@ -494,6 +494,131 @@ memory is not. The `real-llm` CI job prints the measured confidence distribution
 can be revised from data — and if that data shows the floor separates good answers from bad
 only weakly, that is the expected result, not a failure.
 
+## ADR-19 — The caregiver sees counts and states, never content; consent is a record, not a flag
+*Decided: Phase 22 · 2026-08-02*
+
+**Decision.** A caregiver link exists, and what may cross it is defined **as a type**:
+`companion::CaregiverDigest`, whose every field is a scalar or an enum — nine counters (Phase 23
+added `wandering_flags`/`distress_flags` to the original seven), two timestamps, two enums, 54
+bytes on the wire. No name, no embedding, no free-text note, no event
+summary, no `std::string` anywhere. The type is generated from a single X-macro field list
+(`ECHO_CAREGIVER_DIGEST_FIELDS`) that also generates the per-field `static_assert`s, so the
+struct and its proof cannot drift apart. The digest is built **only** when a consent record
+exists in the memory store with a scope and a timestamp; with no consent `send_digest()` returns
+`Unavailable` and **never** an empty digest. Consent is re-read from the store every tick, never
+cached, so revocation is cold on the next one. The transport is `ICompanionTransport` (ADR-9
+shape) with a deterministic in-process fake and a loopback stand-in; frames are sealed with
+AES-256-CTR + AES-256-CMAC (encrypt-then-MAC) under a pairing key derived once, out of band,
+reusing Phase 16's `device_key.hpp`. The inbound path is treated as hostile: length-capped,
+schema-validated on the Phase 6 hardened parser, rate-limited, announced to the wearer, and
+refused outright if it tries to create a person from an embedding.
+
+**Why counts and not content.** A caregiver's real questions — did she take her tablets, is she
+more confused this week, is she up at night — are all answerable with numbers. Answering them
+with names or transcript text would mean the device narrating a person's day to someone else,
+and once a string field exists on the digest there is no principled place to stop adding to it.
+So the minimization is enforced by the type system rather than by reviewer discipline: the
+encoder *cannot* leak content because the type it encodes has no content, and there is no branch
+in it that could ever emit a length-prefixed string. `Alert::note` remains a `std::string` and
+that asymmetry is deliberate — an alert is a rare one-off that sometimes needs words, while the
+digest is a periodic feed of someone's daily life, and periodic feeds are what get aggregated.
+
+**Why the proof lives in two translation units.** `companion-sync` deliberately does not link
+`echo::memory`, so it cannot name `memory::Embedding` or `PersonRecord`; its assertions are
+therefore about *shapes* (`std::vector<float>`, `std::string`, byte buffers).
+`tests/memory_engine_test.cpp` is the only TU that links both modules, so it carries the
+assertions about the *actual types* — a strictly stronger claim. Both halves were verified by
+the Phase-15/16 discipline of inverting an assertion and confirming the build fails: adding a
+`std::string` field to the digest broke five distinct assertions across two files, and flipping
+the `PersonRecord` clause positive broke the cross-module one, proving neither is vacuous.
+
+**Why consent is a record and revocation is a re-read.** A boolean in memory is a permission
+that survives exactly as long as nobody thinks about it. Storing scope + grantor + timestamps in
+the encrypted store makes the grant auditable and the revocation durable across a reboot; re-
+reading it every tick means there is no cached state that could keep a withdrawn permission
+alive. The grantor is an **enum**, not a name: who granted consent is a role, and recording a
+caregiver's identity would put a second person's data on the wearer's device without *their*
+consent. If the consent read itself fails, the link holds closed — failing closed is the only
+defensible direction when the question is "may this leave the device?".
+
+**Why the firmware path fails closed.** The scaffold carried a TODO promising signature
+verification and then returned `Unavailable`, which meant the promise was never exercised. There
+is no asymmetric verification key on this device and a symmetric MAC under the *pairing* key
+would be worse than nothing — it would let any paired phone flash the glasses while looking like
+verification. So `poll_firmware_update()` now routes every offered image through an
+`IFirmwareVerifier`, and the only verifier that exists refuses everything. `scheme()` reports
+`"none (fail-closed)"`. This is a real refusal, not a half-verified path.
+
+**Trade-off, stated plainly.** Pairing gives **confidentiality, integrity, replay resistance and
+direction binding** between two endpoints that already share a key. It does **not** authenticate
+*who is holding the paired phone*, and it has no revocation story for a stolen key beyond
+re-pairing — the same precision ADR-14 used about AES-CTR being unauthenticated. The fuzz
+harness models exactly that attacker: one who holds the key. Separately, the caregiver's own
+half does not exist: this phase builds the device half of the boundary plus an honest test
+double for the other half. Real BLE GATT is a documented stub that returns `Unavailable`, and
+the loopback transport is an honest stand-in for the protocol layer, not a pretend radio.
+
+---
+
+## ADR-20 — Wandering/distress: coarse state + dwell, not raw GPS/IMU/EEG; digest gets two new counts
+
+**Decision.** `safety-mgmt` (Phase 23) senses a coarse `ZoneState`/`ArousalState` plus a dwell
+duration, not raw location coordinates or a numeric biometric score — the same choice Phase 18
+made (thermal *state*, not a calibrated °C). The policy escalates None → Suspected → Confirmed
+per axis against a grace period, and only a Confirmed risk alerts. Separately: unlike Phase 18's
+`EngineDegraded` alerts, which stay off `CaregiverDigest` entirely, a confirmed wandering/distress
+episode DOES add a digest count (`wandering_flags`/`distress_flags`).
+
+**Why.** A grace period, not an instant trip, is required because a brief boundary dip (stepping
+onto the porch) must not page a caregiver — only a *sustained* one should, mirroring why Phase 21
+gates on repeated low-confidence turns rather than a single one. The digest inclusion follows
+`safe_mode_engagements`/`unverified_answers`'s precedent, not `EngineDegraded`'s: those two exist
+specifically to summarize "how the wearer's day went" for someone reviewing a daily rollup rather
+than watching every alert, and wandering/distress episodes are squarely in that bucket — unlike a
+low battery or a hot temple, which are device-health noise, not wearer-wellbeing signal.
+
+**Honest trade-off.** The discarded-EEG code path in `perception_engine.cpp` was deliberately NOT
+reactivated as the arousal proxy — it carries zero real signal (an empty `Perception{}`), and
+dressing it up as a distress signal would have been exactly the kind of fabrication this codebase
+refuses to do. Instead `IArousalSource`/`ILocationSource` are new, honestly-labeled documented
+stubs that always report the safe state — there is no plausible varying value to simulate at all
+here, unlike Phase 18's battery drain. The grace-period thresholds (5 min boundary, 2 min away,
+10–30 s elevated/high arousal) are placeholders pending real hardware and clinical input, not
+validated numbers. See STATE.md gap #16.
+
+## ADR-21 — At-rest encryption becomes authenticated by reusing Phase 22's CMAC, not AES-GCM
+
+**Decision.** Phase 24 closes the AES-256-CTR/no-MAC gap ADR-14 self-flagged by composing the
+existing `crypto::ctr_xcrypt` with the existing `crypto::cmac` (encrypt-then-MAC, MAC verified
+before a single byte is decrypted — `common/crypto/sealed_box.hpp`), not by implementing
+AES-GCM as ADR-14 originally speculated. The on-disk container gets a version bump
+(`"ECHOAES1"` → `"ECHOAEM1"`); a Phase-16 store is migrated forward on open, never hard-failed.
+Key binding to a per-install OS fingerprint is real, tested, and **opt-in, off by default**
+(`ECHO_MEMORY_KEY_BIND=1`).
+
+**Why.** Phase 22 already had to solve this identical problem — encrypt-then-MAC over an
+untrusted network peer, a *harder* threat model than a local file — and already proved AES-CTR
+(FIPS-197/SP 800-38A KATs) and CMAC (SP 800-38B, closing the previously-dangling
+`tests/crypto_test.cpp` claim) against published vectors. Writing AES-GCM from scratch would mean
+proving a brand-new GF(2^128) GHASH primitive for no benefit reusing what's already proven is
+less new audit surface, which matters more than following ADR-14's original guess once a better
+option existed. Migrate-forward matches the precedent this exact file already set for the
+Phase-15→16 plaintext-to-encrypted transition (`test_migration_from_plaintext`); for a
+memory-loss-care wearable, a software update that bricks every existing user's already-recorded
+memories is a worse failure than the vulnerability being closed. Key binding defaults off because
+binding the real key to an OS fingerprint (`MachineGuid`/`machine-id`) means an ordinary OS
+maintenance event — no attacker involved — can permanently brick the store; that risk needs an
+operator's explicit opt-in, the same convention `ECHO_MEMORY_KEY`/`ECHO_PAIRING_KEY` already use.
+
+**Honest trade-off.** Key binding is NOT hardware-backed and doesn't claim to be — it raises the
+bar against casually copying the `.db`+`.key` files elsewhere, not against an attacker with full
+access to the same machine at attack time (the fingerprint sits right there too). Real TPM/SE
+binding remains a permanent-until-hardware gap, unattempted. Separately: Phase 22's own
+encrypt-then-MAC channel is still not reachable from the shipping runtime (`boot/src/runtime.cpp`
+constructs the no-arg, disabled `ICompanionSync`) — deliberately left out of this phase's scope as
+a wiring/product decision orthogonal to at-rest crypto, and because the only real transport (BLE)
+is itself a documented stub, so wiring the key alone wouldn't yield working end-to-end delivery.
+
 ---
 
 *To add an entry: append with the next ADR number, a date, the decision, the why,

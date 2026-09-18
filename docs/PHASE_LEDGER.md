@@ -101,11 +101,15 @@ STATE.md untrue.
 | 19 | Audio robustness under noise | Done (measurement) | 3 checksummed noise beds × 4 SNRs against real whisper + openWakeWord; single-mic pre-processor; SNR folded into the **existing** 0.72 gate. Gap #13 opened | — |
 | 20 | Longevity & resource-leak soak | Done | 10,080 ticks = **7 simulated days** on a virtual clock, real runtime + real memory engine. Found and fixed two genuine longevity bugs. Gap #14 opened | — |
 | **21** | **Answer-side safe mode** | **Shipped** | Gate the LLM's *answer*, not just the perception input; self-referential questions answered from the store or abstained (`ResponseKind::Unverified`); `[route:memory]` no longer falls back to a guess. Verified by mutation. Does **not** catch a confidently wrong answer in general | **18** |
-| **22** | **The caregiver boundary** | **Planned** | A consented, minimized digest + a real paired transport + a hardened inbound path, with the privacy proof intact | **19** |
+| **22** | **The caregiver boundary** | **Shipped** | A consented, minimized digest + a real paired transport (loopback/fake, real BLE a documented stub) + a hardened inbound path (encrypt-then-MAC, hardened JSON decoder, replay + rate limiting), with the privacy proof intact | **19** |
+| **23** | **Wandering & distress detection** | **Shipped (policy)** | `AlertKind::Wandering`/`::Distress` get their first-ever production producers, mirroring Phase 18's source-boundary/pure-policy/edge-triggered-alert template exactly. Zone/arousal state + dwell → risk bands → caregiver alert; digest gets `wandering_flags`/`distress_flags`. No real geofence/GPS or biometric sensor exists — documented stubs, gap #16 opened | — |
+| **24** | **Security hardening, round 2** | **Shipped (crypto)** | At-rest store moves from unauthenticated AES-256-CTR to encrypt-then-MAC (reusing Phase 22's already-proven AES-256-CMAC), versioned container with migrate-forward on open, a fixed silent-data-loss bug on unrecognized files, closed the dangling `tests/crypto_test.cpp` KAT claim, and opt-in (off by default) per-install key binding | **20** |
 
 CTest suites accumulate: 9 after Phase 14 → 10 (`echo-memory`, 15) → 11
 (`echo-fault-injection`, 17) → 12 (`echo-power-mgmt`, 18). `echo-soak` (20) runs in
-its own job. Phases 21 and 22 should land at 13 and 14.
+its own job. Phase 23 adds `echo-safety-mgmt`; Phase 24 adds `echo-crypto`.
+**Not yet built or run on this machine** — see the Phase 23/24 sections' verification
+notes for the exact commands still owed once a CMake/MinGW toolchain is available.
 
 ---
 
@@ -122,9 +126,10 @@ dependency-free on any host with deterministic stubs.
 **ADRs.** 1 (embedded Linux base, not a from-scratch kernel), 2 (static library per
 module, wired by `boot/`), 4 (fail safe, not smart), 5 (privacy by default, enforced
 by interface shape), 8 (everything real is opt-in).
-**Left dormant, and still is.** `AlertKind::Wandering`, `::Distress`, and
-`::LowConfidenceTrend` were defined here and have never had a producer. Phase 21
-gives `LowConfidenceTrend` one; the other two remain a candidate phase.
+**Left dormant, until Phase 23.** `AlertKind::Wandering`, `::Distress`, and
+`::LowConfidenceTrend` were defined here and went years without a producer. Phase 21
+gives `LowConfidenceTrend` one; Phase 23 gives the other two theirs — see that
+section for what's policy-tested versus still-simulated sensing.
 **Record quality.** Thin — reconstructed from ADR dates (2026-07-28) and STATE.md's
 "what's built" table. No dedicated brief exists.
 
@@ -525,20 +530,21 @@ half of gap #1 — leaving only the genuinely-human spoken-turn measurement open
 honest outcome may well be a **revised or tiered budget** rather than an
 optimization, which is a legitimate result and overdue either way.
 
-**B. Wandering & distress detection.** `AlertKind::Wandering` and `::Distress` have
-existed since Phase 1 with no producer — the same dormant-since-scaffold situation
-`power-mgmt` was in before Phase 18, and buildable in the same pattern: a read-only
-source boundary (IMU / location / prosody) with deterministic fakes plus a pure
-policy. For a dementia-care product this is arguably the second-most-important safety
-feature after recall. It would open another permanent-until-hardware gap, so pair it
-with a clear-eyed decision about whether that is the right trade at that point.
+**B. Wandering & distress detection — DONE, Phase 23.** Built exactly as scoped here:
+a read-only source boundary (`ILocationSource`/`IArousalSource`, coarse zone/arousal
+state + dwell, not raw IMU/GPS/prosody) with deterministic fakes plus a pure policy,
+mirroring `power-mgmt` file-for-file. It did open the anticipated new
+permanent-until-hardware gap (#16) — the clear-eyed call made was to ship the policy,
+tested against simulated readings, and be explicit that the sensing behind it doesn't
+exist yet, the same trade Phase 18 made for battery/thermal.
 
-**C. Security hardening, round 2.** Close what ADR-14 self-flags rather than leaving
-it as a footnote: the AES-256-CTR ciphertext is **unauthenticated** (no MAC), and the
-key is an unbound local file. Add authenticated encryption and key binding, a real
-threat model for a device holding face embeddings and health-adjacent data, and gap
-#6's `scripts/authorize.*`. This becomes *more* urgent after Phase 22, which adds the
-first inbound path and the first paired key.
+**C. Security hardening, round 2 — DONE (crypto half), Phase 24.** Closed the
+AES-256-CTR/no-MAC gap by reusing Phase 22's already-proven encrypt-then-MAC
+composition (AES-256-CMAC) rather than adding a new crypto dependency, plus opt-in
+(off-by-default) per-install key binding — hardware-backed binding remains a
+permanent-until-hardware gap, not attempted. Gap #6's `scripts/authorize.*` (the
+OAuth helper script) is unrelated to the crypto work and was deliberately left open;
+it needs its own pass.
 
 ---
 

@@ -120,6 +120,8 @@ public:
 // (constraint #4). Subtitles auto-expire after their TTL, keeping the HUD calm.
 class SdlHudCompositor final : public IHudCompositor {
 public:
+    explicit SdlHudCompositor(bool kiosk = false) : kiosk_(kiosk) {}
+
     Status initialize() override {
         running_ = true;
         thread_  = std::thread([this] { render_loop(); });
@@ -147,6 +149,10 @@ public:
         log_info("hud", "compositor shut down");
     }
 
+    bool should_quit() const override {
+        return quit_requested_.load(std::memory_order_relaxed);
+    }
+
 private:
     void render_loop() {
         if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
@@ -155,14 +161,29 @@ private:
         }
         SDL_Rect bounds{0, 0, 1280, 720};
         SDL_GetDisplayUsableBounds(0, &bounds);
-        const int w = 720, h = 120;
-        const int x = bounds.x + (bounds.w - w) / 2;
-        const int y = bounds.y + bounds.h - h - 60;  // hover near the bottom
-        Uint32 flags = SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALWAYS_ON_TOP |
-                       SDL_WINDOW_SKIP_TASKBAR;
-        window_ = SDL_CreateWindow("ECHO HUD", x, y, w, h, flags);
+        int w, h, x, y;
+        Uint32 flags;
+        if (kiosk_) {
+            // Size/position are ignored by SDL for a fullscreen-desktop window;
+            // the real size is queried below once the window exists.
+            w = 0; h = 0;
+            x = SDL_WINDOWPOS_UNDEFINED;
+            y = SDL_WINDOWPOS_UNDEFINED;
+            flags = SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_BORDERLESS;
+        } else {
+            w = 720; h = 120;
+            x = bounds.x + (bounds.w - w) / 2;
+            y = bounds.y + bounds.h - h - 60;  // hover near the bottom
+            flags = SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALWAYS_ON_TOP |
+                    SDL_WINDOW_SKIP_TASKBAR;
+        }
+        window_ = SDL_CreateWindow(kiosk_ ? "ECHO OS" : "ECHO HUD", x, y, w, h, flags);
         if (!window_) { log_error("hud", "HUD window create failed"); return; }
-        SDL_SetWindowOpacity(window_, 0.92f);
+        if (kiosk_) {
+            SDL_GetWindowSize(window_, &w, &h);  // the real fullscreen resolution
+        } else {
+            SDL_SetWindowOpacity(window_, 0.92f);
+        }
         renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED);
         if (!renderer_) { SDL_DestroyWindow(window_); return; }
         SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
@@ -171,14 +192,21 @@ private:
         if (TTF_Init() == 0) {
             const char* fp = std::getenv("ECHO_HUD_FONT");
             std::string path = fp ? fp : "C:/Windows/Fonts/segoeui.ttf";
-            font_ = TTF_OpenFont(path.c_str(), 26);
+            font_ = TTF_OpenFont(path.c_str(), kiosk_ ? 48 : 26);
             if (!font_) log_warn("hud", "HUD font not found; subtitles will be omitted");
         }
 #endif
 
+        if (kiosk_) boot_started_at_ = std::chrono::steady_clock::now();
+
         while (running_) {
             SDL_Event e;
-            while (SDL_PollEvent(&e)) { /* keep the window responsive */ }
+            while (SDL_PollEvent(&e)) {
+                if (kiosk_ && (e.type == SDL_QUIT ||
+                               (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE))) {
+                    quit_requested_.store(true, std::memory_order_relaxed);
+                }
+            }
             draw_once(w, h);
             SDL_Delay(33);  // ~30 fps
         }
@@ -193,6 +221,11 @@ private:
     }
 
     void draw_once(int w, int h) {
+        if (kiosk_ && booting()) {
+            draw_boot_splash(w, h);
+            return;
+        }
+
         HudFrame f;
         bool have;
         {
@@ -206,8 +239,9 @@ private:
             f = frame_; have = have_frame_;
         }
 
-        // Calm dark band.
-        SDL_SetRenderDrawColor(renderer_, 12, 14, 18, 235);
+        // Calm dark band (an opaque full-screen shell background in kiosk mode).
+        if (kiosk_) SDL_SetRenderDrawColor(renderer_, 8, 9, 12, 255);
+        else        SDL_SetRenderDrawColor(renderer_, 12, 14, 18, 235);
         SDL_RenderClear(renderer_);
 
         if (have) {
@@ -215,6 +249,37 @@ private:
             if (f.has_icon)   draw_icon(f.icon.glyph);
             if (f.has_subtitle) draw_subtitle(f.subtitle.text, w, h);
         }
+        SDL_RenderPresent(renderer_);
+    }
+
+    // True for the first ~kBootSplashMs after the kiosk window comes up. This is
+    // a separate timer rather than seeding frame_ with a splash HudFrame: demo
+    // code calls present() with the idle frame almost immediately after
+    // initialize(), well before this thread has even created a window, so a
+    // splash seeded into frame_ would just be clobbered before ever being drawn.
+    bool booting() const {
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                           std::chrono::steady_clock::now() - boot_started_at_).count();
+        return elapsed < kBootSplashMs;
+    }
+
+    void draw_boot_splash(int w, int h) {
+        SDL_SetRenderDrawColor(renderer_, 8, 9, 12, 255);
+        SDL_RenderClear(renderer_);
+        draw_status_dot(StatusKind::Working, w);
+#if defined(ECHO_WITH_SDL_TTF)
+        if (font_) {
+            SDL_Color col{235, 238, 242, 255};
+            SDL_Surface* surf = TTF_RenderUTF8_Blended(font_, "ECHO OS", col);
+            if (surf) {
+                SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer_, surf);
+                SDL_Rect dst{(w - surf->w) / 2, (h - surf->h) / 2, surf->w, surf->h};
+                SDL_RenderCopy(renderer_, tex, nullptr, &dst);
+                SDL_DestroyTexture(tex);
+                SDL_FreeSurface(surf);
+            }
+        }
+#endif
         SDL_RenderPresent(renderer_);
     }
 
@@ -232,12 +297,13 @@ private:
             case StatusKind::Success: r = 60;  g = 200; b = 110; break;  // green
             case StatusKind::Error:   r = 225; g = 80;  b = 80;  break;  // red
         }
-        fill(w - 34, 22, 14, 14, r, g, b);  // top-right dot
+        if (kiosk_) fill(w - 72, 48, 24, 24, r, g, b);  // top-right, inset from the real corner
+        else        fill(w - 34, 22, 14, 14, r, g, b);  // top-right dot
     }
 
     // Each icon is one simple mark — never a row of controls (that would be a GUI).
     void draw_icon(Glyph gph) {
-        const int x = 26, y = 24, s = 40;
+        const int x = kiosk_ ? 60 : 26, y = kiosk_ ? 60 : 24, s = kiosk_ ? 72 : 40;
         const Uint8 r = 220, g = 224, b = 230;
         switch (gph) {
             case Glyph::Play:
@@ -266,10 +332,13 @@ private:
 #if defined(ECHO_WITH_SDL_TTF)
         if (!font_ || text.empty()) return;
         SDL_Color col{235, 238, 242, 255};
-        SDL_Surface* surf = TTF_RenderUTF8_Blended_Wrapped(font_, text.c_str(), col, w - 100);
+        const int wrap_w = kiosk_ ? (w * 3) / 4 : (w - 100);
+        SDL_Surface* surf = TTF_RenderUTF8_Blended_Wrapped(font_, text.c_str(), col, wrap_w);
         if (!surf) return;
         SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer_, surf);
-        SDL_Rect dst{80, (h - surf->h) / 2, surf->w, surf->h};
+        SDL_Rect dst = kiosk_
+            ? SDL_Rect{(w - surf->w) / 2, (h * 2) / 3 - surf->h / 2, surf->w, surf->h}
+            : SDL_Rect{80, (h - surf->h) / 2, surf->w, surf->h};
         SDL_RenderCopy(renderer_, tex, nullptr, &dst);
         SDL_DestroyTexture(tex);
         SDL_FreeSurface(surf);
@@ -277,7 +346,8 @@ private:
         // Without SDL_ttf we can't rasterize text; show a thin "caption present"
         // underline so the band still reflects that a subtitle was emitted.
         (void)text;
-        fill(80, h - 30, w - 160, 3, 120, 140, 180);
+        if (kiosk_) fill(w / 8, (h * 2) / 3 + 20, (w * 3) / 4, 4, 120, 140, 180);
+        else        fill(80, h - 30, w - 160, 3, 120, 140, 180);
 #endif
     }
 
@@ -294,6 +364,11 @@ private:
     std::string app_id_;
     std::chrono::steady_clock::time_point shown_at_{};
     bool        have_frame_ = false;
+
+    const bool  kiosk_ = false;
+    std::atomic<bool> quit_requested_{false};
+    std::chrono::steady_clock::time_point boot_started_at_{};
+    static constexpr int kBootSplashMs = 1800;
 };
 
 #endif  // ECHO_WITH_SDL
@@ -306,9 +381,16 @@ std::unique_ptr<IHudCompositor> make_hud_compositor(HudMode mode) {
         case HudMode::TerminalBand: return std::make_unique<SimulatedWindowCompositor>();
         case HudMode::Window:
 #if defined(ECHO_WITH_SDL)
-            return std::make_unique<SdlHudCompositor>();
+            return std::make_unique<SdlHudCompositor>(/*kiosk=*/false);
 #else
             log_warn("hud", "SDL not built in; HUD window falls back to terminal band");
+            return std::make_unique<SimulatedWindowCompositor>();
+#endif
+        case HudMode::KioskWindow:
+#if defined(ECHO_WITH_SDL)
+            return std::make_unique<SdlHudCompositor>(/*kiosk=*/true);
+#else
+            log_warn("hud", "SDL not built in; kiosk shell falls back to terminal band");
             return std::make_unique<SimulatedWindowCompositor>();
 #endif
     }

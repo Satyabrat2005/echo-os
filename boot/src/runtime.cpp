@@ -1,4 +1,6 @@
 #include "echo/boot/runtime.hpp"
+
+#include "echo/boot/caregiver_link.hpp"
 #include "echo/config.hpp"
 #include "echo/latency.hpp"
 #include "echo/log.hpp"
@@ -31,6 +33,7 @@ WatchdogConfig default_watchdog_config() {
     c.cognitive_budget  = env_ms("ECHO_WATCHDOG_COGNITIVE_MS",  c.cognitive_budget);
     c.voice_budget      = env_ms("ECHO_WATCHDOG_VOICE_MS",      c.voice_budget);
     c.memory_budget     = env_ms("ECHO_WATCHDOG_MEMORY_MS",     c.memory_budget);
+    c.companion_budget  = env_ms("ECHO_WATCHDOG_COMPANION_MS",  c.companion_budget);
     return c;
 }
 
@@ -49,6 +52,10 @@ Runtime::Engines Runtime::default_engines() {
     // power_source.cpp). Tests inject deterministic fakes here instead.
     e.power_source   = power::make_power_source();
     e.thermal_source = power::make_thermal_source();
+    // Phase 23: the real location/arousal sources (documented stubs on this target — see
+    // safety_source.cpp). Tests inject deterministic fakes here instead.
+    e.location_source = safety::make_location_source();
+    e.arousal_source   = safety::make_arousal_source();
     return e;
 }
 
@@ -64,15 +71,21 @@ Runtime::Runtime(Engines engines, WatchdogConfig watchdog)
       power_(std::move(engines.power)),
       power_source_(std::move(engines.power_source)),
       thermal_source_(std::move(engines.thermal_source)),
+      location_source_(std::move(engines.location_source)),
+      arousal_source_(std::move(engines.arousal_source)),
       perception_guard_("perception", watchdog_.perception_budget),
       cognitive_guard_("cognitive",   watchdog_.cognitive_budget),
       voice_guard_("voice",           watchdog_.voice_budget),
-      memory_guard_("memory",         watchdog_.memory_budget) {
+      memory_guard_("memory",         watchdog_.memory_budget),
+      companion_guard_("companion",   watchdog_.companion_budget) {
     // A caller that supplied no power/thermal sources (the Phase 17 fault-injection suite
     // constructs Engines without them) gets the real documented stubs, so power sensing is
     // always present — an unset field means "no injected power scenario", not "disabled".
     if (!power_source_)   power_source_   = power::make_power_source();
     if (!thermal_source_) thermal_source_ = power::make_thermal_source();
+    // Same convention for Phase 23's location/arousal sources.
+    if (!location_source_) location_source_ = safety::make_location_source();
+    if (!arousal_source_)  arousal_source_  = safety::make_arousal_source();
     // The thermal throttle scales the cognitive hang budget UP from this base; capture it
     // once so repeated scaling never compounds.
     base_cognitive_budget_ = cognitive_guard_.budget();
@@ -107,6 +120,12 @@ Status Runtime::boot() {
         log_warn("boot", "battery source unavailable; running without battery-aware duty-cycling");
     if (thermal_source_->initialize() != Status::Ok)
         log_warn("boot", "thermal source unavailable; running without thermal-aware throttling");
+    // Same best-effort convention for Phase 23's sensing: losing it must not brick the
+    // glasses either — it just means wandering/distress detection stays quiet.
+    if (location_source_->initialize() != Status::Ok)
+        log_warn("boot", "location source unavailable; wandering detection disabled");
+    if (arousal_source_->initialize() != Status::Ok)
+        log_warn("boot", "arousal source unavailable; distress detection disabled");
     if (perception_->initialize() != Status::Ok) return Status::HardwareError;
     if (cognitive_->initialize()  != Status::Ok) return Status::HardwareError;
     if (voice_->initialize()      != Status::Ok) return Status::HardwareError;
@@ -155,6 +174,10 @@ void Runtime::handle_response(const cognitive::Response& response) {
         send_alert_guarded(companion::Alert{
             companion::AlertKind::SafeModeEngaged, now(), "System deferred to safe mode."});
         set_state(RuntimeState::SafeMode);
+        // Phase 22: also record it as an event, so the caregiver digest can report
+        // "safe mode engaged 3 times today" as a COUNT. The alert says it happened
+        // once, now; the count is what tells a caregiver whether today was unusual.
+        log_digest_event(memory::EventKind::SafeModeEngaged, "safe mode engaged");
     }
 
     // --- Repeated-abstention trend (Phase 21) --------------------------------
@@ -165,6 +188,10 @@ void Runtime::handle_response(const cognitive::Response& response) {
     // Only the streak is reported, and only Normal clears it — a run of abstentions
     // broken by a low-confidence turn is still a run of abstentions.
     if (response.kind == cognitive::ResponseKind::Unverified) {
+        // Phase 22: every abstention is counted, not just the ones that trip the
+        // streak alert. A caregiver reading "ECHO declined to answer 11 times today"
+        // learns something the three-in-a-row alert can't tell them.
+        log_digest_event(memory::EventKind::UnverifiedAnswer, "declined to guess");
         if (++unverified_streak_ >= kUnverifiedTrendThreshold) {
             unverified_streak_ = 0;  // report once per run, not once per turn thereafter
             send_alert_guarded(companion::Alert{
@@ -387,6 +414,84 @@ void Runtime::flag_power_condition(const std::string& note) {
     send_alert_guarded(companion::Alert{companion::AlertKind::EngineDegraded, now(), note});
 }
 
+// --- wandering & distress detection (Phase 23) -------------------------------
+//
+// AlertKind::Wandering and AlertKind::Distress have existed since Phase 1 with no
+// producer. This gives them one, following the exact pattern Phase 18 established for
+// power/thermal: a read-only source boundary, a pure policy, and edge-triggered alerts
+// applied on the same tick — see safety_source.hpp / safety_policy.hpp for the "why".
+
+safety::SafetyDecision Runtime::poll_safety() noexcept {
+    // Same discipline as poll_power(): a light try/catch backstop (source reads are cheap
+    // register-style reads, not something that hangs), and on any fault we hold the
+    // last-known-good decision rather than fabricate a zone/arousal state. A sensing fault
+    // is a device-health condition, not a wandering/distress event, so it rides the
+    // EngineDegraded channel — keeping failure modes distinguishable (Phase 17's rule).
+    try {
+        auto location = location_source_->read();
+        auto arousal  = arousal_source_->read();
+        if (location && arousal) {
+            last_location_ = location.value();
+            last_arousal_  = arousal.value();
+            last_safety_decision_ = safety::decide(last_location_, last_arousal_);
+            if (safety_sense_alerted_) {  // recovered
+                log_info("safety", "location/arousal sensing recovered");
+                safety_sense_alerted_ = false;
+            }
+            return last_safety_decision_;
+        }
+        throw std::runtime_error("location/arousal source returned a non-Ok read");
+    } catch (const std::exception& e) {
+        if (!safety_sense_alerted_) {
+            log_warn("safety", std::string("location/arousal sensing unavailable (") + e.what() +
+                                    "); holding last-known-good, not fabricating a reading");
+            flag_power_condition("Location/arousal sensing unavailable");
+            safety_sense_alerted_ = true;
+        }
+        return last_safety_decision_;  // last-known-good; never a guessed zone/arousal state
+    }
+}
+
+void Runtime::apply_safety_decision(const safety::SafetyDecision& decision) {
+    last_safety_decision_ = decision;
+
+    // Edge-triggered, exactly like power's thermal/battery latches: a standing condition
+    // alerts once, and the latch clears when the condition lifts so a later recurrence
+    // alerts again. Unlike power_decision this gates nothing else on the tick — populating
+    // AlertKind::Wandering/::Distress for the first time is the whole job here.
+    if (decision.wandering_alert) {
+        if (!wandering_alerted_) {
+            flag_wandering_distress(companion::AlertKind::Wandering,
+                "Wandering suspected: outside known area for " +
+                    std::to_string(last_location_.dwell.count()) + "s");
+            // Phase 23, same convention as SafeModeEngaged (line ~180): the alert says it
+            // happened once, now; the digest COUNT is what tells a caregiver whether today
+            // was unusual. Counted on the edge (once per episode), not once per tick the
+            // condition holds.
+            log_digest_event(memory::EventKind::WanderingFlagged, "wandering flagged");
+            wandering_alerted_ = true;
+        }
+    } else {
+        wandering_alerted_ = false;
+    }
+
+    if (decision.distress_alert) {
+        if (!distress_alerted_) {
+            flag_wandering_distress(companion::AlertKind::Distress,
+                "Distress suspected: elevated arousal for " +
+                    std::to_string(last_arousal_.dwell.count()) + "s");
+            log_digest_event(memory::EventKind::DistressFlagged, "distress flagged");
+            distress_alerted_ = true;
+        }
+    } else {
+        distress_alerted_ = false;
+    }
+}
+
+void Runtime::flag_wandering_distress(companion::AlertKind kind, const std::string& note) {
+    send_alert_guarded(companion::Alert{kind, now(), note});
+}
+
 // --- watchdog ---------------------------------------------------------------
 
 Status Runtime::reinit_perception() {
@@ -481,6 +586,59 @@ void Runtime::send_alert_guarded(const companion::Alert& alert) noexcept {
     }
 }
 
+void Runtime::log_digest_event(memory::EventKind kind, const char* summary) noexcept {
+    if (!memory_ || !memory_->is_open()) return;
+    memory::EventRecord ev;
+    ev.kind = kind;
+    ev.at = clock_();
+    ev.summary = summary;
+    // Guarded and ignored on failure: a counter that could not be written is a
+    // slightly wrong digest, which is a far smaller problem than a broken turn.
+    (void)memory_guard_.call_status([this, ev]() { return memory_->log_event(ev); });
+}
+
+void Runtime::caregiver_tick() {
+    if (!companion_ || !memory_ || !memory_->is_open()) return;
+
+    const memory::UnixTime now = clock_();
+    CaregiverLink link(memory_.get(), companion_.get(), voice_.get());
+
+    // 1. Re-assert consent from the store. This is the line that makes revocation go
+    //    cold on the next tick — it is re-read, never cached, so there is no state
+    //    here that could keep a withdrawn permission alive.
+    const Status cs = memory_guard_.call_void([&link]() { link.sync_consent(); });
+    if (cs != Status::Ok) {
+        // If consent cannot be read, the link goes quiet. Failing closed is the only
+        // defensible direction when the question is "may this leave the device?".
+        try {
+            companion_->set_consent(ConsentScope::None);
+        } catch (...) {
+        }
+        log_warn("runtime", "consent read failed; caregiver link held closed this tick");
+        return;
+    }
+
+    // 2. Inbound. Contained the same way every other engine boundary is: a peer that
+    //    wedges the transport degrades this tick, it does not stall the wearer's.
+    //    Charged to the companion guard, not the memory guard — the dominant cost and
+    //    the likely hang are both on the radio side, and a caregiver who has walked out
+    //    of range must never be counted as a failing memory engine.
+    const Status is = companion_guard_.call_void([&link, now]() { (void)link.drain_inbound(now); });
+    if (is != Status::Ok) log_warn("runtime", "caregiver inbound drain failed this tick");
+
+    // 3. Outbound heartbeat, on its own interval rather than every tick.
+    if (last_digest_at_ != 0 && now - last_digest_at_ < kDigestIntervalSeconds) return;
+
+    const Status ds = companion_guard_.call_void([&link, now]() { (void)link.push_digest(now); });
+    if (ds != Status::Ok) {
+        log_warn("runtime", "caregiver digest push failed this tick");
+        return;
+    }
+    // Advance the heartbeat even when the push was refused for lack of consent: a
+    // revoked link must not turn into a once-per-tick retry storm.
+    last_digest_at_ = now;
+}
+
 void Runtime::flag_engine_degraded(std::string_view engine, bool needs_reboot) {
     std::string note = (needs_reboot ? "Subsystem unrecoverable, restart needed: "
                                      : "Subsystem degraded: ");
@@ -513,6 +671,12 @@ RuntimeState Runtime::tick_impl() {
     const power::PowerDecision decision = poll_power();
     apply_power_decision(decision);
 
+    // Phase 23: same "read, decide, alert" shape as power, immediately after it. This gates
+    // nothing else in the tick (no vision duty-cycle, no watchdog budget) — its only job is
+    // giving AlertKind::Wandering/::Distress their first-ever production producer.
+    const safety::SafetyDecision safety_decision = poll_safety();
+    apply_safety_decision(safety_decision);
+
     // Let the legacy DVFS actor veto toward Throttled — now fed the REAL sensed values
     // (was a hardcoded placeholder). Thermal state maps to a representative °C when the
     // backend exposes no numeric sensor (the realistic state-only glasses case).
@@ -526,6 +690,11 @@ RuntimeState Runtime::tick_impl() {
     // delivery is NEVER duty-cycled or throttled away — it is the one thing a low battery
     // must not silence.
     deliver_due_reminders();
+
+    // Phase 22: the caregiver boundary. After reminders, so the wearer's own needs
+    // always come first in the tick, and before the frame drain so a revocation goes
+    // cold before any new perception work happens under the old permission.
+    caregiver_tick();
 
     if (auto frame = sensors_.next_frame()) {
         // Battery/thermal vision duty-cycling: under a reduced/off cadence some camera
@@ -577,8 +746,10 @@ void Runtime::shutdown() {
     if (voice_)     voice_->shutdown();
     if (cognitive_) cognitive_->shutdown();
     if (perception_) perception_->shutdown();
-    if (thermal_source_) thermal_source_->shutdown();
-    if (power_source_)   power_source_->shutdown();
+    if (thermal_source_)  thermal_source_->shutdown();
+    if (power_source_)    power_source_->shutdown();
+    if (arousal_source_)  arousal_source_->shutdown();
+    if (location_source_) location_source_->shutdown();
     if (power_)     power_->shutdown();
     if (memory_)    memory_->close();  // flush + release the store after the core stops using it
     log_info("runtime", "shutdown complete");

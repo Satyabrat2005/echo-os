@@ -27,7 +27,9 @@ endif()
 add_library(echo-memory STATIC
     src/memory_engine.cpp
     src/utterance.cpp
-    src/aes256.cpp       # Phase 16: dependency-free AES-256 for encryption at rest
+    # Phase 16's AES-256 moved to echo::common in Phase 22 (companion-sync needs
+    # the same cipher and must never link the store). echo/memory/aes256.hpp is
+    # now an alias; the code and its KATs are unchanged.
     src/device_key.cpp   # Phase 16: per-device key management
 )
 

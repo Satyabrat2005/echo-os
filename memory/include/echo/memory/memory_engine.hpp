@@ -16,6 +16,7 @@
 // doesn't leak that.
 #pragma once
 
+#include "echo/consent.hpp"
 #include "echo/types.hpp"
 #include "echo/result.hpp"
 
@@ -86,6 +87,16 @@ enum class EventKind : std::uint8_t {
     ReminderFired,        // a due reminder was spoken
     ReminderAcknowledged, // wearer confirmed they did it
     ReminderMissed,       // reserved: a fired reminder went unacknowledged (future)
+    // Phase 22. Appended, never reordered: the kind is stored as an integer, so
+    // inserting in the middle would silently relabel every event already on disk.
+    SafeModeEngaged,      // the system deferred rather than answer (Phase 14/21)
+    UnverifiedAnswer,     // the system said "I'm not sure" rather than guess (Phase 21)
+    ConsentGranted,       // a caregiver link was permitted, and at what scope
+    ConsentRevoked,       // ...and when it was taken away
+    CaregiverCommand,     // a validated inbound command was applied
+    // Phase 23. Appended, never reordered — same rule as above.
+    WanderingFlagged,     // a wandering condition was confirmed (safety-mgmt)
+    DistressFlagged,      // a distress condition was confirmed (safety-mgmt)
 };
 const char* to_string(EventKind k) noexcept;
 
@@ -98,6 +109,28 @@ struct EventRecord {
     std::string  summary;
     PersonId     person_id = 0;    // 0 when not applicable
     ReminderId   reminder_id = 0;  // 0 when not applicable
+};
+
+// --- Consent (Phase 22) -------------------------------------------------------
+// A caregiver link exists only while the wearer's device says it does, and that
+// permission is a RECORD — persisted like any other, surviving reboot, timestamped,
+// and revocable. It is not a flag in memory that a crash could quietly clear into
+// whatever the default happens to be.
+//
+// The scope/grantor vocabulary lives in echo/consent.hpp (common) because
+// companion-sync enforces it and must never link this module. See ADR-19.
+struct ConsentRecord {
+    ConsentScope   scope      = ConsentScope::None;
+    ConsentGrantor grantor    = ConsentGrantor::Wearer;
+    UnixTime       granted_at = 0;
+    UnixTime       revoked_at = 0;  // 0 while live
+
+    // Live consent. Note this is not time-limited: a grant does not silently expire,
+    // because a caregiver link that stopped working without anyone saying so is a
+    // worse failure than one that has to be revoked deliberately.
+    bool active() const noexcept {
+        return scope != ConsentScope::None && revoked_at == 0;
+    }
 };
 
 // Bounds on how the store grows over time (Phase 16, Part 2). The event log is the
@@ -209,6 +242,26 @@ public:
 
     virtual Status log_event(const EventRecord& event) = 0;
     virtual std::vector<EventRecord> recent_events(int limit) = 0;
+
+    // --- Consent (Phase 22) ---------------------------------------------------
+    // Grant replaces whatever came before and logs a narrow ConsentGranted event —
+    // scope and grantor, nothing else. Revocation is IMMEDIATE: consent() reports
+    // None on the very next read, with no flush, no tick, and no cache to wait for.
+    virtual Status grant_consent(ConsentScope scope, ConsentGrantor grantor, UnixTime now) = 0;
+    virtual Status revoke_consent(UnixTime now) = 0;
+    virtual ConsentRecord consent() = 0;
+
+    // --- Counting accessors (Phase 22) ----------------------------------------
+    // These exist so a digest can be built from COUNTS rather than from rows. The
+    // alternative — pulling recent_events() into the link layer and tallying there —
+    // would put EventRecords, summaries and all, on the code path that ends at the
+    // transport. Counting in SQL means the identifying content never leaves this
+    // module in the first place, which is a structural guarantee rather than a
+    // promise about what the caller does next.
+    virtual int count_events(EventKind kind, UnixTime since, UnixTime until) = 0;
+    virtual int count_reminders_due(UnixTime since, UnixTime until) = 0;
+    virtual int count_reminders_acknowledged(UnixTime since, UnixTime until) = 0;
+    virtual int count_people() = 0;
 };
 
 std::unique_ptr<IMemoryEngine> make_memory_engine();

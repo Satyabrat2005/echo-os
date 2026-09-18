@@ -31,6 +31,8 @@
 #include "echo/power/power_manager.hpp"
 #include "echo/power/power_source.hpp"
 #include "echo/power/power_policy.hpp"
+#include "echo/safety/safety_source.hpp"
+#include "echo/safety/safety_policy.hpp"
 
 #include "echo/boot/engine_guard.hpp"
 
@@ -54,11 +56,19 @@ struct WatchdogConfig {
     std::chrono::milliseconds cognitive_budget{2500};
     std::chrono::milliseconds voice_budget{750};
     std::chrono::milliseconds memory_budget{750};
+    // Phase 22. The caregiver transport gets its own budget, generously large: it is the
+    // one boundary that talks to something outside the device, and a peer that is slow is
+    // NOT a device fault. It is separate from memory_budget for a reason that matters —
+    // a wedged radio must never be recorded against the memory engine, because memory
+    // failures escalate to recovery and eventually to a reboot, and rebooting a device
+    // because a caregiver's phone went out of range would be an absurd thing to do to
+    // the person wearing it.
+    std::chrono::milliseconds companion_budget{2000};
     int max_consecutive_failures = 3;  // failures before the watchdog treats an engine as degraded
     int max_recoveries           = 3;  // in-process recovery attempts before escalating to reboot
 };
 
-// Default budgets, honoring ECHO_WATCHDOG_{PERCEPTION,COGNITIVE,VOICE,MEMORY}_MS.
+// Default budgets, honoring ECHO_WATCHDOG_{PERCEPTION,COGNITIVE,VOICE,MEMORY,COMPANION}_MS.
 WatchdogConfig default_watchdog_config();
 
 class Runtime {
@@ -79,6 +89,12 @@ public:
         // not "power management disabled". The power-mgmt suite injects deterministic fakes here.
         std::unique_ptr<power::IPowerSource>           power_source;
         std::unique_ptr<power::IThermalSource>         thermal_source;
+        // Phase 23 wandering/distress SENSING boundary. Same "null means no injected
+        // scenario, not disabled" convention as power_source/thermal_source above — the
+        // runtime fills an unset field with the real documented stub. The safety-mgmt
+        // suite injects deterministic fakes here.
+        std::unique_ptr<safety::ILocationSource>       location_source;
+        std::unique_ptr<safety::IArousalSource>        arousal_source;
     };
 
     // Production: build the real/stub engines via their factories.
@@ -142,6 +158,7 @@ public:
     [[nodiscard]] const EngineGuard& cognitive_guard()  const noexcept { return cognitive_guard_; }
     [[nodiscard]] const EngineGuard& voice_guard()      const noexcept { return voice_guard_; }
     [[nodiscard]] const EngineGuard& memory_guard()     const noexcept { return memory_guard_; }
+    [[nodiscard]] const EngineGuard& companion_guard()  const noexcept { return companion_guard_; }
 
 private:
     static Engines default_engines();
@@ -187,6 +204,24 @@ private:
     // A power/thermal caregiver heads-up, reusing the Phase-17 EngineDegraded alert path.
     void flag_power_condition(const std::string& note);
 
+    // --- Wandering & distress detection (Phase 23), on the SAME tick ---------
+
+    // Read the location/arousal sources and derive the decision. Contained exactly like
+    // poll_power(): a source that throws must not take the loop down, and must NEVER yield
+    // a fabricated zone/arousal state — on a read fault we return the last-known-good
+    // decision and raise one caregiver heads-up on the EngineDegraded channel (a sensing
+    // fault is a device-health condition, not a wandering/distress event).
+    safety::SafetyDecision poll_safety() noexcept;
+
+    // Apply a decision: edge-triggered AlertKind::Wandering / AlertKind::Distress alerts
+    // (their first-ever production producers) when a risk becomes Confirmed. Unlike power's
+    // decision this gates nothing else in the tick — its only job is alerting.
+    void apply_safety_decision(const safety::SafetyDecision& decision);
+
+    // Raise a wandering/distress caregiver alert through the existing send_alert_guarded()
+    // choke point — the same one every other alert producer in this runtime uses.
+    void flag_wandering_distress(companion::AlertKind kind, const std::string& note);
+
     // --- Watchdog (Phase 17), run on the SAME tick (constraint #4) -----------
     struct RecoveryState { int attempts = 0; bool alerted = false; };
 
@@ -202,6 +237,20 @@ private:
     // Caregiver notifications for subsystem faults (best-effort, contained).
     void send_alert_guarded(const companion::Alert& alert) noexcept;
     void flag_engine_degraded(std::string_view engine, bool needs_reboot);
+
+    // --- Phase 22: the caregiver boundary ------------------------------------
+
+    // Record a countable event for the digest (safe-mode engagements, abstentions).
+    // Guarded and best-effort: a store that can't take a counter must never be able
+    // to break the turn that produced it.
+    void log_digest_event(memory::EventKind kind, const char* summary) noexcept;
+
+    // Re-push consent, drain validated inbound commands, and push a digest when the
+    // heartbeat is due. Every call into memory/companion/voice from here goes
+    // through the existing EngineGuards, so a hung radio or a wedged store degrades
+    // exactly like every other engine fault (Phase 17) instead of stalling the tick
+    // that owes the wearer their reminders.
+    void caregiver_tick();
 
     // Fixed, known-good utterance spoken when the cognitive engine itself does not
     // respond (throw/hang). Distinct from the safe-mode confidence line — this is the
@@ -244,11 +293,19 @@ private:
     std::unique_ptr<power::IPowerManager>          power_;
     std::unique_ptr<power::IPowerSource>           power_source_;    // Phase 18
     std::unique_ptr<power::IThermalSource>         thermal_source_;  // Phase 18
+    std::unique_ptr<safety::ILocationSource>       location_source_; // Phase 23
+    std::unique_ptr<safety::IArousalSource>        arousal_source_;  // Phase 23
 
     EngineGuard perception_guard_;
     EngineGuard cognitive_guard_;
     EngineGuard voice_guard_;
     EngineGuard memory_guard_;
+    // Phase 22. Deliberately NOT supervised by watchdog_tick(): there is nothing to
+    // reinitialize (the peer is not ours to restart) and an unreachable caregiver is a
+    // normal condition, not a degraded device. The guard is here for containment and
+    // hang-bounding only — so a transport that never returns costs one tick's caregiver
+    // work, not the tick itself.
+    EngineGuard companion_guard_;
 
     RecoveryState perception_recovery_;
     RecoveryState cognitive_recovery_;
@@ -271,7 +328,24 @@ private:
     bool battery_critical_alerted_ = false;
     bool thermal_alerted_          = false;
 
+    // --- Wandering & distress state (Phase 23) -------------------------------
+    safety::LocationReading last_location_;                       // last good read (defaults Home/0s)
+    safety::ArousalReading  last_arousal_;                        // last good read (defaults Calm/0s)
+    safety::SafetyDecision  last_safety_decision_;                // last-known-good decision (fail to this, never fabricate)
+    // Edge-trigger latches so a standing condition alerts the caregiver ONCE, not every tick.
+    bool safety_sense_alerted_ = false;  // sensing-fault heads-up (rides EngineDegraded)
+    bool wandering_alerted_    = false;  // AlertKind::Wandering
+    bool distress_alerted_     = false;  // AlertKind::Distress
+
     std::string  memory_db_path_;  // remembered so the watchdog can reopen the store
+
+    // --- Phase 22: the caregiver boundary ------------------------------------
+    // How often a digest goes out when consent exists. Once an hour: frequent enough
+    // that "the 9am reminder was acknowledged" is answerable within the hour,
+    // infrequent enough that the feed is a status check rather than a live trace of
+    // someone's day. The counts themselves cover a rolling 24h window.
+    static constexpr memory::UnixTime kDigestIntervalSeconds = 3600;
+    memory::UnixTime last_digest_at_ = 0;
 
     // The wall clock the reminder scheduler reads. Defaults to the real Unix clock;
     // overridable via set_clock() so a soak harness can drive simulated time.

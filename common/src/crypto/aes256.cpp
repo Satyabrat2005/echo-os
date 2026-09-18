@@ -6,11 +6,11 @@
 // Nr=14). It is not constant-time and makes no side-channel claims — an honest
 // limitation for a local at-rest key that never leaves the device (ADR-14). It is
 // deliberately small and readable so it can be audited by eye.
-#include "echo/memory/aes256.hpp"
+#include "echo/crypto/aes256.hpp"
 
 #include <cstring>
 
-namespace echo::memory::crypto {
+namespace echo::crypto {
 
 namespace {
 
@@ -165,4 +165,4 @@ void ctr_xcrypt(const Key256& key, const Block& iv,
     }
 }
 
-}  // namespace echo::memory::crypto
+}  // namespace echo::crypto

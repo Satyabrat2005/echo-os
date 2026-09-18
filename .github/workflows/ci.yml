@@ -22,8 +22,9 @@
 #                      no compile, so it is fast.
 #   5. cppcheck      — a second, differently-implemented analyzer over the compile
 #                      database; different tools catch different things.
-#   6. fuzz-json     — a bounded (~2 min) libFuzzer run against Json::parse under ASan/UBSan,
-#                      seeded from apps/appkit/fuzz/corpus. The parser eats untrusted network
+#   6. fuzz-json     — bounded (~2 min each) libFuzzer runs against Json::parse and, since
+#                      Phase 22, the caregiver command decoder, under ASan/UBSan and
+#                      seeded from checked-in corpora. The parser eats untrusted network
 #                      bytes and already had a crash bug; this catches the next one.
 #   7. coverage      — gcov/gcovr over the test build; publishes an HTML/XML report artifact
 #                      and the line-coverage % to the run summary (and Codecov for the badge).
@@ -251,15 +252,20 @@ jobs:
           -j"$(nproc)"
 
   # ---------------------------------------------------------------------------
-  # 6. fuzz-json — a bounded, coverage-guided libFuzzer run against Json::parse, the
-  #    one parser that consumes untrusted network bytes and already had a crash bug
-  #    (Phase 6 deep-nesting stack overflow). Built with Clang under Address/Undefined
-  #    sanitizers and seeded from the checked-in corpus. Time-bounded to ~2 minutes so
-  #    it never balloons CI runtime (constraint #2); run it longer locally per
-  #    apps/appkit/fuzz/README.md. Any crash is uploaded as an artifact.
+  # 6. fuzz — bounded, coverage-guided libFuzzer runs against the two decoders that
+  #    consume untrusted bytes:
+  #      * Json::parse, which eats untrusted network bytes and already had a crash bug
+  #        (the Phase 6 deep-nesting stack overflow);
+  #      * decode_command (Phase 22), the caregiver inbound path — the only decoder
+  #        whose output changes what the device does, so its harness also asserts the
+  #        field invariants of anything it ACCEPTS, not merely that it did not crash.
+  #    Both are built with Clang under Address/Undefined sanitizers and seeded from
+  #    checked-in corpora. Each is time-bounded to ~2 minutes so they never balloon CI
+  #    runtime (constraint #2); run them longer locally per apps/appkit/fuzz/README.md.
+  #    Any crash is uploaded as an artifact.
   # ---------------------------------------------------------------------------
   fuzz-json:
-    name: Fuzz JSON parser (libFuzzer, bounded)
+    name: Fuzz untrusted decoders (libFuzzer, bounded)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -288,10 +294,10 @@ jobs:
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_FLAGS="-fsanitize=fuzzer-no-link,address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g -O1"
 
-      - name: Build fuzz target
-        run: cmake --build build-fuzz --target echo-json-fuzzer --parallel
+      - name: Build fuzz targets
+        run: cmake --build build-fuzz --target echo-json-fuzzer echo-command-fuzzer --parallel
 
-      - name: Fuzz (bounded ~2 minutes)
+      - name: Fuzz JSON parser (bounded ~2 minutes)
         run: |
           mkdir -p fuzz-artifacts
           ./build-fuzz/fuzz/echo-json-fuzzer \
@@ -299,11 +305,23 @@ jobs:
             -max_total_time=120 -timeout=10 -rss_limit_mb=2048 \
             -artifact_prefix=fuzz-artifacts/ -print_final_stats=1
 
+      # Phase 22. The caregiver command decoder, seeded with its own corpus of valid
+      # and near-valid commands. Runs even if the JSON fuzz above failed, so one
+      # finding does not hide another in a different decoder.
+      - name: Fuzz caregiver command decoder (bounded ~2 minutes)
+        if: always()
+        run: |
+          mkdir -p fuzz-artifacts
+          ./build-fuzz/fuzz/echo-command-fuzzer \
+            companion-sync/fuzz/corpus \
+            -max_total_time=120 -timeout=10 -rss_limit_mb=2048 \
+            -artifact_prefix=fuzz-artifacts/ -print_final_stats=1
+
       - name: Upload crash artifacts (only if a crash was found)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: json-fuzz-crashes
+          name: fuzz-crashes
           path: fuzz-artifacts/
           if-no-files-found: ignore
 

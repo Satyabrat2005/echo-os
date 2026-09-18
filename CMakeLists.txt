@@ -38,6 +38,15 @@ endif()
 # (constraint #1). See the CI "coverage" job and the README "Code Quality"
 # section.
 option(ECHO_COVERAGE "Instrument first-party targets for gcov/llvm-cov coverage" OFF)
+
+# Fuzz targets (Phase 8, extended in Phase 22). Declared HERE rather than inside a
+# module because there is now more than one harness — the appkit JSON reader and the
+# companion-sync caregiver command decoder — and they live in different subdirectories
+# that are added before apps/. One switch, one replay driver, N harnesses; a second
+# per-module option would be exactly the parallel mechanism this repo keeps avoiding.
+# OFF by default: fuzzing is a CI/dev tool, never a requirement for a normal build, so
+# the stub build stays zero-dependency. See apps/appkit/fuzz/README.md.
+option(ECHO_BUILD_FUZZERS "Build the fuzz harnesses (see apps/appkit/fuzz/)" OFF)
 if(ECHO_COVERAGE)
     if(MSVC)
         message(WARNING "ECHO_COVERAGE has no effect with MSVC; use a gcc/clang build")
@@ -73,6 +82,7 @@ add_subdirectory(cognitive-core)  # LLM orchestration + safe-mode + memory recal
 add_subdirectory(voice-ui)        # TTS + audio-first shell
 add_subdirectory(companion-sync)  # BLE/WiFi to caregiver app
 add_subdirectory(power-mgmt)      # DVFS / duty-cycle scheduling
+add_subdirectory(safety-mgmt)     # wandering/distress source boundary + policy (Phase 23)
 add_subdirectory(boot)            # init sequence + runtime + `echo-os` binary
 
 # --- Tests ------------------------------------------------------------------

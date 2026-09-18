@@ -15,7 +15,10 @@ option(ECHO_WITH_NETWORK "Compile the real libcurl HTTP transport for app backen
 add_library(echo-appkit STATIC
     src/net/http.cpp
     src/net/url.cpp
-    src/net/json.cpp
+    # src/net/json.cpp moved to common/src/json.cpp in Phase 22 — companion-sync's
+    # caregiver inbound path needs the same hardened decoder, and apps/ builds after
+    # the core modules. echo/apps/net/json.hpp is now an alias for echo/json.hpp;
+    # every call site here is untouched, and so is the fuzz harness.
     src/net/base64.cpp
     src/config/credentials.cpp
     src/config/token_store.cpp
@@ -23,7 +26,10 @@ add_library(echo-appkit STATIC
     src/text/readable.cpp
 )
 target_include_directories(echo-appkit PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(echo-appkit PRIVATE echo-project-options)
+# PUBLIC echo::common: the JSON reader now lives there (Phase 22), and the alias
+# header echo/apps/net/json.hpp includes echo/json.hpp, so anything linking appkit
+# needs common's include path and its object too.
+target_link_libraries(echo-appkit PUBLIC echo::common PRIVATE echo-project-options)
 add_library(echo::appkit ALIAS echo-appkit)
 
 if(ECHO_WITH_NETWORK)
@@ -46,7 +52,9 @@ add_test(NAME echo-appkit-tests COMMAND echo-appkit-tests)
 # bytes and already had a crash bug (the Phase 6 deep-nesting stack overflow). OFF
 # by default: fuzzing is an extra CI/dev tool, never a requirement for a normal
 # build, so the stub build stays zero-dependency (constraint #1). See fuzz/README.md.
-option(ECHO_BUILD_FUZZERS "Build the JSON fuzz target(s) (see apps/appkit/fuzz/)" OFF)
+#
+# ECHO_BUILD_FUZZERS moved to the root CMakeLists in Phase 22: companion-sync is added
+# before apps/, so a second harness there could not see an option declared down here.
 if(ECHO_BUILD_FUZZERS)
     # 1. Standalone replay driver — builds with ANY compiler (g++/MSVC included).
     #    Runs the harness over files named on argv: reproduce a crash or replay a

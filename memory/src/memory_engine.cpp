@@ -18,6 +18,7 @@
 
 #include "echo/memory/aes256.hpp"
 #include "echo/memory/device_key.hpp"
+#include "echo/crypto/sealed_box.hpp"
 
 #include "echo/log.hpp"
 
@@ -57,6 +58,13 @@ const char* to_string(EventKind k) noexcept {
         case EventKind::ReminderFired:        return "reminder-fired";
         case EventKind::ReminderAcknowledged: return "reminder-acknowledged";
         case EventKind::ReminderMissed:       return "reminder-missed";
+        case EventKind::SafeModeEngaged:      return "safe-mode-engaged";
+        case EventKind::UnverifiedAnswer:     return "unverified-answer";
+        case EventKind::ConsentGranted:       return "consent-granted";
+        case EventKind::ConsentRevoked:       return "consent-revoked";
+        case EventKind::CaregiverCommand:     return "caregiver-command";
+        case EventKind::WanderingFlagged:     return "wandering-flagged";
+        case EventKind::DistressFlagged:      return "distress-flagged";
     }
     return "unknown";
 }
@@ -190,11 +198,16 @@ const char* pronoun_for(const std::string& relation) {
 }
 
 // --- On-disk encrypted image format ------------------------------------------
-// Layout:  [8-byte magic "ECHOAES1"][16-byte random IV][AES-256-CTR ciphertext].
-// The ciphertext is the raw SQLite serialized image, so a plaintext SQLite file
-// (which begins "SQLite format 3\0") is trivially distinguishable from ours, and a
-// plain unkeyed sqlite3_open of our file sees ciphertext -> "not a database".
-constexpr char             kEncMagic[8]  = {'E','C','H','O','A','E','S','1'};
+// Current (v2, Phase 24, authenticated): [8-byte magic "ECHOAEM1"][16-byte random IV]
+// [AES-256-CTR ciphertext][16-byte AES-256-CMAC tag]. The tag is verified BEFORE
+// decryption on open — see unseal_image() below.
+// Legacy (v1, Phase 16, unauthenticated, read-only): [8-byte magic "ECHOAES1"]
+// [16-byte random IV][AES-256-CTR ciphertext] — no tag. See decrypt_legacy_image().
+// In both, the ciphertext is the raw SQLite serialized image, so a plaintext SQLite
+// file (which begins "SQLite format 3\0") is trivially distinguishable from either, and
+// a plain unkeyed sqlite3_open of our file sees ciphertext -> "not a database".
+constexpr char             kEncMagicV2[8]       = {'E','C','H','O','A','E','M','1'};  // Phase 24: authenticated
+constexpr char             kEncMagicV1Legacy[8] = {'E','C','H','O','A','E','S','1'};  // Phase 16: unauthenticated, read-only now
 constexpr std::string_view kSqliteMagic  = "SQLite format 3";  // first 15 bytes of any SQLite db
 
 std::vector<std::uint8_t> read_file_bytes(const std::string& path) {
@@ -209,32 +222,67 @@ bool starts_with(const std::vector<std::uint8_t>& b, const char* magic, std::siz
     return std::memcmp(b.data(), magic, n) == 0;
 }
 
-// Encrypt a serialized SQLite image into our on-disk container (magic|IV|ciphertext).
-std::vector<std::uint8_t> encrypt_image(const std::uint8_t* image, std::size_t len,
-                                        const crypto::Key256& key) {
+// Seal a serialized SQLite image into the v2 AUTHENTICATED container (Phase 24):
+// [8-byte magic "ECHOAEM1"][16-byte random IV][AES-256-CTR ciphertext][16-byte AES-256-CMAC
+// tag]. The tag covers magic||IV||ciphertext and is verified BEFORE decryption on open (see
+// unseal_image) — reusing the exact encrypt-then-MAC composition Phase 22 already proved
+// for the caregiver-link frame (common/crypto/sealed_box.hpp), rather than a second
+// hand-written "verify then decrypt" that could get the order wrong.
+std::vector<std::uint8_t> seal_image(const std::uint8_t* image, std::size_t len,
+                                     const crypto::Key256& key) {
     crypto::Block iv{};
     std::random_device rd;
     std::uniform_int_distribution<int> byte(0, 255);
     for (auto& b : iv) b = static_cast<std::uint8_t>(byte(rd));
 
+    const std::size_t header = sizeof(kEncMagicV2) + iv.size();
     std::vector<std::uint8_t> out;
-    out.reserve(sizeof(kEncMagic) + iv.size() + len);
-    out.insert(out.end(), kEncMagic, kEncMagic + sizeof(kEncMagic));
+    out.reserve(header + len + 16);
+    out.insert(out.end(), kEncMagicV2, kEncMagicV2 + sizeof(kEncMagicV2));
     out.insert(out.end(), iv.begin(), iv.end());
     out.insert(out.end(), image, image + len);
-    crypto::ctr_xcrypt(key, iv, out.data() + sizeof(kEncMagic) + iv.size(), len);
+    // Fully qualified: echo::memory::crypto (the aes256.hpp alias namespace) only
+    // re-exports Key256/Block/ctr_xcrypt/encrypt_block, not sealed_box's symbols — this
+    // is echo::crypto (common/crypto/sealed_box.hpp) directly, not the memory alias.
+    const ::echo::crypto::Mac tag = ::echo::crypto::seal_in_place(key, iv, out, header);
+    out.insert(out.end(), tag.begin(), tag.end());
     return out;
 }
 
-// Decrypt our container back to a plaintext SQLite image. Returns empty on a wrong
-// key / corruption: the decrypted bytes must begin with the SQLite magic, which is
-// our (non-cryptographic, honestly-scoped) integrity sanity check (ADR-14).
-std::vector<std::uint8_t> decrypt_image(const std::vector<std::uint8_t>& file,
-                                        const crypto::Key256& key) {
-    const std::size_t header = sizeof(kEncMagic) + 16;
-    if (file.size() < header || !starts_with(file, kEncMagic, sizeof(kEncMagic))) return {};
+// Open the v2 authenticated container. The MAC is verified BEFORE a single byte is
+// decrypted (crypto::open_in_place) — a wrong key, corruption, and deliberate tampering
+// are all indistinguishable from here on: empty on ANY failure, never a partial or garbage
+// image, and `file` itself is never touched by this function either way.
+std::vector<std::uint8_t> unseal_image(const std::vector<std::uint8_t>& file,
+                                       const crypto::Key256& key) {
+    const std::size_t header   = sizeof(kEncMagicV2) + 16;  // magic + IV
+    const std::size_t overhead = header + 16;                // + trailing CMAC tag
+    if (file.size() < overhead || !starts_with(file, kEncMagicV2, sizeof(kEncMagicV2))) return {};
+
     crypto::Block iv{};
-    std::memcpy(iv.data(), file.data() + sizeof(kEncMagic), iv.size());
+    std::memcpy(iv.data(), file.data() + sizeof(kEncMagicV2), iv.size());
+    ::echo::crypto::Mac tag{};  // see seal_image() above re: why this is fully qualified
+    std::memcpy(tag.data(), file.data() + (file.size() - tag.size()), tag.size());
+
+    std::vector<std::uint8_t> buf(file.begin(), file.end() - static_cast<std::ptrdiff_t>(tag.size()));
+    if (!::echo::crypto::open_in_place(key, iv, tag, buf, header)) return {};  // MAC mismatch -> fail closed
+    return std::vector<std::uint8_t>(buf.begin() + static_cast<std::ptrdiff_t>(header), buf.end());
+}
+
+// The legacy Phase-16 container (magic "ECHOAES1"): no MAC, read-only migration path only.
+// Kept indefinitely — there is no forced-upgrade mechanism, and a wearable may go a long
+// time between boots/updates, the same reason the Phase-15 plaintext migration below it is
+// still here one phase later. Returns empty on a wrong key / corruption: the decrypted
+// bytes must begin with the SQLite magic, the same (non-cryptographic, honestly-scoped)
+// check Phase 16 always used for this format (ADR-14) — it is no less safe now than it
+// always was; load_from_disk() rewrites it as the authenticated v2 container on next save.
+std::vector<std::uint8_t> decrypt_legacy_image(const std::vector<std::uint8_t>& file,
+                                               const crypto::Key256& key) {
+    const std::size_t header = sizeof(kEncMagicV1Legacy) + 16;
+    if (file.size() < header || !starts_with(file, kEncMagicV1Legacy, sizeof(kEncMagicV1Legacy)))
+        return {};
+    crypto::Block iv{};
+    std::memcpy(iv.data(), file.data() + sizeof(kEncMagicV1Legacy), iv.size());
     std::vector<std::uint8_t> image(file.begin() + static_cast<std::ptrdiff_t>(header), file.end());
     crypto::ctr_xcrypt(key, iv, image.data(), image.size());
     if (image.size() < kSqliteMagic.size() ||
@@ -558,6 +606,111 @@ public:
         return out;
     }
 
+    // --- Consent (Phase 22) -------------------------------------------------
+    // Stored in its own single-row table rather than as a settings key, so a grant
+    // has a timestamp and a grantor and can be read back as the record it is.
+
+    Status grant_consent(ConsentScope scope, ConsentGrantor grantor, UnixTime now) override {
+        if (!db_) return Status::NotReady;
+        if (scope == ConsentScope::None) return revoke_consent(now);
+        touch();
+
+        // One row, id=1, replaced outright. A history of grants is not kept: it would
+        // be a second, subtler record of who has been involved in the wearer's care,
+        // and nothing in this phase needs it.
+        Stmt up(db_, "INSERT INTO consent(id,scope,grantor,granted_at,revoked_at) "
+                     "VALUES(1,?,?,?,0) "
+                     "ON CONFLICT(id) DO UPDATE SET "
+                     "scope=excluded.scope,grantor=excluded.grantor,"
+                     "granted_at=excluded.granted_at,revoked_at=0;");
+        if (!up) return Status::HardwareError;
+        up.bind_int(1, static_cast<std::int64_t>(scope));
+        up.bind_int(2, static_cast<std::int64_t>(grantor));
+        up.bind_int(3, now);
+        if (!up.step_done()) return Status::HardwareError;
+
+        // A narrow event and nothing more: which scope, granted by whom. No caregiver
+        // identity, no device name, no free text about the circumstances.
+        EventRecord ev;
+        ev.kind = EventKind::ConsentGranted;
+        ev.at = now;
+        ev.summary = std::string(to_string(scope)) + " by " + to_string(grantor);
+        log_event(ev);
+        return Status::Ok;
+    }
+
+    Status revoke_consent(UnixTime now) override {
+        if (!db_) return Status::NotReady;
+        touch();
+
+        // Revocation writes through immediately and the next consent() read sees it.
+        // There is no cached scope in this class to invalidate — that is deliberate:
+        // a cache here is exactly the thing that would let a revoked link keep
+        // working for "just one more tick".
+        Stmt up(db_, "UPDATE consent SET scope=0,revoked_at=? WHERE id=1;");
+        if (!up) return Status::HardwareError;
+        up.bind_int(1, now);
+        if (!up.step_done()) return Status::HardwareError;
+
+        EventRecord ev;
+        ev.kind = EventKind::ConsentRevoked;
+        ev.at = now;
+        ev.summary = "caregiver link revoked";
+        log_event(ev);
+        return Status::Ok;
+    }
+
+    ConsentRecord consent() override {
+        ConsentRecord rec;  // defaults to None — the safe answer if anything is wrong
+        if (!db_) return rec;
+        Stmt q(db_, "SELECT scope,grantor,granted_at,revoked_at FROM consent WHERE id=1;");
+        if (!q || !q.step_row()) return rec;
+        rec.scope      = static_cast<ConsentScope>(q.col_int(0));
+        rec.grantor    = static_cast<ConsentGrantor>(q.col_int(1));
+        rec.granted_at = q.col_int(2);
+        rec.revoked_at = q.col_int(3);
+        return rec;
+    }
+
+    // --- Counting accessors (Phase 22) --------------------------------------
+    // Counted in SQL so that identifying content never leaves this module. See the
+    // interface comment: the alternative is tallying EventRecords in the link layer,
+    // which puts summaries on the code path that ends at the transport.
+
+    int count_events(EventKind kind, UnixTime since, UnixTime until) override {
+        if (!db_) return 0;
+        Stmt q(db_, "SELECT COUNT(*) FROM events WHERE kind=? AND at>=? AND at<?;");
+        if (!q) return 0;
+        q.bind_int(1, static_cast<std::int64_t>(kind));
+        q.bind_int(2, since);
+        q.bind_int(3, until);
+        return q.step_row() ? static_cast<int>(q.col_int(0)) : 0;
+    }
+
+    int count_reminders_due(UnixTime since, UnixTime until) override {
+        if (!db_) return 0;
+        Stmt q(db_, "SELECT COUNT(*) FROM reminders WHERE due>=? AND due<?;");
+        if (!q) return 0;
+        q.bind_int(1, since);
+        q.bind_int(2, until);
+        return q.step_row() ? static_cast<int>(q.col_int(0)) : 0;
+    }
+
+    int count_reminders_acknowledged(UnixTime since, UnixTime until) override {
+        // Counted from the event log rather than the acknowledged flag, because the
+        // flag is a current state and the digest asks a question about a WINDOW: a
+        // daily reminder acknowledged this morning and re-armed for tomorrow reads
+        // as unacknowledged in the reminders table and as one acknowledgement here.
+        return count_events(EventKind::ReminderAcknowledged, since, until);
+    }
+
+    int count_people() override {
+        if (!db_) return 0;
+        Stmt q(db_, "SELECT COUNT(*) FROM people;");
+        if (!q) return 0;
+        return q.step_row() ? static_cast<int>(q.col_int(0)) : 0;
+    }
+
 private:
     static PersonRecord read_person(Stmt& q) {
         PersonRecord p;
@@ -657,7 +810,18 @@ private:
             "  at INTEGER NOT NULL DEFAULT 0,"
             "  summary TEXT NOT NULL DEFAULT '',"
             "  person_id INTEGER NOT NULL DEFAULT 0,"
-            "  reminder_id INTEGER NOT NULL DEFAULT 0);");
+            "  reminder_id INTEGER NOT NULL DEFAULT 0);"
+            // Phase 22: caregiver consent. A single row (id=1) rather than a
+            // settings key, so a grant carries its scope, its grantor, and when it
+            // happened — and so revocation is a write with a timestamp, not the
+            // absence of one. Absent row == no consent, which is the safe default
+            // for an existing store upgraded in place.
+            "CREATE TABLE IF NOT EXISTS consent("
+            "  id INTEGER PRIMARY KEY CHECK(id=1),"
+            "  scope INTEGER NOT NULL DEFAULT 0,"
+            "  grantor INTEGER NOT NULL DEFAULT 0,"
+            "  granted_at INTEGER NOT NULL DEFAULT 0,"
+            "  revoked_at INTEGER NOT NULL DEFAULT 0);");
     }
 
     // Owner-only permissions on the *encrypted* file. Defense-in-depth on top of
@@ -674,20 +838,37 @@ private:
 
     void touch() noexcept { dirty_ = true; }
 
-    // Load the on-disk store into the in-memory connection. Handles three cases:
-    //   * our encrypted container -> decrypt + deserialize;
+    // Load the on-disk store into the in-memory connection. Handles four cases:
+    //   * the v2 authenticated container (Phase 24) -> verify MAC, decrypt, deserialize;
+    //   * the legacy v1 unauthenticated container (Phase 16) -> decrypt with the old
+    //     heuristic-only check, then MIGRATE (save_to_disk always writes v2, see below);
     //   * a plaintext Phase-15 SQLite file -> MIGRATE (deserialize as-is, then the
-    //     caller's save_to_disk rewrites it encrypted);
+    //     caller's save_to_disk rewrites it as the v2 authenticated container);
     //   * missing/empty -> fresh store.
-    // Returns false only when an encrypted file cannot be decrypted (wrong key).
+    // Returns false when a recognized container cannot be opened (wrong key / tampered /
+    // corrupt) OR the file matches none of the above — Phase 24 fixes what used to be a
+    // silent-data-loss bug here: an unrecognized file was previously treated as "empty" and
+    // then unconditionally overwritten with a fresh empty store on the very next
+    // save_to_disk() (which runs on every on-disk open, not gated on dirty_). Refusing to
+    // open is strictly safer than silently erasing a memory-loss patient's data.
     bool load_from_disk(const std::string& path) {
         auto bytes = read_file_bytes(path);
         if (bytes.empty()) return true;  // first boot: nothing to load
 
         std::vector<std::uint8_t> image;
-        if (starts_with(bytes, kEncMagic, sizeof(kEncMagic))) {
-            image = decrypt_image(bytes, key_);
+        if (starts_with(bytes, kEncMagicV2, sizeof(kEncMagicV2))) {
+            image = unseal_image(bytes, key_);
+            if (image.empty()) return false;  // wrong key / tampered / corrupt
+        } else if (starts_with(bytes, kEncMagicV1Legacy, sizeof(kEncMagicV1Legacy))) {
+            // Migrate a still-unauthenticated Phase-16 store forward — same "migrate on
+            // open, never discard" policy as the Phase-15 plaintext case below. Hard-failing
+            // here would mean every currently-shipping Phase-16 install refuses to open
+            // after this update, unconditionally; that is a worse failure than the gap being
+            // closed, which requires an attacker to act.
+            log_warn("memory", "found unauthenticated Phase-16 store; migrating to authenticated format");
+            image = decrypt_legacy_image(bytes, key_);
             if (image.empty()) return false;  // wrong key / corrupt
+            dirty_ = true;  // force an authenticated (v2) rewrite
         } else if (bytes.size() >= kSqliteMagic.size() &&
                    std::memcmp(bytes.data(), kSqliteMagic.data(), kSqliteMagic.size()) == 0) {
             // One-time migration of an unencrypted Phase-15 database.
@@ -696,8 +877,8 @@ private:
             migrated_ = true;
             dirty_ = true;  // force an encrypted rewrite
         } else {
-            log_error("memory", "store file unrecognized (neither encrypted nor SQLite); ignoring");
-            return true;  // treat as empty rather than clobber-refuse to boot
+            log_error("memory", "store file unrecognized (neither encrypted nor SQLite); refusing to open");
+            return false;  // fail closed — see the function comment above
         }
 
         return deserialize_image(image);
@@ -719,7 +900,10 @@ private:
         return true;
     }
 
-    // Serialize the in-memory db, encrypt it, and atomically replace the on-disk file.
+    // Serialize the in-memory db, seal it into the v2 authenticated container, and
+    // atomically replace the on-disk file. Always writes v2 — this is how a legacy Phase-16
+    // (or Phase-15 plaintext) store gets migrated forward: load_from_disk() sets dirty_ on
+    // migration, and this runs unconditionally on close.
     void save_to_disk() {
         if (!db_ || db_path_.empty() || db_path_ == ":memory:" || !have_key_) return;
         sqlite3_int64 n = 0;
@@ -729,7 +913,7 @@ private:
             log_error("memory", "could not serialize store; on-disk copy not updated");
             return;
         }
-        auto enc = encrypt_image(image, static_cast<std::size_t>(n), key_);
+        auto enc = seal_image(image, static_cast<std::size_t>(n), key_);
         sqlite3_free(image);
 
         // Atomic-ish replace: write a temp then rename over the target.

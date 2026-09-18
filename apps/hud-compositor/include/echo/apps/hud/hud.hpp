@@ -122,6 +122,10 @@ public:
     virtual void clear(std::string_view app_id) = 0;
 
     virtual void shutdown() = 0;
+
+    // True once the user has asked to quit (e.g. Esc / window-close in kiosk
+    // mode). Compositors with no interactive quit gesture never set this.
+    virtual bool should_quit() const { return false; }
 };
 
 // The available HUD renderers, all driven by the same three primitives:
@@ -129,6 +133,8 @@ enum class HudMode : std::uint8_t {
     Headless = 0,  // logs each frame (used by tests/CI)
     TerminalBand,  // draws a subtitle band to the terminal (laptop, no GUI deps)
     Window,        // real always-on-top borderless SDL overlay (Phase 3 demo);
+                   // falls back to TerminalBand when SDL isn't compiled in.
+    KioskWindow,   // fullscreen borderless "ECHO OS" shell (demo kiosk mode);
                    // falls back to TerminalBand when SDL isn't compiled in.
 };
 

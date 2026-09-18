@@ -243,6 +243,17 @@ void test_longevity_soak() {
 
     std::vector<std::int64_t> delivered_at(static_cast<std::size_t>(p.reminders), -1);
 
+    // Phase 22: the caregiver link runs for the whole week alongside everything else.
+    // Consent is granted up front and withdrawn partway through, because the property
+    // worth soaking is not "a digest can be sent" — the unit tests cover that — but that
+    // an hourly outbound heartbeat neither drifts, storms, nor leaks across 10,080 ticks,
+    // and that a revocation midway stays cold for the remaining days instead of decaying
+    // back into a live link after enough time has passed.
+    CHECK(h.memory->grant_consent(ConsentScope::Digest, ConsentGrantor::Wearer,
+                                  clock.base) == Status::Ok);
+    const long revoke_tick = p.ticks / 2;
+    std::uint64_t digests_at_revoke = 0;
+
     // Sampling + watchdog bookkeeping.
     std::vector<std::int64_t> rss_samples, fd_samples;
     long hang_episodes = 0;
@@ -293,6 +304,14 @@ void test_longevity_soak() {
             h.voice->forget();
             h.companion->forget();
         }
+
+        // Phase 22: the wearer withdraws consent halfway through the week. Recorded here
+        // rather than before the loop so the link is genuinely live first — a revocation
+        // that was never preceded by a working link proves nothing.
+        if (t == revoke_tick) {
+            digests_at_revoke = h.companion->total_digests.load();
+            CHECK(h.memory->revoke_consent(clock.now) == Status::Ok);
+        }
     }
 
     // A short quiescence: drain any still-running abandoned hang worker so leaked_workers
@@ -336,6 +355,30 @@ void test_longevity_soak() {
     CHECK(!ever_reboot);
     CHECK(final_leaked == 0);
 
+    // (c2) Phase 22, the caregiver heartbeat across a week.
+    const std::uint64_t digests_total   = h.companion->total_digests.load();
+    const std::uint64_t digests_refused = h.companion->total_digests_refused.load();
+    const double        sim_hours       = static_cast<double>(p.ticks) * p.dt_sim / 3600.0;
+
+    // The link was live for the first half, so the heartbeat must have fired roughly
+    // once an hour over those days — not once per tick, and not once and then never.
+    // A generous band: this is asserting "hourly, give or take", not a fencepost.
+    const auto expect_digests = static_cast<std::uint64_t>(sim_hours / 2.0);
+    CHECK(digests_at_revoke > expect_digests / 2);
+    CHECK(digests_at_revoke < expect_digests * 2 + 2);
+
+    // Revocation went cold and STAYED cold. This is the assertion that a whole extra
+    // simulated half-week exists to make: not that the scope flipped, but that no
+    // digest escaped in the ~3.5 days afterwards. A link that resumed on a timer, or
+    // on a reboot, or after the consent row aged out, would show up right here.
+    CHECK(digests_total == digests_at_revoke);
+
+    // And it went quiet rather than spinning. After revocation the runtime still runs
+    // caregiver_tick() every tick; if it retried the push each time instead of holding
+    // the hourly cadence, refusals would number in the thousands. Bounded by the tick
+    // count is the weak claim; bounded by roughly the remaining hours is the real one.
+    CHECK(digests_refused < static_cast<std::uint64_t>(sim_hours));
+
     // (d) RSS plateau: compare the post-warmup baseline to the end of the run.
     const bool have_res = !rss_samples.empty() && rss_samples.front() != test::kUnavailable;
     std::int64_t rss_base = 0, rss_end = 0, rss_growth_kib = 0;
@@ -370,6 +413,12 @@ void test_longevity_soak() {
         events.size(), p.retention_cap,
         static_cast<unsigned long long>(h.voice->total_spoken.load()),
         static_cast<unsigned long long>(h.companion->total_alerts.load()));
+    std::printf(
+        "[soak] caregiver: digests=%llu (%.1f/day while consented)  after_revoke=%llu  refused=%llu\n",
+        static_cast<unsigned long long>(digests_total),
+        sim_hours > 0.0 ? static_cast<double>(digests_at_revoke) / (sim_hours / 48.0) : 0.0,
+        static_cast<unsigned long long>(digests_total - digests_at_revoke),
+        static_cast<unsigned long long>(digests_refused));
     std::printf(
         "[soak] watchdog: hang_episodes=%ld  reboot=%s  peak_leaked_workers=%lld  final_leaked=%lld\n",
         hang_episodes, ever_reboot ? "YES" : "no", static_cast<long long>(peak_leaked),

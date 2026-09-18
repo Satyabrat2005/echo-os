@@ -35,6 +35,8 @@ models/**
 !models/faces/.gitkeep
 latency_log.csv
 demo_out.txt
+echo-kiosk.out.log
+echo-kiosk.err.log
 
 # Phase 15: the on-device memory store written at runtime (people/reminders/events)
 # plus SQLite's WAL/SHM sidecars. On-device data — never committed. The vendored
