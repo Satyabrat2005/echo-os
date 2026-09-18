@@ -201,6 +201,13 @@ public:
     // without unbounded recording.
     std::atomic<std::uint64_t> total_alerts{0};
 
+    // Same, for the Phase 22 digest heartbeat. Counted separately from digests_ because
+    // a 7-day soak calls forget() periodically: the vector is the recent history, this
+    // is the total. Refusals are counted too — a link that is refusing once per tick
+    // instead of once per hour is a retry storm, and only a cumulative count can see it.
+    std::atomic<std::uint64_t> total_digests{0};
+    std::atomic<std::uint64_t> total_digests_refused{0};
+
     Status connect(companion::Transport) override { connected_ = true; return Status::Ok; }
     Status send_alert(const companion::Alert& a) override {
         ++total_alerts;
@@ -212,6 +219,45 @@ public:
     Status poll_firmware_update() override { return Status::Unavailable; }
     bool   connected() const noexcept override { return connected_; }
     void   disconnect() override { connected_ = false; }
+
+    // --- Phase 22: the caregiver boundary ------------------------------------
+    void          set_consent(ConsentScope s) noexcept override { scope_ = s; }
+    ConsentScope  consent_scope() const noexcept override { return scope_; }
+
+    // Mirrors the real implementation's rule, because the runtime-level tests assert
+    // against THIS: no consent means Unavailable, and never an all-zero digest that a
+    // reader could mistake for "a quiet day".
+    Status send_digest(const companion::CaregiverDigest& d) override {
+        if (!permits_digest(scope_)) {
+            ++total_digests_refused;
+            return Status::Unavailable;
+        }
+        ++total_digests;
+        const std::lock_guard<std::mutex> lock(mu_);
+        digests_.push_back(d);
+        return Status::Ok;
+    }
+
+    // Scripted inbound: tests push commands in, the runtime drains them out. These are
+    // already-validated commands by construction — the decoder's own hostile-input
+    // tests live in caregiver_link_test.cpp, against the real decoder.
+    std::vector<companion::InboundCommand> poll_inbound(std::int64_t) override {
+        const std::lock_guard<std::mutex> lock(mu_);
+        std::vector<companion::InboundCommand> out;
+        out.swap(pending_);
+        return out;
+    }
+    std::uint32_t rejected_commands() const noexcept override { return 0; }
+    std::uint32_t rejected_frames() const noexcept override { return 0; }
+
+    void queue_inbound(companion::InboundCommand cmd) {
+        const std::lock_guard<std::mutex> lock(mu_);
+        pending_.push_back(std::move(cmd));
+    }
+    std::vector<companion::CaregiverDigest> digests() const {
+        const std::lock_guard<std::mutex> lock(mu_);
+        return digests_;
+    }
 
     std::vector<companion::Alert> alerts() const {
         const std::lock_guard<std::mutex> lock(mu_);
@@ -237,12 +283,17 @@ public:
     void forget() {
         const std::lock_guard<std::mutex> lock(mu_);
         alerts_.clear();
+        digests_.clear();
     }
 
 private:
     mutable std::mutex            mu_;
     std::vector<companion::Alert> alerts_;
     bool                          connected_ = false;
+
+    ConsentScope                            scope_ = ConsentScope::None;
+    std::vector<companion::CaregiverDigest> digests_;
+    std::vector<companion::InboundCommand>  pending_;
 };
 
 // --- fake power manager (the DVFS profile actor; not the source) -------------
@@ -313,8 +364,33 @@ public:
     Status log_event(const memory::EventRecord&) override { return Status::Ok; }
     std::vector<memory::EventRecord> recent_events(int) override { return {}; }
 
+    // --- Phase 22: consent + the counts a digest is made of -------------------
+    // Consent is held here exactly as the real store holds it: as state that is READ
+    // back, never assumed. A fake that always answered "granted" would let a
+    // revocation bug pass every runtime test.
+    Status grant_consent(ConsentScope scope, ConsentGrantor grantor,
+                         memory::UnixTime now) override {
+        consent_.scope      = scope;
+        consent_.grantor    = grantor;
+        consent_.granted_at = now;
+        consent_.revoked_at = 0;
+        return Status::Ok;
+    }
+    Status revoke_consent(memory::UnixTime now) override {
+        consent_.scope      = ConsentScope::None;
+        consent_.revoked_at = now;
+        return Status::Ok;
+    }
+    memory::ConsentRecord consent() override { return consent_; }
+
+    int count_events(memory::EventKind, memory::UnixTime, memory::UnixTime) override { return 0; }
+    int count_reminders_due(memory::UnixTime, memory::UnixTime) override { return 0; }
+    int count_reminders_acknowledged(memory::UnixTime, memory::UnixTime) override { return 0; }
+    int count_people() override { return 0; }
+
 private:
-    bool open_ = false;
+    bool                  open_ = false;
+    memory::ConsentRecord consent_;
 };
 
 }  // namespace echo::test

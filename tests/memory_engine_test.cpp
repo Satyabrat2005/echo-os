@@ -361,7 +361,7 @@ void test_encryption_at_rest() {
     auto raw = read_bytes(db);
     CHECK(!raw.empty());
     CHECK(!starts_with_str(raw, "SQLite format 3"));   // would be the header of a plaintext db
-    CHECK(starts_with_str(raw, "ECHOAES1"));           // our container magic
+    CHECK(starts_with_str(raw, "ECHOAEM1"));           // our authenticated container magic (Phase 24)
     CHECK(!contains_bytes(raw, "Priya"));
     CHECK(!contains_bytes(raw, "gardening"));
     CHECK(!contains_bytes(raw, "your daughter"));
@@ -429,9 +429,10 @@ void test_migration_from_plaintext() {
         m->close();
     }
 
-    // After migration the on-disk file is encrypted, not plaintext.
+    // After migration the on-disk file is encrypted, not plaintext — and, since save_to_disk
+    // always writes v2, authenticated (Phase 24), not the old unauthenticated container.
     auto raw = read_bytes(dst);
-    CHECK(starts_with_str(raw, "ECHOAES1"));
+    CHECK(starts_with_str(raw, "ECHOAEM1"));
     CHECK(!starts_with_str(raw, "SQLite format 3"));
     CHECK(!contains_bytes(raw, "Margaret"));
 
@@ -442,6 +443,158 @@ void test_migration_from_plaintext() {
         CHECK(!m->all_people().empty());
         m->close();
     }
+}
+
+// --- Phase 24: authenticated encryption rejects tampering --------------------
+// The v2 container's CMAC is verified BEFORE decryption. A flipped byte anywhere in the
+// IV, ciphertext, or tag must be rejected (Status::HardwareError, never a partial or
+// garbage open), and a truncated tag must be rejected too. Mirrors the tamper-test style
+// of tests/caregiver_link_test.cpp's test_secure_channel_rejects_tampering, scoped to a
+// representative sample of positions rather than every byte of a multi-KB SQLite image.
+void test_tampered_ciphertext_rejected() {
+    auto db = temp_db_path("tamper");
+    {
+        auto m = memory::make_memory_engine();
+        CHECK(m->open(db) == Status::Ok);
+        auto id = m->remember_person("Omar", "your neighbor", fixture_embedding(2), kNow);
+        CHECK(id.is_ok());
+        m->close();
+    }
+
+    auto original = read_bytes(db);
+    CHECK(original.size() > 40);  // magic(8) + iv(16) + at least some ciphertext + tag(16)
+
+    auto write_and_try_open = [&](const std::vector<std::uint8_t>& bytes) {
+        {
+            std::ofstream out(db, std::ios::binary | std::ios::trunc);
+            out.write(reinterpret_cast<const char*>(bytes.data()),
+                      static_cast<std::streamsize>(bytes.size()));
+        }
+        auto m = memory::make_memory_engine();
+        CHECK(m->open(db) == Status::HardwareError);
+        CHECK(!m->is_open());
+    };
+
+    auto flip = [&](std::size_t pos) {
+        auto tampered = original;
+        tampered[pos] ^= 0x01;
+        write_and_try_open(tampered);
+    };
+
+    flip(0);                      // magic
+    flip(8);                      // first IV byte
+    flip(23);                     // last IV byte
+    flip(original.size() / 2);    // mid-ciphertext
+    for (std::size_t i = original.size() - 16; i < original.size(); ++i) flip(i);  // every tag byte
+
+    // Truncating the trailing tag entirely must also be rejected, not silently accepted
+    // as "shorter ciphertext".
+    auto truncated = original;
+    truncated.resize(truncated.size() - 16);
+    write_and_try_open(truncated);
+
+    // Restore the untampered file and confirm it still opens cleanly — proves the checks
+    // above were rejecting the tampering, not some unrelated fixture problem.
+    {
+        std::ofstream out(db, std::ios::binary | std::ios::trunc);
+        out.write(reinterpret_cast<const char*>(original.data()),
+                  static_cast<std::streamsize>(original.size()));
+    }
+    auto m = memory::make_memory_engine();
+    CHECK(m->open(db) == Status::Ok);
+    CHECK(m->all_people().size() == 1);
+    m->close();
+}
+
+// --- Phase 24: migrating a legacy (Phase 16) unauthenticated store forward ---
+// Synthesizes a v1 "ECHOAES1" container in-test (using the already-KAT'd ctr_xcrypt
+// directly over the real Phase-15 plaintext fixture — no new fixture file needed), opens
+// it, confirms the data survives, confirms the store is rewritten as the v2 authenticated
+// container on close, and confirms a SECOND open now rejects tampering — proving the
+// migration actually re-protects the store, not just re-encodes it.
+void test_migration_from_v1_unauthenticated() {
+    using namespace echo::memory::crypto;
+
+    auto plaintext = read_bytes(echo::test::fixture_path("phase15_plaintext.db"));
+    CHECK(starts_with_str(plaintext, "SQLite format 3"));
+
+    auto dst = temp_db_path("migrate-v1");
+
+    // Pin the key ourselves — reusing the exact FIPS-197 AES-256 key already proven
+    // correct by test_aes_known_answer_vectors above — so the legacy container below can
+    // be built under a KNOWN key before the engine ever runs.
+    Key256 key{};
+    hex_to("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", key.data(), 32);
+    {
+        std::ofstream keyout(dst + ".key", std::ios::binary | std::ios::trunc);
+        keyout.write(reinterpret_cast<const char*>(key.data()),
+                      static_cast<std::streamsize>(key.size()));
+    }
+
+    // Hand-build the legacy v1 container: magic "ECHOAES1" + 16-byte IV + AES-256-CTR
+    // ciphertext, no MAC — exactly the format Phase 16 shipped. IV reused from the
+    // already-proven SP 800-38A CTR vector above, for the same reason as the key.
+    Block iv{};
+    hex_to("f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff", iv.data(), 16);
+    std::vector<std::uint8_t> legacy;
+    const char magic[8] = {'E', 'C', 'H', 'O', 'A', 'E', 'S', '1'};
+    legacy.insert(legacy.end(), magic, magic + 8);
+    legacy.insert(legacy.end(), iv.begin(), iv.end());
+    legacy.insert(legacy.end(), plaintext.begin(), plaintext.end());
+    ctr_xcrypt(key, iv, legacy.data() + 24, plaintext.size());
+    {
+        std::ofstream out(dst, std::ios::binary | std::ios::trunc);
+        out.write(reinterpret_cast<const char*>(legacy.data()),
+                  static_cast<std::streamsize>(legacy.size()));
+    }
+
+    // First open: reads the legacy container, migrates it (the fixture's people/reminders
+    // come through intact).
+    {
+        auto m = memory::make_memory_engine();
+        CHECK(m->open(dst) == Status::Ok);
+        CHECK(!m->all_people().empty());
+        m->close();  // dirty_ was set by the migration -> rewrites as v2 on close
+    }
+
+    // The on-disk file is now the v2 authenticated container, not the legacy one.
+    auto migrated = read_bytes(dst);
+    CHECK(starts_with_str(migrated, "ECHOAEM1"));
+    CHECK(!starts_with_str(migrated, "ECHOAES1"));
+
+    // And it is now genuinely authenticated: tampering the migrated file is rejected,
+    // which the original legacy format never would have caught.
+    {
+        auto tampered = migrated;
+        tampered.back() ^= 0x01;  // flip the last byte of the CMAC tag
+        std::ofstream out(dst, std::ios::binary | std::ios::trunc);
+        out.write(reinterpret_cast<const char*>(tampered.data()),
+                  static_cast<std::streamsize>(tampered.size()));
+    }
+    auto m2 = memory::make_memory_engine();
+    CHECK(m2->open(dst) == Status::HardwareError);
+}
+
+// --- Phase 24: a file that is neither format fails closed, never silently empties ---
+// This used to be treated as "empty" and silently overwritten with a fresh empty store on
+// the very next save_to_disk() (which runs on every on-disk open, not gated on dirty_) — a
+// real, pre-existing silent-data-loss bug. Refusing to open is the fix.
+void test_unrecognized_file_fails_closed() {
+    auto db = temp_db_path("garbage");
+    std::vector<std::uint8_t> garbage = {'n', 'o', 't', ' ', 'a', ' ', 's', 't', 'o', 'r', 'e'};
+    {
+        std::ofstream out(db, std::ios::binary | std::ios::trunc);
+        out.write(reinterpret_cast<const char*>(garbage.data()),
+                  static_cast<std::streamsize>(garbage.size()));
+    }
+
+    auto m = memory::make_memory_engine();
+    CHECK(m->open(db) == Status::HardwareError);
+    CHECK(!m->is_open());
+
+    // The file itself must be untouched — not overwritten with an empty encrypted store.
+    auto after = read_bytes(db);
+    CHECK(after == garbage);
 }
 
 // --- Phase 16: bounded event log ----------------------------------------------
@@ -581,13 +734,91 @@ static_assert(!std::is_constructible_v<Alert, memory::Embedding>,
 static_assert(!std::is_constructible_v<StatusReport, memory::PersonRecord>,
               "PRIVACY: a StatusReport must not be constructible from a person record");
 
+// --- Phase 22: the caregiver digest, held to the same rule -------------------
+//
+// This is the file that matters most for the digest, because this is the only
+// translation unit in the project that can name BOTH the store's raw content and
+// companion-sync's send paths. companion-sync itself cannot name memory::Embedding
+// or memory::PersonRecord at all — it does not link echo::memory, on purpose — so
+// the assertions over there are about shapes (vectors, strings, buffers). Here they
+// are about the actual types, and that is a stronger claim.
+//
+// A caregiver digest is periodic, scheduled, and read by a named person. Of every
+// payload this device can emit, it is the one where "just add the name, it would be
+// so much more useful" is most likely to be proposed, and most reasonable-sounding.
+// The answer is in these assertions rather than in anyone's judgement.
+using companion::CaregiverDigest;
+using companion::InboundCommand;
+
+template <class... Args>
+inline constexpr bool digest_invocable_with =
+    std::is_invocable_v<decltype(&ICompanionSync::send_digest), ICompanionSync&, Args...>;
+
+// The digest send path accepts NONE of the store's raw content.
+static_assert(!digest_invocable_with<memory::Embedding>,
+              "PRIVACY: no companion send path may accept a face embedding");
+static_assert(!digest_invocable_with<const memory::Embedding&>,
+              "PRIVACY: no companion send path may accept a face embedding");
+static_assert(!digest_invocable_with<memory::PersonRecord>,
+              "PRIVACY: no companion send path may accept a person record");
+static_assert(!digest_invocable_with<const memory::PersonRecord&>,
+              "PRIVACY: no companion send path may accept a person record");
+static_assert(!digest_invocable_with<memory::EventRecord>,
+              "PRIVACY: no companion send path may accept an event record");
+static_assert(!digest_invocable_with<const memory::EventRecord&>,
+              "PRIVACY: no companion send path may accept an event record");
+static_assert(!digest_invocable_with<memory::ReminderRecord>,
+              "PRIVACY: no companion send path may accept a reminder record");
+
+// And a digest cannot be MADE from any of them. Counts about a person's day are
+// derived inside the memory engine and handed over as integers; the record itself
+// never crosses the module boundary, so there is no assembly step where a name
+// could be picked up along the way.
+static_assert(!std::is_constructible_v<CaregiverDigest, memory::Embedding>,
+              "PRIVACY: a CaregiverDigest must not be constructible from a face embedding");
+static_assert(!std::is_constructible_v<CaregiverDigest, memory::PersonRecord>,
+              "PRIVACY: a CaregiverDigest must not be constructible from a person record");
+static_assert(!std::is_constructible_v<CaregiverDigest, memory::EventRecord>,
+              "PRIVACY: a CaregiverDigest must not be constructible from an event record");
+static_assert(!std::is_constructible_v<CaregiverDigest, memory::ReminderRecord>,
+              "PRIVACY: a CaregiverDigest must not be constructible from a reminder record");
+
+// THE NAMING RULE (Phase 15), as a compile-time fact. A face is bound to a name
+// only by the wearer, on-device, in the moment. An inbound caregiver command has
+// nowhere to put an embedding — not a field that gets validated and rejected at
+// run time, but no field at all — so "no inbound command may ever create a person
+// from an embedding" is a property of the type, not a property of the code that
+// happens to handle it today.
+static_assert(!std::is_constructible_v<InboundCommand, memory::Embedding>,
+              "PRIVACY: an InboundCommand must not be constructible from a face embedding");
+static_assert(!std::is_constructible_v<InboundCommand, memory::PersonRecord>,
+              "PRIVACY: an InboundCommand must not be constructible from a person record");
+
+// The consent record is the one place the store holds a permission rather than a
+// memory. It is scalars and enums for the same reason the digest is: whatever this
+// grows into, it must never become somewhere to stash a caregiver's details.
+static_assert(std::is_trivially_copyable_v<memory::ConsentRecord>,
+              "PRIVACY: a ConsentRecord must be a flat bag of scalars");
+static_assert(std::is_enum_v<decltype(memory::ConsentRecord::scope)>,
+              "PRIVACY: consent scope must be an enum, never free text");
+static_assert(std::is_enum_v<decltype(memory::ConsentRecord::grantor)>,
+              "PRIVACY: consent grantor must be an enum — WHO granted it is a role, "
+              "not a name; recording a caregiver's identity here would put a second "
+              "person's data on the wearer's device without their consent");
+
 void test_memory_content_cannot_reach_sync_path() {
     CHECK((!alert_invocable_with<memory::PersonRecord>));
     CHECK((!alert_invocable_with<memory::Embedding>));
     CHECK((!std::is_constructible_v<Alert, memory::EventRecord>));
+    // Phase 22: the same three questions, asked of the digest path.
+    CHECK((!digest_invocable_with<memory::PersonRecord>));
+    CHECK((!digest_invocable_with<memory::Embedding>));
+    CHECK((!std::is_constructible_v<CaregiverDigest, memory::EventRecord>));
+    CHECK((!std::is_constructible_v<InboundCommand, memory::Embedding>));
     std::printf("[memory] structural privacy guarantee holds: the memory store's raw "
                 "content (embeddings, person records, events) has no path to "
-                "companion-sync (enforced at compile time)\n");
+                "companion-sync — not through alerts, not through status, and not "
+                "through the Phase-22 caregiver digest (enforced at compile time)\n");
 }
 
 }  // namespace
@@ -606,6 +837,10 @@ int main() {
     test_aes_known_answer_vectors();
     test_encryption_at_rest();
     test_migration_from_plaintext();
+    // Phase 24 — authenticated encryption at rest.
+    test_tampered_ciphertext_rejected();
+    test_migration_from_v1_unauthenticated();
+    test_unrecognized_file_fails_closed();
     test_event_log_retention_bounded();
     test_notes_growth_bounded();
     test_memory_content_cannot_reach_sync_path();

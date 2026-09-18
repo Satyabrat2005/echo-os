@@ -42,6 +42,13 @@ add_test(NAME echo-voice COMMAND echo-voice-tests)
 echo_add_core_test(echo-companion-tests companion_sync_test.cpp echo::common echo::companion)
 add_test(NAME echo-companion COMMAND echo-companion-tests)
 
+# crypto primitives (Phase 24): AES-256-CMAC pinned against the published NIST SP 800-38B
+# Appendix D.3 vectors — closes the gap between cmac.cpp's header comment (which has
+# claimed this test's existence since Phase 22) and reality. AES-256-CTR already has its
+# own KAT in echo-memory-tests below; this is CMAC's equivalent.
+echo_add_core_test(echo-crypto-tests crypto_test.cpp echo::common)
+add_test(NAME echo-crypto COMMAND echo-crypto-tests)
+
 # memory engine (Phase 15): real SQLite-backed store against fixture embeddings —
 # CRUD, recurrence, the no-auto-create rule, the RAG medication query, utterance
 # parsing, and a COMPILE-TIME extension of the companion-sync privacy proof (hence
@@ -102,6 +109,26 @@ add_test(NAME echo-soak COMMAND echo-soak-tests)
 # for the policy-verified vs. hardware-unvalidated split.
 echo_add_core_test(echo-power-mgmt-tests power_mgmt_test.cpp echo::runtime)
 add_test(NAME echo-power-mgmt COMMAND echo-power-mgmt-tests)
+
+# --- Phase 22: the caregiver boundary ----------------------------------------
+# Drives the REAL memory engine, the REAL AES-256-CTR+CMAC secure channel, the REAL
+# hardened JSON command decoder and rate limiter, and the REAL CaregiverLink through
+# the in-process/loopback transports — asserting at RUN time what the static_asserts
+# in companion_sync_test.cpp / memory_engine_test.cpp assert at COMPILE time: that a
+# digest built from a store full of names carries none of them. Links echo::runtime
+# (for boot/caregiver_link.hpp), which transitively brings memory + companion.
+# Fully in the dependency-free stub build: no BLE stack, no libcurl, no network.
+echo_add_core_test(echo-caregiver-link-tests caregiver_link_test.cpp echo::runtime)
+add_test(NAME echo-caregiver-link COMMAND echo-caregiver-link-tests)
+
+# --- Phase 23: wandering & distress detection --------------------------------
+# Mirrors Phase 18's power-mgmt test exactly: pure policy (Layer 1) plus the same
+# fault-injection-style DI seam through the real runtime (Layer 2), now injecting
+# deterministic FAKE location/arousal sources. Fully in the dependency-free stub build:
+# no real geofence/GPS chip or biometric sensor. See docs/STATE.md for the
+# policy-verified vs. hardware-unvalidated split (same split as power-mgmt's gap).
+echo_add_core_test(echo-safety-mgmt-tests safety_mgmt_test.cpp echo::runtime)
+add_test(NAME echo-safety-mgmt COMMAND echo-safety-mgmt-tests)
 
 # --- Phase 11: REAL engine verification (only when the engine is compiled in) --
 # These targets drive the REAL whisper.cpp / OpenCV / Piper engines (not the

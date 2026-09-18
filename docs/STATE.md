@@ -5,12 +5,22 @@ validation, how well it's tested, and what quality gates are in place. This is
 the document to read first — a YC partner or a new engineer should be able to
 trust every line of it. It is an internal reference, not marketing copy.*
 
-Last updated: Phase 21 (the answer-side safe-mode gate — the gate now scores what ECHO *says*,
-not only what it heard. A question about the wearer's own life is answered from the record or
-not at all, the LLM is no longer the fallback when the store has nothing, and an ungrounded turn
-returns the new `ResponseKind::Unverified`. Read the "What Phase 21 does NOT do" subsection with
-the rest: this does not detect a confidently wrong answer in general, and does not claim to.
-See the dedicated section below).
+Last updated: Phase 24 (security hardening round 2 — the at-rest store gets the same
+encrypt-then-MAC treatment Phase 22's caregiver channel already proved: AES-256-CTR is now
+authenticated with AES-256-CMAC, verified before a single byte is decrypted, closing the gap
+ADR-14 self-flagged. Key binding to a per-install OS fingerprint is available, opt-in and off
+by default, since it introduces a real fingerprint-drift data-loss risk an attacker doesn't.
+Phase 23 gave `AlertKind::Wandering`/`::Distress` their first-ever production producers,
+following Phase 18's power-mgmt template exactly — see gap #16 for what's simulated versus
+real. Both phases are written but **not yet built or test-run on this machine**: no CMake/
+MinGW toolchain was on PATH at implementation time; see each phase's ledger entry for the
+exact verification commands still owed).
+Earlier: Phase 21, the answer-side safe-mode gate — the gate scores what ECHO *says*, not only
+what it heard. A question about the wearer's own life is answered from the record or not at
+all, the LLM is no longer the fallback when the store has nothing, and an ungrounded turn
+returns `ResponseKind::Unverified`. Read the "What Phase 21 does NOT do" subsection with the
+rest: this does not detect a confidently wrong answer in general, and does not claim to. See
+the dedicated section below.
 Source of truth for every claim is the repo at this commit; nothing here is aspirational unless
 explicitly labelled.
 
@@ -52,6 +62,27 @@ never phones home, and its raw content **provably cannot reach `companion-sync`*
 so the store stays bounded, or any use by a real wearer — see the Phase 15 section
 below.
 
+**New in Phase 22 — a caregiver can be told how the week went, without being told
+anything about it.** The one requirement every earlier phase deferred, because it looks
+like it contradicts the privacy proof: a caregiver genuinely needs to know whether the
+tablets are being taken and whether this week is worse than last. Phase 22 resolves it
+by observing that those questions are all *counts*, and defining what may cross as a
+**type** — a `CaregiverDigest` of seven counters, two timestamps and two enums, 46 fixed
+bytes on the wire, with no string field anywhere and no constructor that will accept a
+`PersonRecord`, an `EventRecord` or an `Embedding`. The Phase-10/15 compile-time proof
+was not weakened to make room for it; it was **extended and re-verified by inverting
+assertions and confirming the build fails**. The link is built only under a consent
+record that is persisted, scoped, and re-read every tick so revocation goes cold
+immediately; with no consent the answer is `Unavailable`, never an all-zero digest that
+would read as "nothing happened today". The inbound direction is treated as hostile:
+sealed, replay-checked, schema-validated, rate-limited, and announced to the wearer
+before anything is applied — and no inbound command can create a person from an
+embedding. What this phase **explicitly does not do**: there is **no caregiver app**. It
+builds the device half of the boundary plus an honest test double for the other half;
+real BLE GATT is a documented stub that returns `Unavailable`, and firmware signature
+verification **fails closed** because the only scheme available would have been worse
+than none. See the Phase 22 section, gap #15, and ADR-19.
+
 ## What's built and verified ✅
 
 | Area | Status | Evidence |
@@ -62,6 +93,8 @@ below.
 | Safe-mode gate, INPUT side (principle #5) | **Built & tested** | [`cognitive_core.cpp`](../cognitive-core/src/cognitive_core.cpp), threshold 0.72; degrades on failure |
 | **Safe-mode gate, ANSWER side** (grounding + a degeneracy floor) | **Built & tested** (Phase 21) | [`cognitive_core.cpp`](../cognitive-core/src/cognitive_core.cpp) + [`utterance.hpp`](../memory/include/echo/memory/utterance.hpp); `echo-answer-gate` drives the real core + real memory store with a scripted LLM ([`tests/fake_llm.hpp`](../tests/fake_llm.hpp)) through the private DI seam. A question about the wearer's own life is answered **from the record or not at all** — the LLM is not consulted; an ungrounded turn returns the new `ResponseKind::Unverified`. **Catches degenerate and autobiographical fabrication; does NOT detect a confidently wrong answer in general — see the Phase 21 section and ADR-18** |
 | Privacy-by-shape companion transport (principle #4) | **Built & tested** | [`companion_sync.hpp`](../companion-sync/include/echo/companion/companion_sync.hpp) — "no API accepts a `SensorFrame`" is now a compile-time assertion in `echo-companion` |
+| **Caregiver boundary: a consented digest of counts and states** | **Device half built & tested; the other half is a test double** (Phase 22) | [`caregiver_digest.hpp`](../companion-sync/include/echo/companion/caregiver_digest.hpp) — 7 counters, 2 timestamps, 2 enums, **46 fixed bytes on the wire**, no string anywhere; struct *and* per-field `static_assert`s generated from one X-macro list so the proof can't go stale. Built only under a persisted, re-read-every-tick consent record; no consent ⇒ `Unavailable`, never an empty digest. `echo-caregiver-link` (11 behaviours) proves the digest carries none of the names/relations/medications in the store, byte-for-byte on the wire, and that 20 more people change the frame size by **zero bytes**. **There is no caregiver app — this is the device half plus an honest test double; real BLE is a documented stub; see gap #15 and ADR-19** |
+| **Hostile-input handling on the caregiver inbound path** | **Built & tested** (Phase 22) | [`inbound.hpp`](../companion-sync/include/echo/companion/inbound.hpp) + [`secure_channel.hpp`](../companion-sync/include/echo/companion/secure_channel.hpp): AES-256-CTR + CMAC encrypt-then-MAC, replay and direction binding; commands length-capped, schema-validated on the Phase 6 hardened parser, rate-limited, and announced to the wearer before applying. Every bit-flip of every byte, every truncation, a foreign key, a reflection and a replay are refused; 3 200 mutated payloads decode without a crash. **The naming rule holds end to end: an inbound `enrol_name` yields a person with an empty embedding and `recognize()` still doesn't match.** Firmware signature verification **fails closed** — no scheme implemented, every image refused |
 | End-to-end core turn (sensor→perception→cognitive→voice) | **Built & tested** | fixture audio → safe-mode fallback spoken, asserted in `echo-e2e-fixture` |
 | Apps layer: 8 apps as real supervised processes | **Built & tested** | IPC round-trip + crash containment in `echo-apps-smoke` |
 | Hard core/apps isolation in the build graph | **Built** | `echo::app-sdk` links no core module (CMake-enforced) |
@@ -105,6 +138,8 @@ evidence exists.
 | 12 | **Real battery/thermal sensor + real device power/thermal behaviour** | 18 | the power/thermal POLICY (duty-cycle, throttle, reminder priority) is CI-tested against simulated readings, but there is no real fuel gauge or skin-adjacent thermal sensor to read — the backend is a documented stub. Whether these throttle levels keep a temple-worn device comfortable, and whether the low-battery reminder pass fires with enough power left to matter, needs the real hardware. **This is a permanent-until-hardware gap, not a temporary one closeable by more code** (see the Phase 18 section) |
 | 13 | **A real mic in a real room** | 19 | Phase 19 measures ASR/wake-word degradation against *synthetic* noise beds mixed into *clean* clips at defined SNRs — real, honest, and CI-provable, but still not a real microphone's frequency response, echo off real walls, or a real human speaking while moving. This **narrows** the live-hardware risk (gap #4) with measured evidence; it does not eliminate it. **Permanent-until-hardware**, like gap #12 (see the Phase 19 section) |
 | 14 | **Real third-party engine-library uptime over real days** | 20 | Phase 20's soak proves the ORCHESTRATION layer (runtime loop, scheduler, retention, watchdog, memory store) doesn't leak or drift over 7 *simulated* days with *fake* engines. It does **not** instrument the real engine libraries — whisper.cpp, llama.cpp, OpenCV, ONNX Runtime — so a slow leak *inside* one of those over genuine multi-day wall-clock uptime would not be caught here. Needs the real engines running on real hardware for real days (a superset of gaps #1/#4). **Permanent-until-hardware**, like gaps #12/#13 (see the Phase 20 section) |
+| 15 | **A real caregiver app, a real radio, and a real pairing ceremony** | 22 | Phase 22 builds **the device half of the caregiver boundary plus an honest test double for the other half** — nothing more. There is no caregiver app: the "other side" is a deterministic in-process fake and a loopback transport, both of which run entirely inside one process with no network. Real BLE GATT is a documented stub that returns `Unavailable` and says so. The pairing key is derived out-of-band in a supervised session and reuses Phase 16's `device_key.hpp`; **what pairing does not do** is authenticate *who is holding the paired phone*, and there is no revocation path for a stolen key short of re-pairing (the same honesty ADR-14 applied to AES-CTR being unauthenticated). Firmware signature verification **fails closed** — no scheme is implemented, `scheme()` returns `"none (fail-closed)"`, and every image is refused — because the alternative on offer, a symmetric MAC under the pairing key, would let any paired phone flash the glasses while *looking* like verification. Closing this gap needs a second application, a real radio, and a real person doing a real pairing session. **Permanent-until-hardware**, like gaps #12/#13/#14 (see the Phase 22 section) |
+| 16 | **Real location/geofence and biometric/prosody sensing** | 23 | `AlertKind::Wandering` and `::Distress` (dormant since Phase 1, see gap history) now have real producers: the wandering/distress POLICY (zone/arousal state + dwell-based risk bands, edge-triggered caregiver alerts) is CI-tested against *simulated* readings, exactly like Phase 18's power/thermal policy. But there is no real geofence/GPS chip and no real biometric/prosody classifier to read on this dev laptop or the not-yet-existing glasses — `make_location_source()`/`make_arousal_source()` are documented stubs that always report the safe state (there is no plausible varying value to fake, unlike battery drain, so unlike Phase 18's stub it doesn't even simulate drift). Whether the chosen grace-period thresholds (5 min at a boundary, 2 min fully away, 10–30 s of elevated arousal) are clinically right for a real wearer is entirely unvalidated. **Permanent-until-hardware**, like gaps #12/#13/#14/#15 (see the Phase 23 section) |
 
 The README's Phase 4/5 tables are the canonical place these numbers get filled in
 **during** the real bring-up, and are deliberately left as `_—_` placeholders
@@ -322,18 +357,28 @@ Consequences, stated plainly (see [ADR-14](DECISIONS.md)):
   garbage, and the stored names do not appear in it (both **asserted** in
   `test_encryption_at_rest`). The plaintext SQLite image **never touches disk** — it
   lives only in process RAM.
-- **What it does NOT buy:** it is **not** authenticated (no MAC; a wrong key / corruption
-  is caught only by a post-decrypt SQLite-magic sanity check, and the engine fails
-  **closed**), and it is **not** hardware-backed — an attacker with live read access to
-  both the `.db` and the key file can decrypt. Durability is at **checkpoint** (close +
-  the retention tick), not per-transaction, and the whole DB is resident in RAM — both
+- **What it did NOT buy, until Phase 24 ([ADR-21](DECISIONS.md)):** it was not
+  authenticated — a wrong key / corruption was caught only by a post-decrypt
+  SQLite-magic sanity check, not a MAC. Phase 24 closes this: the container is now
+  encrypt-then-MAC (AES-256-CTR + AES-256-CMAC, reusing Phase 22's already-proven
+  primitives — see `common/crypto/sealed_box.hpp`), verified before a single byte is
+  decrypted, versioned (`"ECHOAEM1"`), with a Phase-16 store migrated forward on open
+  rather than hard-failed. **Still not hardware-backed by default** — an attacker with
+  live read access to both the `.db` and the key file can still decrypt. An opt-in,
+  off-by-default per-install key binding (`ECHO_MEMORY_KEY_BIND=1`) raises that bar for
+  a *copied* file without an attacker present on the same machine, but is explicitly
+  not a TPM/secure-enclave equivalent and introduces its own fingerprint-drift risk —
+  see ADR-21 for the full trade-off. Durability is at **checkpoint** (close + the
+  retention tick), not per-transaction, and the whole DB is resident in RAM — both
   acceptable for a wearable's small store, and the reason Part 2 bounds its growth.
 
 **Key management — said accurately.** The AES key is a random **per-device key**,
 generated once at first boot into a local key file with owner-only permissions — the
 same "least-bad local option" already used for OAuth secrets in appkit's
 `.echo-tokens/`. It is honestly a protected local key file, **not** a secure-enclave
-key; binding it to a TPM or a paired phone is the follow-up ([ADR-14](DECISIONS.md)).
+key. Phase 24 adds an optional, off-by-default software binding to a per-install OS
+fingerprint (ADR-21); true TPM/paired-phone hardware binding remains the follow-up
+and a permanent-until-hardware gap.
 
 **Migration — a Phase-15 wearer's data is not discarded.** On open, an existing
 **unencrypted** Phase-15 `memory.db` (detected by the `SQLite format 3` magic) is
@@ -699,7 +744,7 @@ has nothing was the one case where we answered from the model anyway.
 | `LlmReply::confidence` from real logits (softmax over the sampled token, meaned) | [`cognitive-core/src/llm.cpp`](../cognitive-core/src/llm.cpp) |
 | The DI seam that made this testable at all | [`cognitive-core/src/core_factory.hpp`](../cognitive-core/src/core_factory.hpp), [`tests/fake_llm.hpp`](../tests/fake_llm.hpp) |
 | Repeated-abstention trend → `AlertKind::LowConfidenceTrend` (dormant since Phase 1) | [`boot/src/runtime.cpp`](../boot/src/runtime.cpp) |
-| 15 suites, stub build | [`tests/answer_gate_test.cpp`](../tests/answer_gate_test.cpp) → `echo-answer-gate` |
+| 14 suites, stub build | [`tests/answer_gate_test.cpp`](../tests/answer_gate_test.cpp) → `echo-answer-gate` |
 
 **Verified by mutation, not just by green.** A passing test proves nothing unless it
 would have failed before. Removing the grounding branch makes **9 checks across 4
@@ -747,13 +792,173 @@ Stated plainly, because the difference is easy to overclaim:
   is real work; it is small next to `llama_decode` itself, but "small next to" is a
   reasoned expectation, not a measurement.
 
+## Phase 22 — the caregiver boundary (a consented link that doesn't break the privacy proof)
+
+**What this phase is, in the words the spec asked for: this builds the device half of
+the caregiver boundary plus an honest test double for the other half. There is no
+caregiver app. Do not read anything below as claiming one exists.**
+
+The problem Phase 22 answers is the one every previous phase deferred: a caregiver
+genuinely needs to know how the week is going, and the whole architecture up to here
+was built to make sure nothing about the wearer's life can leave the device. Those
+requirements are only in conflict if the answer has to be *content*. It doesn't. "Did
+she take her tablets" is a count. "Is she more confused than last week" is a count.
+"Is she up at night" is a count. So the boundary is defined by a **type** whose fields
+are all counts and states, and the rest is proven to still be impossible.
+
+### What may cross, as a type
+
+[`caregiver_digest.hpp`](../companion-sync/include/echo/companion/caregiver_digest.hpp)
+defines `CaregiverDigest`: seven `std::uint32_t` counters, two `std::int64_t`
+timestamps, two enums. **46 bytes on the wire**, big-endian, field by field. No name, no
+embedding, no free-text note, no event `summary`, no `std::string` anywhere.
+
+The struct **and** its per-field assertions are generated from one X-macro list
+(`ECHO_CAREGIVER_DIGEST_FIELDS`), so a field cannot be added without the proof
+following it automatically — the proof cannot fall out of date because it is not a
+separate list that someone has to remember to update.
+
+The compile-time proof deliberately lives in two translation units:
+
+| Where | What it can prove | Why there |
+|---|---|---|
+| [`tests/companion_sync_test.cpp`](../tests/companion_sync_test.cpp) | *Shapes*: no send path accepts a `SensorFrame`; the digest is not constructible from `std::string`, `const char*`, `std::vector<float>`, a byte buffer or an `Alert`; every field is scalar-or-enum; the struct is trivially copyable and standard-layout | `companion-sync` does **not** link `echo::memory` (on purpose), so it cannot name the memory types |
+| [`tests/memory_engine_test.cpp`](../tests/memory_engine_test.cpp) | The *actual types*: no send path and no digest constructor accepts `memory::Embedding`, `PersonRecord`, `EventRecord` or `ReminderRecord`; **the naming rule** — `InboundCommand` is not constructible from an `Embedding` — as a compile-time fact; `ConsentRecord::grantor` is an enum | The only TU that links both `echo::memory` and `echo::companion`, so it can make the strictly stronger claim |
+
+**The Phase-15/16 inverted-assertion discipline was re-run, and both halves bite.**
+Temporarily adding `X(std::string, caregiver_note)` to the field list broke the build
+in **five** distinct places across two files. Temporarily flipping the
+`!digest_invocable_with<memory::PersonRecord>` clause positive broke the cross-module
+assertion, proving it is not vacuously true. Both were reverted; neither shipped.
+
+The strongest *run-time* statement of the same property is in
+[`tests/caregiver_link_test.cpp`](../tests/caregiver_link_test.cpp): a store is filled
+with names, relations, medications and event summaries, a digest is built, sealed and
+put on a real loopback transport, and the test asserts the needles appear neither in
+the ciphertext nor in the plaintext a peer opens — and then that **adding 20 more people
+with very long names changes the frame size by zero bytes**. A 46-byte frame that is
+46 bytes regardless of what the store contains cannot be carrying the store.
+
+### Consent, held on-device and revocable
+
+Consent is a **record**, not a flag: scope, grantor, granted-at, revoked-at, persisted
+in the encrypted store. It is **re-read from the store every tick and never cached**,
+which is the line that makes revocation cold on the next one. With no consent,
+`send_digest()` returns `Unavailable` — **never** an empty digest, because an all-zero
+digest reads as "nothing happened today", which is a factual claim about the wearer
+that the device has no right to make when it has been told not to speak. Someone could
+decide not to drive over because of it.
+
+The grantor is an **enum** (`Wearer` / `CaregiverSupervised`, the latter being a
+supervised pairing session, which exists precisely because the wearer may not be able
+to work the pairing flow alone — the two acts are not equivalent and a later reviewer
+needs to tell them apart), not
+a name — who granted consent is a role, and recording a caregiver's identity would put
+a second person's data on the wearer's device without *their* consent. Grants and
+revocations log exactly one narrow event each; the test asserts the summaries are under
+80 characters and carry no identifier.
+
+If the consent read itself fails, the link **holds closed** for that tick.
+
+### A real transport boundary
+
+`ICompanionTransport` (the ADR-9 shape) with three implementations: a deterministic
+in-process fake, a loopback pair (an honest stand-in for the protocol layer), and a
+**real BLE backend that is a documented stub** — it returns `Unavailable` and logs that
+there is no radio on this build. It is not faked.
+
+Frames are sealed with **AES-256-CTR + AES-256-CMAC, encrypt-then-MAC**, under a pairing
+key derived once out-of-band in a supervised session, reusing Phase 16's
+`device_key.hpp` rather than inventing a third key store. `open()` checks in this order:
+length → version → declared length → **MAC** → direction → replay → decrypt. The test
+flips **every single bit of every byte** of a sealed frame (53 positions) and asserts
+zero acceptances, then does the same for every truncation length, a foreign key, a
+reflected frame (`WrongDirection`), and a replay.
+
+**What pairing does not give you**, stated as precisely as ADR-14 was about AES-CTR: it
+does not authenticate *who is holding the paired phone*, and a stolen key has no
+revocation path short of re-pairing.
+
+### The inbound path is treated as hostile
+
+Every inbound command is length-capped, schema-validated on the Phase 6 hardened parser
+(depth cap 200, malformed → Null, never throws), rate-limited (a burst of 5, refill over
+60 s, a daily ceiling of 50 against a patient authenticated peer), announced to the
+wearer before it is applied (ADR-10 in spirit), and refused if it is stale or replayed.
+
+**The naming rule stands.** An inbound `enrol_name` creates a person with an **empty
+embedding**, and the test proves `recognize()` still does not match that person
+afterwards — a caregiver can pre-register that a granddaughter named Margaret exists,
+and cannot attach a face to her from off-device. `InboundCommand` is not constructible
+from an `Embedding`, at compile time, in the TU that can name the type.
+
+**Firmware fails closed, and this doc says so plainly.** The scaffold's TODO promised
+signature verification and then returned `Unavailable`, so the promise was never
+exercised. There is no asymmetric verification key on this device, and the available
+alternative — a symmetric MAC under the pairing key — would be *worse than nothing*,
+because it would let any paired phone flash the glasses while looking like
+verification. So every offered image now goes through an `IFirmwareVerifier`, the only
+verifier that exists refuses everything, and `scheme()` returns `"none (fail-closed)"`.
+No path half-verifies.
+
+A bug found and fixed while writing the tests: `decode_command` reported a wholly
+**absent** text field as `BadField` rather than `MissingField`. It never changed the
+decision — both are refused — but a reason code that misdirects the reader is worse than
+none, so absent and present-but-invalid are now distinct. A second, sharper finding was
+in the *test*: a case meant to prove an embedded NUL is refused had the NUL written as a
+raw byte in the source, which MSVC silently drops — the case compiled to the harmless
+text `"ab"` and had been passing while testing nothing. It now splices the byte in at
+run time and asserts the byte is really there, so it cannot quietly revert.
+
+### Verification
+
+| Claim | Where |
+|---|---|
+| 15 suites, stub build (was 14) | [`tests/caregiver_link_test.cpp`](../tests/caregiver_link_test.cpp) → `echo-caregiver-link`, 11 behaviours |
+| Digest built only under consent; consent survives a reboot | `test_digest_requires_consent` |
+| Revocation immediate on all three sides (store, enforcement, construction) and survives a reboot | `test_revocation_is_immediate` |
+| Digest carries no identifying content — field-by-field at run time, and byte-level on the wire | `test_digest_carries_no_identifying_content` |
+| Sealed channel refuses every bit-flip, truncation, foreign key, reflection and replay | `test_secure_channel_rejects_tampering` |
+| Malformed, oversized (>4 KiB), deeply-nested (600 levels) and forbidden-field payloads refused, each with a named reason | `test_inbound_commands_are_validated` |
+| 3 200 deterministically-mutated payloads decoded without a crash; everything accepted still satisfies every field invariant | `test_inbound_decoder_survives_hostile_input` |
+| Inbound reminder validated → rate-limited → announced → applied | `test_inbound_command_is_announced_and_applied` |
+| Firmware with absent or bad signature refused | `test_firmware_fails_closed` |
+| Digest/heartbeat path over 7 simulated days | [`tests/soak_test.cpp`](../tests/soak_test.cpp) — `digests=85 (24.3/day while consented) after_revoke=0 refused=0` |
+| The Phase 6 fuzz corpus, plus a new command-shaped corpus, aimed at the new decoder | [`companion-sync/fuzz/command_fuzz.cpp`](../companion-sync/fuzz/command_fuzz.cpp), `echo-command-fuzzer` in the CI fuzz job |
+
+The soak line is the one worth reading twice. Consent is granted at the start, withdrawn
+at the halfway mark, and the run continues for another ~3.5 simulated days: the
+heartbeat fired hourly while consented (24.3/day), **zero** digests escaped afterwards,
+and there was no retry storm. A link that resumed on a timer, on a reboot, or after the
+consent row aged out would have shown up right there.
+
+The new fuzz harness models the strongest realistic attacker — one who **holds the
+pairing key**, i.e. a compromised caregiver phone — because everything below the MAC is
+proven separately by the bit-flip test. It asserts more than "did not crash": it asserts
+the field invariants of anything the decoder *accepts*, since a malformed command that
+is accepted is worse than one that crashes. It reaches the wearer.
+
+### What Phase 22 does NOT do
+
+- **There is no caregiver app.** Again, in the spec's words: this is the device half of
+  the boundary plus an honest test double for the other half. The in-process and
+  loopback transports run inside one process. Nothing has ever been sent to a phone.
+- **There is no radio.** Real BLE GATT is a documented stub returning `Unavailable`.
+- **Pairing is not identity.** It binds two endpoints that already share a key; it says
+  nothing about who is holding the far end, and a stolen key needs re-pairing.
+- **Firmware update does not work** — by design, and that is the honest state, not a
+  temporary one. See gap #15.
+- **None of this has run on hardware.** Like every other latency and power number in this
+  project, the cost of the hourly digest on a real radio is a reasoned expectation, not
+  a measurement.
+
 ## Quality gates in place (CI)
 
 Every push and PR to `master` runs [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 | Gate | What it enforces |
 |------|------------------|
-| **Stub build + full ctest** | dependency-free build, all fast suites (incl. Phase 15 `echo-memory`, the memory-enriched `echo-e2e-fixture`, Phase 17 `echo-fault-injection`, Phase 18 `echo-power-mgmt`, and Phase 21 `echo-answer-gate`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps. The longer Phase 20 `echo-soak` is excluded here and runs in its own job (below) so per-PR feedback stays fast |
+| **Stub build + full ctest** | dependency-free build, all fast suites (incl. Phase 15 `echo-memory`, the memory-enriched `echo-e2e-fixture`, Phase 17 `echo-fault-injection`, Phase 18 `echo-power-mgmt`, Phase 21 `echo-answer-gate`, and Phase 22 `echo-caregiver-link`) — the always-green safety net. The vendored SQLite amalgamation compiles in-tree here with zero external deps. The longer Phase 20 `echo-soak` is excluded here and runs in its own job (below) so per-PR feedback stays fast |
 | **Longevity soak** (Phase 20) | its own dependency-free job builds & runs `echo-soak` — the real runtime + real memory engine through **7 simulated days** (10,080 ticks, virtual clock) — asserting reminder drift, retention boundedness, RSS plateau, fd stability, and watchdog-recovery worker-leak stability. Scoped like the real-LLM job (separate, time-bounded) so it never slows the fast suites |
 | **clang-tidy / cppcheck scope** | both now cover the first-party `memory/` code; the vendored `memory/vendor/sqlite3/` amalgamation is **excluded** from both (upstream C we compile but do not lint) |
 | **Network build** | `-DECHO_WITH_NETWORK=ON` compiles & links libcurl; appkit/apps tests pass on a clean machine (no live API calls) |

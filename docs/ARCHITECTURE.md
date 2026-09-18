@@ -25,13 +25,18 @@ flowchart TB
     POWER["<b>power-mgmt</b><br/>observes whole loop →<br/>Idle / Interactive / Throttled"]
     POWER -.->|DVFS / duty cycle| CORE
 
-    MEM["<b>memory</b> (Phase 15)<br/>people · reminders · events<br/>local SQLite — on-device only<br/><b>▶ no path to companion-sync ◀</b>"]
+    MEM["<b>memory</b> (Phase 15)<br/>people · reminders · events<br/>local SQLite — on-device only<br/><b>▶ no CONTENT path to companion-sync ◀</b><br/>counts &amp; states only, under consent (Phase 22)"]
     COG -.->|"recall · name<br/>[route:memory]"| MEM
     MEM -.->|"enriched recall /<br/>due reminder"| VOICE
 
-    COMP["<b>companion-sync</b><br/>BLE / WiFi to caregiver app<br/><b>alerts · status · firmware ONLY</b><br/>— never raw sensor data, never memory —"]
+    COMP["<b>companion-sync</b><br/>BLE / WiFi to caregiver app<br/><b>alerts · status · firmware · digest ONLY</b><br/>— never raw sensor data, never memory —"]
     COG -.->|flag caregiver<br/>on safe-mode| COMP
     VOICE -.->|status| COMP
+    MEM -.->|"<b>counts only</b> (Phase 22)<br/>under a consent record"| COMP
+    COMP -.->|"validated · rate-limited<br/>· announced (Phase 22)"| VOICE
+
+    PEER["<b>caregiver side</b> — NOT BUILT<br/>in-process fake + loopback stand-in<br/>real BLE GATT = documented stub"]
+    COMP <-.->|"sealed frames<br/>AES-256-CTR + CMAC"| PEER
 
     subgraph APPS["📱 Apps layer — separate OS processes, HARD ISOLATION from core"]
         direction TB
@@ -55,7 +60,7 @@ flowchart TB
     end
     A8 -.->|"--mock (default) / --real<br/>+ ECHO_WITH_NETWORK build"| EXT
 
-    class SPOT,GML,GS,YT mock;
+    class SPOT,GML,GS,YT,PEER mock;
     style CORE fill:#f0f6ff,stroke:#3366cc
     style APPS fill:#f6fff0,stroke:#339933
     style EXT fill:#f7f7f7,stroke:#999999
@@ -96,8 +101,9 @@ asserted by a unit test — a build-enforced contract, not a comment.
 `power-mgmt` observes the whole loop and trades duty cycle for thermal headroom
 without stuttering an in-flight response — as of Phase 18 it duty-cycles vision on
 battery and throttles inference on temperature, wired into the Phase-17 watchdog (see
-the power & thermal section below); `companion-sync` receives caregiver alerts and
-status but **never** sensor data.
+the power & thermal section below); `companion-sync` receives caregiver alerts,
+status, and — as of Phase 22, only under a recorded consent — an hourly digest of
+**counts and states**, but **never** sensor data and never memory content.
 
 ### The safe-mode gate — the heart of the product
 
@@ -174,6 +180,13 @@ only** (local SQLite; no new network path — constraint #2), and its raw conten
 Phase 10 (companion-sync can't accept a `SensorFrame`) is extended in
 `tests/memory_engine_test.cpp` to prove no send path can accept an embedding, a
 person record, or an event.
+
+Phase 22 added a caregiver digest and **did not weaken any of that** — it extended it.
+What crosses is a `CaregiverDigest` of counts and states, and the same TU now also
+proves the digest is not *constructible* from an embedding, a person record, an event
+or a reminder, and that `InboundCommand` is not constructible from an embedding either
+(the naming rule, as a compile-time fact). Both halves were re-verified by inverting an
+assertion and confirming the build fails. See the Phase 22 section below.
 
 **Encrypted at rest (Phase 16).** At rest the on-disk file is **AES-256-CTR
 ciphertext**, keyed by a per-device key file (owner-only, same posture as appkit's
@@ -290,6 +303,84 @@ the low-battery reminder pass fires on a threshold, not a true shutdown predicti
 LOGIC is CI-verified against simulated readings (`echo-power-mgmt`); real device power/thermal
 behaviour is a permanent-until-hardware gap (STATE.md gap #12), logged with the same honesty as
 the live-mic gap since Phase 9.
+
+### Wandering & distress detection (Phase 23)
+
+`AlertKind::Wandering` and `AlertKind::Distress` were defined in Phase 1 and never had a
+producer. `safety-mgmt` gives them one, mirroring Phase 18's three-part shape exactly:
+
+1. **A read-only sensing boundary.** `ILocationSource` (a coarse home/boundary/away zone
+   plus how long it's held) and `IArousalSource` (calm/elevated/high, same shape) — the same
+   interface + real-hook + deterministic-fake discipline as power/thermal. Coarse STATE, not
+   raw GPS lat/long or a biometric score, for the same reason Phase 18 chose a thermal state
+   over a temperature: the policy needs a risk band, not a setpoint.
+2. **A pure, deterministic policy** (`safety_policy.hpp`): each axis escalates
+   None → Suspected → Confirmed against a grace period (a brief boundary dip must not alarm;
+   a sustained one should), independently — a wandering episode implies nothing about
+   distress, or vice versa.
+3. **Application on the existing tick** by the `Runtime`, immediately after the power
+   decision. Unlike power, this gates nothing else in the tick — its only job is
+   edge-triggered alerting: a Confirmed risk raises `AlertKind::Wandering`/`::Distress` once
+   per episode (re-arming after recovery), and a sensing fault rides the EXISTING
+   `AlertKind::EngineDegraded` channel instead — a device-health condition, not a
+   wandering/distress event, keeping failure modes distinguishable (Phase 17's rule). Each
+   confirmed episode also increments a `CaregiverDigest` count (`wandering_flags`/
+   `distress_flags`), the same "how the wearer's day went" bucket as
+   `safe_mode_engagements`/`unverified_answers`.
+
+**Honest recovery scope, as everywhere else.** There is no real geofence/GPS chip and no real
+biometric/prosody classifier to read — not on this dev laptop, not on the not-yet-existing
+glasses. The real backends are documented stubs that always report the safe state (there's no
+plausible varying value to simulate at all, unlike battery drain). The POLICY is CI-verified
+against simulated readings (`echo-safety-mgmt`); real sensing is a permanent-until-hardware gap
+(STATE.md gap #16), and the grace-period thresholds chosen are provisional, not clinically
+validated.
+
+### The caregiver boundary (Phase 22)
+
+The one outbound path that a person outside the device reads. It is structured so that
+minimization is a property of the **type system**, not of reviewer vigilance.
+
+```
+memory store ──counts──▶ CaregiverLink ──▶ CaregiverDigest ──▶ SecureChannel ──▶ ICompanionTransport
+   (names,               (re-reads       (7×u32, 2×i64,       (AES-256-CTR      (fake | loopback |
+    embeddings,           consent          2 enums —           + CMAC,           real BLE = STUB)
+    summaries)            EVERY tick)      46 fixed bytes)     encrypt-then-MAC)
+        │                                        ▲
+        └────────────── no path ─────────────────┘
+                  (static_assert, two TUs)
+```
+
+Four things carry the design:
+
+1. **The digest is a type, not a convention.** Every field is a scalar or an enum, and
+   the struct plus its per-field assertions come from one X-macro list, so the proof
+   cannot drift from the struct. The encoder therefore has no branch that could emit a
+   length-prefixed string — it cannot leak content because the type has none. The wire
+   frame is **46 bytes whether the store holds 2 people or 22**, which is the property
+   the run-time test asserts directly.
+
+2. **Consent is re-read, never cached.** `caregiver_tick()` re-asserts the consent record
+   from the store on every tick; that is what makes revocation cold on the next one
+   rather than "cold once something restarts". No consent ⇒ `Unavailable`, never an
+   empty digest — an all-zero digest is a *claim* about the wearer's day.
+
+3. **The transport is contained like every other engine boundary**, but on its **own**
+   `EngineGuard` (`companion_budget`, 2 s) rather than the memory guard, and deliberately
+   *not* supervised by `watchdog_tick()`. A caregiver who walks out of range is a normal
+   condition, not a degraded device; charging a slow radio to the memory engine would
+   escalate through recovery and eventually reboot the glasses because someone's phone
+   went out of range.
+
+4. **Inbound is hostile until proven otherwise.** Sealed → MAC → direction → replay →
+   consent → schema (Phase 6 hardened parser) → rate limit → **announce to the wearer** →
+   apply. Firmware rides the same channel but is stashed, never applied inline, and
+   `poll_firmware_update()` **fails closed**.
+
+**What is not here:** the caregiver application. This is the device half plus an honest
+test double for the other half — an in-process fake and a loopback pair, both running
+inside one process with no network. Real BLE GATT returns `Unavailable` and says why.
+See ADR-19 and STATE.md gap #15.
 
 ## The isolation boundary (green box)
 

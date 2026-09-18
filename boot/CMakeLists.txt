@@ -5,6 +5,7 @@
 add_library(echo-runtime STATIC
     src/runtime.cpp
     src/engine_guard.cpp    # Phase 17: engine-boundary containment + hang bound
+    src/caregiver_link.cpp  # Phase 22: consent, digest assembly, inbound application
 )
 
 target_include_directories(echo-runtime PUBLIC
@@ -26,6 +27,7 @@ target_link_libraries(echo-runtime
         echo::voice
         echo::companion
         echo::power
+        echo::safety
         Threads::Threads
     PRIVATE
         echo-project-options

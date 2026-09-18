@@ -1,8 +1,8 @@
-#include "echo/apps/net/json.hpp"
+#include "echo/json.hpp"
 
 #include <cstdlib>
 
-namespace echo::apps::net {
+namespace echo {
 
 namespace {
 const Json& null_value() {
@@ -283,4 +283,4 @@ Json Json::parse(const std::string& text) {
     return out;
 }
 
-}  // namespace echo::apps::net
+}  // namespace echo

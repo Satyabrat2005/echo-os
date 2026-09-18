@@ -1,3 +1,21 @@
+# Decoder fuzzing
+
+> **Two harnesses share this setup.** This directory holds the appkit JSON one
+> (below). Phase 22 added a second, `companion-sync/fuzz/command_fuzz.cpp`, over the
+> caregiver inbound command decoder — same switch (`-DECHO_BUILD_FUZZERS=ON`, declared
+> at the root), same `standalone_main.cpp` replay driver, its own seed corpus in
+> `companion-sync/fuzz/corpus/`. Targets: **`echo-command-fuzzer`** (Clang) and
+> **`echo-command-fuzz-replay`** (any compiler). Everything in the sections below
+> applies to it verbatim; substitute the target and corpus names.
+>
+> That decoder gets its own harness because it is the only one whose output *changes
+> what the device does*: an accepted command is spoken aloud to the wearer or written
+> to their store. Its harness therefore asserts more than "did not crash" — it asserts
+> every field invariant of an *accepted* command, because a malformed command that is
+> accepted is worse than one that crashes. The bytes it sees have already passed the
+> secure channel's MAC, so it models an attacker who **holds the pairing key**: a
+> compromised caregiver phone.
+
 # JSON parser fuzzing
 
 The appkit JSON reader (`echo::apps::net::Json::parse`) is the one component that

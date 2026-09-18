@@ -47,6 +47,11 @@
 #include <thread>
 #include <vector>
 
+#if defined(_WIN32)
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#endif
+
 namespace {
 
 std::atomic<bool> g_stop{false};
@@ -56,6 +61,15 @@ bool has_flag(int argc, char** argv, const char* f) {
     for (int i = 1; i < argc; ++i)
         if (std::strcmp(argv[i], f) == 0) return true;
     return false;
+}
+
+// Hides the console window kiosk mode was launched from — once this returns,
+// nothing but the fullscreen HUD shell is visible. No-op on non-Windows.
+void hide_console_window() {
+#if defined(_WIN32)
+    HWND hwnd = GetConsoleWindow();
+    if (hwnd) ShowWindow(hwnd, SW_HIDE);
+#endif
 }
 
 bool contains(const std::string& hay, const char* needle) {
@@ -89,6 +103,11 @@ int main(int argc, char** argv) {
     const bool text_mode   = has_flag(argc, argv, "--text");
     const bool no_camera   = has_flag(argc, argv, "--no-camera");
     const bool headless_hud = has_flag(argc, argv, "--headless-hud");
+    bool kiosk = has_flag(argc, argv, "--kiosk");
+    if (kiosk && text_mode) {
+        log_warn("demo", "--kiosk is incompatible with --text (no console to type into); ignoring --kiosk");
+        kiosk = false;
+    }
 
     log_info("demo", "ECHO OS Phase 3 demo starting (fully local)");
 
@@ -101,8 +120,10 @@ int main(int argc, char** argv) {
     voice->initialize();
 
     // --- Visual surface: the HUD overlay window -------------------------------
-    auto hud_c = hud::make_hud_compositor(headless_hud ? hud::HudMode::Headless
-                                                       : hud::HudMode::Window);
+    hud::HudMode hud_mode = hud::HudMode::Window;
+    if (headless_hud) hud_mode = hud::HudMode::Headless;
+    else if (kiosk)    hud_mode = hud::HudMode::KioskWindow;
+    auto hud_c = hud::make_hud_compositor(hud_mode);
     hud_c->initialize();
     auto idle_frame = [&] {
         hud_c->present("echo", hud::HudFrame{}
@@ -262,7 +283,12 @@ int main(int argc, char** argv) {
         std::cout << "\nECHO demo listening. Say \"Hey ECHO\" then a request "
                      "(e.g. \"play some music\", \"who is this\"). Ctrl+C to stop.\n";
 
-        while (!g_stop) {
+        if (kiosk) {
+            log_info("demo", "kiosk mode: hiding console, fullscreen shell active — press Esc to quit");
+            hide_console_window();
+        }
+
+        while (!g_stop && !hud_c->should_quit()) {
             // Drain the camera lane: keep the latest recognized faces.
             while (auto cf = cam_q.pop()) {
                 auto pr = perception->process(*cf);
